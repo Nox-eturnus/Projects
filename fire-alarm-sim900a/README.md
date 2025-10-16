@@ -2,9 +2,6 @@
 
 **One-line:** Arduino-based flame detection system that sounds a buzzer and notifies a registered mobile number via SMS and call using a SIM900A GSM module.
 
-[![CI](https://github.com/Nox-eturnus/fire-alarm-sim900a/actions/workflows/ci.yml/badge.svg)](https://github.com/Nox-eturnus/fire-alarm-sim900a/actions)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
 ---
 
 ## Features
