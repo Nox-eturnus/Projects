@@ -7,7 +7,7 @@
 ##  Features
 
 - Implements **Grover’s algorithm** with support for **multiple target states**.  
-- Built with **Qiskit 2.0**, using modular **Oracle** and **Diffuser** subcircuits for clarity.  
+- Built with **Qiskit 2.X**, using modular **Oracle** and **Diffuser** subcircuits for clarity.  
 - Works **IBM Quantum** real backend.  
 - Displays **measurement histograms** with binary states.  
 - Fully customizable target list and dataset size.
