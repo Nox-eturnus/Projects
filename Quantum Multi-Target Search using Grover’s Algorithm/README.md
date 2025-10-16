@@ -1,6 +1,6 @@
 # Quantum Multi-Target Search using Grover’s Algorithm — Qiskit
 
-**One-line:** A 5-qubit generalized implementation of Grover’s search algorithm that can locate multiple target items in a 32-element dataset, runnable on both simulators and real IBM Quantum hardware.
+**One-line:** A 5-qubit generalized implementation of Grover’s search algorithm that can locate multiple target items in a 32-element dataset, runnable on real IBM Quantum hardware.
 
 ---
 
@@ -8,8 +8,8 @@
 
 - Implements **Grover’s algorithm** with support for **multiple target states**.  
 - Built with **Qiskit 2.0**, using modular **Oracle** and **Diffuser** subcircuits for clarity.  
-- Works with both **AerSimulator** and **IBM Quantum** real devices.  
-- Displays **measurement histograms** labeled with item names and binary states.  
+- Works **IBM Quantum** real backend.  
+- Displays **measurement histograms** with binary states.  
 - Fully customizable target list and dataset size.
 
 ---
