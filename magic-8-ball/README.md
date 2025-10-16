@@ -2,9 +2,6 @@
 
 **One-line:** A quantum-powered Magic 8-Ball simulator using Qiskit to generate random answers.
 
-[![CI](https://github.com/YOUR_USER/magic-8-ball/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USER/magic-8-ball/actions)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
 ---
 
 ## Features
