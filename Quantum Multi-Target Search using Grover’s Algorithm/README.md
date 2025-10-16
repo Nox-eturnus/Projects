@@ -4,5 +4,5 @@ A small Qiskit demo that implements a generalized multi-target Grover's search o
 This repository contains a script `grover_multitarget_5q.py` that marks multiple target items and visualizes the measurement histogram with readable labels.
 
 ## Files
-- `grover_multitarget_5q.` — main script
+- `grover_multitarget_5q.py` — main script
 - `LICENSE` — MIT License
