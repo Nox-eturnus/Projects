@@ -5,4 +5,3 @@ This repository contains a script `grover_multitarget_5q.ipynb` that marks multi
 
 ## Files
 - `grover_multitarget_5q.ipynb` — main script
-- `LICENSE` — MIT License
