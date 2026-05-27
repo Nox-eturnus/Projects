@@ -18,7 +18,7 @@ execution targets     : ideal simulation, real IBM QPU via IBM Cloud
 The ALU uses a conditional-compute design (12 qubits):
 
 ```text
-opcode register  ─┐
+opcode register   ─┐
                    ├─→  conditional compute  ─→  shared result register
 operand registers ─┘
 ```
