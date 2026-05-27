@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qalu"
+version = "0.1.0"
+description = "Beginner-friendly reversible Quantum ALU circuits in Qiskit"
+requires-python = ">=3.10"
+dependencies = [
+  "qiskit[all]>=2.0",
+  "qiskit-aer>=0.17",
+  "qiskit-ibm-runtime>=0.37",
+]
+
+[tool.setuptools.packages.find]
+include = ["qalu*"]
