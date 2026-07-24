@@ -1,0 +1,21 @@
+# Core scientific computing
+numpy>=2.0
+pandas>=2.0
+scipy>=1.10
+matplotlib>=3.7
+
+# Quantum computing
+qiskit>=2.0
+qiskit-aer>=0.15
+
+# Classical optimization
+ortools>=9.0
+
+# RNA thermodynamics (install via conda: conda install -c bioconda viennarna)
+# ViennaRNA>=2.6
+
+# Classical baselines (optional — SBM uses GPU if available)
+torch>=2.0
+
+# Testing
+pytest>=7.0
