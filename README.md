@@ -11,15 +11,25 @@ The projects reflect both exploratory research and practical implementations bui
 
 ---
 
-Each subfolder under `project/` represents an **independent project**, containing:
-- A dedicated `README.md` explaining the concept and usage  
-- Source code files (`.py`, `.ipynb`, etc.)   
+## Projects Included
+
+- [**Moderna**](./Moderna): mRNA Quantum Folding — Quantum optimization for RNA secondary structure prediction (NP-hard pseudoknots using QUBO, VQE, QAOA).
+- [**Q_ALU**](./Q_ALU): Quantum Arithmetic Logic Unit implementation.
+- [**Quantum Multi-Target Search**](./Quantum-Multi-Target-Search-using-Grover-Algorithm): Quantum search algorithm using Grover's algorithm for multiple targets.
+- [**Web Scrapper**](./Web_Scrapper): Web scraping utility.
+- [**fire-alarm-sim900a**](./fire-alarm-sim900a): GSM SIM900A based fire alarm system.
+- [**magic-8-ball**](./magic-8-ball): Magic 8 Ball decision maker.
 
 ---
 
-##  How to Use
+## How to Use
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USER/project.git
-   cd project
+   git clone https://github.com/Nox-eturnus/Projects.git
+   cd Projects
+   ```
+2. Navigate to the desired project directory:
+   ```bash
+   cd Moderna
+   ```

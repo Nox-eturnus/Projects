@@ -1,0 +1,146 @@
+{
+  "VQE_reps1_stem_vs_QAOA_XY_p1_stem": {
+    "vqe_config": "VQE_reps1_stem",
+    "qaoa_config": "QAOA_XY_p1_stem",
+    "vqe_fit_params": [
+      1.969039656486029,
+      -3.613572332929879,
+      -3.501539777208356
+    ],
+    "qaoa_fit_params": [
+      0.010139972699348965,
+      0.9825605129827512,
+      16.9769344849738
+    ],
+    "crossover_noise_proxy": 4.612666245363189,
+    "crossover_energy": 21.724903251864472,
+    "confidence_interval": 0.9225332490726379,
+    "discriminant": 181.5855441637661
+  },
+  "VQE_reps1_stem_vs_QAOA_XY_p2_stem": {
+    "vqe_config": "VQE_reps1_stem",
+    "qaoa_config": "QAOA_XY_p2_stem",
+    "vqe_fit_params": [
+      1.969039656486029,
+      -3.613572332929879,
+      -3.501539777208356
+    ],
+    "qaoa_fit_params": [
+      0.0013484924359745687,
+      0.5838241752096858,
+      15.996394056894358
+    ],
+    "crossover_noise_proxy": 4.39022658739577,
+    "crossover_energy": 18.585505437150104,
+    "confidence_interval": 0.8780453174791542,
+    "discriminant": 171.08178593692827
+  },
+  "VQE_reps1_stem_vs_QAOA_X_p1_stem": {
+    "vqe_config": "VQE_reps1_stem",
+    "qaoa_config": "QAOA_X_p1_stem",
+    "vqe_fit_params": [
+      1.969039656486029,
+      -3.613572332929879,
+      -3.501539777208356
+    ],
+    "qaoa_fit_params": [
+      -0.0034950544600074185,
+      3.10612727584996,
+      2.4249816063693452
+    ],
+    "crossover_noise_proxy": 4.133502322176994,
+    "crossover_energy": 15.20444996771859,
+    "confidence_interval": 0.8267004644353989,
+    "discriminant": 91.9154394093197
+  },
+  "VQE_reps1_stem_vs_QAOA_X_p2_stem": {
+    "vqe_config": "VQE_reps1_stem",
+    "qaoa_config": "QAOA_X_p2_stem",
+    "vqe_fit_params": [
+      1.969039656486029,
+      -3.613572332929879,
+      -3.501539777208356
+    ],
+    "qaoa_fit_params": [
+      -0.013218526644538027,
+      2.1348733351746,
+      -0.21002875791466977
+    ],
+    "crossover_noise_proxy": 3.389796195481425,
+    "crossover_energy": 6.8748663861834025,
+    "confidence_interval": 0.677959239096285,
+    "discriminant": 59.143126210586516
+  },
+  "VQE_reps2_stem_vs_QAOA_XY_p1_stem": {
+    "vqe_config": "VQE_reps2_stem",
+    "qaoa_config": "QAOA_XY_p1_stem",
+    "vqe_fit_params": [
+      0.28210341550626283,
+      0.9407298977599043,
+      -3.35042243147389
+    ],
+    "qaoa_fit_params": [
+      0.010139972699348965,
+      0.9825605129827512,
+      16.9769344849738
+    ],
+    "crossover_noise_proxy": 8.722648875199997,
+    "crossover_energy": 26.318960639675797,
+    "confidence_interval": 1.7445297750399995,
+    "discriminant": 22.11494168101811
+  },
+  "VQE_reps2_stem_vs_QAOA_XY_p2_stem": {
+    "vqe_config": "VQE_reps2_stem",
+    "qaoa_config": "QAOA_XY_p2_stem",
+    "vqe_fit_params": [
+      0.28210341550626283,
+      0.9407298977599043,
+      -3.35042243147389
+    ],
+    "qaoa_fit_params": [
+      0.0013484924359745687,
+      0.5838241752096858,
+      15.996394056894358
+    ],
+    "crossover_noise_proxy": 7.6898845481049705,
+    "crossover_energy": 20.565676749759664,
+    "confidence_interval": 1.537976909620994,
+    "discriminant": 21.85423759417634
+  },
+  "VQE_reps2_stem_vs_QAOA_X_p1_stem": {
+    "vqe_config": "VQE_reps2_stem",
+    "qaoa_config": "QAOA_X_p1_stem",
+    "vqe_fit_params": [
+      0.28210341550626283,
+      0.9407298977599043,
+      -3.35042243147389
+    ],
+    "qaoa_fit_params": [
+      -0.0034950544600074185,
+      3.10612727584996,
+      2.4249816063693452
+    ],
+    "crossover_noise_proxy": 9.67261934320875,
+    "crossover_energy": 32.14237260243901,
+    "confidence_interval": 1.93452386864175,
+    "discriminant": 11.286732031619476
+  },
+  "VQE_reps2_stem_vs_QAOA_X_p2_stem": {
+    "vqe_config": "VQE_reps2_stem",
+    "qaoa_config": "QAOA_X_p2_stem",
+    "vqe_fit_params": [
+      0.28210341550626283,
+      0.9407298977599043,
+      -3.35042243147389
+    ],
+    "qaoa_fit_params": [
+      -0.013218526644538027,
+      2.1348733351746,
+      -0.21002875791466977
+    ],
+    "crossover_noise_proxy": 5.858604463371561,
+    "crossover_energy": 11.84364694708062,
+    "confidence_interval": 1.1717208926743123,
+    "discriminant": 5.135687184294974
+  }
+}
