@@ -1,6 +1,0 @@
-id,sequence,known_structure_dotbracket,source,length,topology_class
-pk_htype_001,GCAUAUGCAUAUGCAUAAUGC,((((..[[[[))))...]]]],PseudoBase,21,pseudoknotted
-pk_htype_002,GCAUGAUCAUGCAUGCAUACAUG,(((((..[[[[)))))...]]]],PseudoBase,23,pseudoknotted
-pk_kissing_001,GCAAUUGCUGCAUAAUGGCACAU,(((..[[[)))...(((]]]))),PseudoBase,23,pseudoknotted
-pk_htype_003,GCAAUAUGCUGCUAUAUAUGCA,(((...[[[))).......]]],RNA STRAND (pk),22,pseudoknotted
-pk_htype_004,GCAUAUAUGCAUAUGCAUAUAUGC,((((....[[[[))))....]]]],RNA STRAND (pk),24,pseudoknotted
