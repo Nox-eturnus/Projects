@@ -17,6 +17,7 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "preview": "vite preview",
+    "generate-icons": "node scripts/generate-icons.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:unit && pnpm build"
   },
   "dependencies": {
