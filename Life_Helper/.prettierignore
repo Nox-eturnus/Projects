@@ -1,0 +1,7 @@
+dist
+dev-dist
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+life_helper_implementation_plan_v1.md

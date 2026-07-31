@@ -1,0 +1,31 @@
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: #141221;
+  color: #f4f2ff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  z-index: 1000;
+  font-size: 0.9rem;
+}
+
+.toast button {
+  background: #7c5cff;
+  color: #141221;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toast button:focus-visible {
+  outline: 2px solid #f4f2ff;
+  outline-offset: 2px;
+}
