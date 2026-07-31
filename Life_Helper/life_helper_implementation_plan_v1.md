@@ -175,6 +175,39 @@ Anything with a per-use price — hosted AI inference, transcription APIs, manag
 - If Google Calendar OAuth becomes a blocker, ship Phase C without capacity computation and treat calendar as a Phase D-parallel task. Do not let a third-party API block the first pillar.
 - If any component in the Decision 11 table starts requiring payment, a credit card, or drops below single-user viability, stop and migrate that one component. Do not accept "just a couple of dollars a month" — the zero-cost property is a design constraint, and the local-first architecture makes migration cheap precisely so this rule can be enforced.
 
+### 13. Visual identity derives from the app icon
+
+Added after Part A1, once a real app icon existed (`assets/app-icon-source.jpeg`). The app UI and the Today dashboard must read as the same product as the icon on the home screen — same palette, same temperament. A launcher icon that looks nothing like the app it opens is a small thing that makes the whole product feel unconsidered.
+
+The icon is a cream paper card over a deep green backing, with a checklist and an "LH" monogram. Its temperament is warm, muted, and paper-like — nothing in it is vivid or saturated.
+
+Palette sampled directly from the icon (these are the source values; Part A4 turns them into tokens, and may adjust lightness for dark mode):
+
+| Role | Hex | Where it comes from |
+|---|---|---|
+| Paper / surface | `#fcf7f0` | card face — the dominant colour, 58% of the tile |
+| Raised surface / tile | `#f4ebe0` | outer rounded frame |
+| Primary / ink | `#505e53` | deep green of the "L" and the backing card |
+| Primary (lighter) | `#616d60` | mid-green |
+| Secondary / muted | `#9d937f` | warm grey of the "H" |
+| Accent | `#d1b594` | the tan check circle |
+| Hairline / divider | `#e3dcd0` | ruled lines on the card |
+
+**Contrast constraint, measured, not assumed.** Against the `#fcf7f0` paper:
+
+- `#505e53` — 6.42:1, passes AA for body text
+- `#616d60` — 5.10:1, passes AA for body text
+- `#9d937f` — 2.85:1, **fails**
+- `#d1b594` — 1.83:1, **fails badly**
+
+So the warm grey and the tan are fills, strokes, and decoration only. They must never carry text, and never be the sole signal for state — pair them with a shape, an icon, or a label. Only the two greens are safe for type. Part I4's WCAG AA pass will otherwise fail late, after the whole design system is built on top of them.
+
+This palette also happens to serve Decision 7 well: there is no red in it. A system whose accent is a muted tan cannot easily shout at you, which is exactly the intent behind "no red badges, no guilt language."
+
+Dark mode is not a colour inversion of the above. Derive it from the icon's deep green as the base surface with the cream as ink, and re-measure every pair — inverted pairs do not automatically keep their ratios.
+
+If the icon is ever redesigned, this section and the Part A4 token file are what must change with it. Do not let the two drift apart.
+
 ---
 
 ## Surface legend
@@ -286,9 +319,11 @@ Deliverable: `src/ui/` primitives, `docs/phase_A4_design_system.md`.
 
 Build the minimum: type scale, spacing scale, color tokens with dark mode, buttons, inputs, list rows, sheets, and an app shell with navigation. Keyboard focus states are required, not optional.
 
+Colour tokens come from Decision 13 — the palette sampled from the app icon — not from a framework default or a fresh invention. Encode the contrast constraint in the token names themselves, so the failing colours are hard to misuse: name them for what they may do (`--accent-fill`, `--muted-stroke`) rather than as generic ramp steps (`--accent-500`), and give text tokens their own names (`--ink`, `--ink-secondary`) drawn only from the two greens that pass AA.
+
 Define the three-state pattern from Decision 7 as a reusable component contract so every subsequent view inherits it.
 
-Definition of Done: a component gallery route renders every primitive in light and dark mode; keyboard tab order is correct through the shell; the shell renders correctly at 360px width and at 1920px; no color is hardcoded outside the token file.
+Definition of Done: a component gallery route renders every primitive in light and dark mode; keyboard tab order is correct through the shell; the shell renders correctly at 360px width and at 1920px; no color is hardcoded outside the token file; every token pair intended for text is measured against WCAG AA and recorded in `docs/phase_A4_design_system.md` with its ratio, in both light and dark mode; the shell placed next to the installed home-screen icon reads as the same product.
 
 ---
 
