@@ -1,8 +1,11 @@
 # Phase A, Part A1 — Repository, toolchain, and verification harness
 
-Status: local scaffolding complete. Cloudflare Pages connection and account
-creation are **not done** — see "Manual steps required" below; they need
-the project owner's direct action and cannot be performed by an agent.
+Status: **done, with one recorded deviation.** Cloudflare (hosting, account,
+Pages project, Android install) is fully confirmed. Google Cloud account
+creation is **blocked** — it requires a billing account (a card) even for
+its nominally free tier, which Decision 11 disqualifies outright. This is
+deferred under Decision 12 rather than treated as an open item — see
+"Google Cloud: blocked" below.
 
 ## What's in place
 
@@ -15,17 +18,29 @@ the project owner's direct action and cannot be performed by an agent.
   an in-app install/update prompt (`src/pwa/PwaPrompts.tsx`)
 - Vitest + `@testing-library/react` for unit/integration tests (`*.test.tsx`
   next to source, jsdom environment, V8 coverage)
-- Playwright for e2e (`e2e/`), builds and serves the production bundle and
-  drives it with Chromium
-- ESLint (flat config, `typescript-eslint` `strictTypeChecked`) + Prettier,
-  both wired into `pnpm verify`
+- Playwright for e2e (`e2e/`), builds and serves the production bundle,
+  drives it with Chromium, and asserts the service worker actually
+  registers and the manifest resolves with the expected icon set
+- ESLint (flat config, `typescript-eslint` `strictTypeChecked` for TS,
+  `js.configs.recommended` for plain JS/scripts) + Prettier, both wired
+  into `pnpm verify`
 - `pnpm verify` = `typecheck && lint && format:check && test:unit && build`
 - `.nvmrc` (`26.4.0`) + `engines.node` + `packageManager` pin `pnpm@11.18.0`
   in `package.json`
+- `.gitattributes` (`* text=auto eol=lf`) — see "Deviations" below; without
+  this, a fresh clone on Windows with the common `core.autocrlf=true`
+  setting fails `prettier --check` (and therefore `pnpm verify`) on a clean
+  checkout, which directly undermines this part's own DoD
 - `.github/workflows/life-helper-verify.yml` at the monorepo root: runs
-  `pnpm verify` on push, scoped to `Life_Helper/**` via a `paths` filter (this
-  repo hosts other unrelated projects — see Decision 11's Actions-minutes
-  budget), with a concurrency group that cancels superseded runs
+  `pnpm verify` on push, scoped to `Life_Helper/**` via a `paths` filter
+  (this repo hosts other unrelated projects — see Decision 11's
+  Actions-minutes budget), with a concurrency group that cancels
+  superseded runs
+- **Deployed and live** at `https://life-helper.pages.dev/` via Cloudflare
+  Pages, connected to this repo, root directory `Life_Helper`, building
+  `pnpm install && pnpm build` into `dist`
+- **Installed on Android** — confirmed working (install prompt appeared,
+  launches standalone)
 
 ## Repository layout note
 
@@ -33,9 +48,8 @@ This repo (`Nox-eturnus/Projects`) is a monorepo: `Life_Helper/` is one
 folder among several unrelated projects (`Q_ALU/`, `QCNN-QKD/`), not its own
 GitHub repository. That's consistent with how the other projects are
 already organized here, and Cloudflare Pages supports building from a
-subdirectory of a monorepo (set the Pages project's "root directory" to
-`Life_Helper` — see manual steps below), so nothing in the plan requires a
-dedicated repo.
+subdirectory of a monorepo (root directory set to `Life_Helper`), so nothing
+in the plan requires a dedicated repo.
 
 ## Deviations from the plan text
 
@@ -43,50 +57,103 @@ dedicated repo.
   the stack (Node, pnpm, TypeScript strict) but doesn't call out React 18
   as load-bearing for anything downstream; it reads as "current stable at
   time of writing." Starting a fresh project in mid-2026 on a superseded
-  major would be the wrong call. Flagging this explicitly per the plan's
-  own instruction to record any change before it's load-bearing elsewhere.
-- **Icon generation is hand-rolled, not `@vite-pwa/assets-generator`.** That
+  major would be the wrong call.
+- **Icon generation avoids `@vite-pwa/assets-generator` / `sharp`.** That
   tool depends on `sharp`, whose prebuilt native binding fails to `dlopen`
-  on this Windows + Node 26.4.0 combination (`ERR_DLOPEN_FAILED`), most
-  likely because prebuilds haven't caught up to this Node major yet. Rather
-  than chase a native-binary fix, `scripts/generate-icons.mjs` rasterizes
-  the icon set by hand and encodes PNG using only Node's built-in `zlib` —
-  zero native dependencies, deterministic, and in keeping with the project's
-  own offline/zero-cost bias. Source vector kept at `assets/logo.svg` for
-  reference; regenerate with `pnpm generate-icons`.
+  on this Windows + Node 26.4.0 combination (`ERR_DLOPEN_FAILED`).
+  `scripts/generate-icons.mjs` uses `jimp` instead — a pure-JS image
+  library with no native bindings to fail. The source design lives at
+  `assets/app-icon-source.jpeg` (a real designed icon, not a placeholder);
+  the script resizes it into every size the manifest needs. Regenerate
+  with `pnpm generate-icons` after replacing the source file. (An earlier
+  version of this script hand-drew a placeholder "LH" monogram and
+  encoded PNG via raw `zlib`, avoiding even `jimp` — that placeholder is
+  gone now that a real design exists, but the same native-binary
+  workaround logic carried over to the jimp-based replacement.)
+- **Maskable icon reuses the same crop as the "any" icons, not a
+  safe-zone-aware variant.** `maskable-icon-512x512.png` is pixel-identical
+  to `pwa-512x512.png`. The source design already has generous padding
+  around its rounded-square card, so it survives Android's adaptive-icon
+  masking reasonably well, but the outer shadow/corners may clip slightly
+  under some mask shapes. Acceptable for now; revisit with a
+  purpose-built safe-zone crop if it looks wrong on a real device.
 - **`vite-plugin-pwa`'s virtual module is aliased out under test.**
   `virtual:pwa-register/react` doesn't resolve inside Vitest's transform
   pipeline (`workbox-window` import fails, then a `file://` URL error).
   `vite.config.ts` swaps in a stub (`src/test/mocks/pwa-register-react.ts`)
   only when `mode === 'test'`; the real plugin and virtual module are used
-  for `dev`/`build` unchanged.
+  for `dev`/`build` unchanged, and the e2e suite covers the real path.
+- **`.gitattributes` added after the fact.** A clean clone on Windows with
+  `core.autocrlf=true` (a very common default) checks tracked files out
+  with CRLF line endings, which then fails `prettier --check` even though
+  the committed content is byte-identical modulo line endings. This was
+  only discovered while re-verifying the toolchain after merge, not during
+  the original build — worth noting because it means the same class of bug
+  could resurface for any file added without going through `pnpm format`
+  first on a Windows machine with autocrlf on.
+- **Cloudflare Pages, via the Git-connected wizard, not the newer unified
+  "Workers" flow.** Cloudflare has been folding classic Pages into
+  Workers-with-static-assets; the default "Create a Worker" flow expects a
+  `wrangler.jsonc` and doesn't expose a root-directory field up front. We
+  used the still-available Pages-specific "Connect to Git" wizard instead,
+  which matches this document's original instructions exactly (root
+  directory / build command / build output directory as plain form
+  fields) and needs no `wrangler.jsonc` in the repo. If Cloudflare
+  eventually removes the Pages wizard entirely, migrating to Workers
+  static assets is documented at
+  <https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/>
+  and stays zero-cost either way (static asset requests are free on
+  Workers too).
 
-## Manual steps required (cannot be done by an agent)
+## Google Cloud: blocked
 
-These are account-creation and OAuth/dashboard actions Claude will not
-perform autonomously (account creation and granting third-party access are
-both outside what an agent should do without you directly in the loop).
-Recorded here so this part's Definition of Done can be tracked to completion:
+Google Cloud project creation requires linking a billing account (a credit
+card) before you can do anything with it — including using APIs that are
+themselves free, like Google Calendar's. The "free trial" still demands a
+card up front. This directly conflicts with Decision 11 ("No credit card on
+file anywhere... If a service asks for a card to proceed, that service is
+disqualified") and was confirmed by the project owner directly, not
+assumed.
 
-1. **Create a Cloudflare account** (no credit card). Confirm no card is on
-   file — this is the anchor of Decision 11's zero-cost constraint.
-2. **Create a Google Cloud account/project** (no billing enabled) for the
-   Phase C3 Calendar API — not needed until Phase C, but the plan asks
-   this be confirmed in Part A1.
-3. **Create a Cloudflare Pages project** connected to this GitHub repo,
-   with:
-   - root directory: `Life_Helper`
-   - build command: `pnpm install && pnpm build`
-   - build output directory: `dist`
-4. **Confirm the Pages deploy is automatic and green** on push to `main`.
-5. **Install the deployed PWA to an Android home screen** over the
-   `*.pages.dev` HTTPS URL and confirm the install prompt appears and the
-   app launches standalone.
-6. Record every account's "no card on file" confirmation, and the measured
-   Cloudflare Pages usage, in `docs/cost_ledger.md`.
+This is handled as a deferral, not a blocker on Part A1, because:
 
-Until these are done, Part A1's Definition of Done is not met — the local
-toolchain (this document's first section) is necessary but not sufficient.
+- Decision 12 anticipates exactly this: "If Google Calendar OAuth becomes a
+  blocker, ship Phase C without capacity computation and treat calendar as
+  a Phase D-parallel task. Do not let a third-party API block the first
+  pillar."
+- Nothing in Phase A, Phase B, or most of Phase C depends on Google Cloud.
+  Only Part C3 (free-capacity display) and Part G3 (pre-meeting brief) do.
+- It's recorded in `docs/cost_ledger.md` (Account confirmations table) so
+  it isn't silently forgotten, and it's the thing to revisit first when
+  Part C3 starts.
+
+If a card-free path to a Google Cloud project ever becomes available, or a
+different calendar integration approach is found, that supersedes this
+note. Until then, Part C3 should be scoped and built without calendar
+capacity computation, per the plan's own stop/pivot rule.
+
+## Manual steps (status)
+
+1. ✅ **Cloudflare account created**, no credit card on file (confirmed by
+   the project owner directly).
+2. ❌ **Google Cloud account/project** — blocked, see above. Not required
+   for A1's own DoD; required starting Part C3.
+3. ✅ **Cloudflare Pages project created**, connected to this GitHub repo:
+   root directory `Life_Helper`, build command `pnpm install && pnpm build`,
+   build output directory `dist`.
+4. ✅ **Pages deploy is automatic and green** on push to `main` — confirmed
+   live at `https://life-helper.pages.dev/`; HTTP 200 verified directly on
+   `/`, `/manifest.webmanifest`, `/sw.js`, and an icon path, each with the
+   correct content type.
+5. ✅ **Installed on Android home screen** over the `*.pages.dev` HTTPS
+   URL — install prompt appeared, app launches standalone (confirmed by
+   the project owner directly).
+6. ✅ Account confirmations and measured Cloudflare/GitHub usage recorded
+   in `docs/cost_ledger.md`; Google Cloud recorded as blocked there too.
+
+Part A1's Definition of Done is met for everything Cloudflare-dependent.
+The one open item (Google Cloud / Calendar) is explicitly deferred to
+Part C3 under Decision 12, not silently dropped.
 
 ## Verification
 
@@ -105,5 +172,6 @@ Either way, the resulting `pnpm` version should match
 `package.json#packageManager`.
 
 `pnpm verify` and `pnpm test:e2e` were both run clean locally on
-2026-07-31. CI (`life-helper-verify.yml`) has not yet run — it fires on the
-first push to a branch that touches `Life_Helper/**`.
+2026-07-31, from a checkout with `.gitattributes` in effect (see
+Deviations). CI (`life-helper-verify.yml`) has run twice on push to
+`main`/the feature branch, both green.
