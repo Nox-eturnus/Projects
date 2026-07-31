@@ -53,7 +53,7 @@ dedicated repo.
   the icon set by hand and encodes PNG using only Node's built-in `zlib` —
   zero native dependencies, deterministic, and in keeping with the project's
   own offline/zero-cost bias. Source vector kept at `assets/logo.svg` for
-  reference; regenerate with `node scripts/generate-icons.mjs`.
+  reference; regenerate with `pnpm generate-icons`.
 - **`vite-plugin-pwa`'s virtual module is aliased out under test.**
   `virtual:pwa-register/react` doesn't resolve inside Vitest's transform
   pipeline (`workbox-window` import fails, then a `file://` URL error).
@@ -97,6 +97,12 @@ pnpm install
 pnpm verify      # typecheck + lint + format check + unit tests + build — green
 pnpm test:e2e    # Playwright e2e — green (builds + serves + drives Chromium)
 ```
+
+Node 25+ no longer bundles Corepack, so "a clean clone on a machine with
+only Node installed" needs one extra step before `pnpm` is on `PATH`:
+`corepack enable` (or `npm install -g pnpm` if Corepack isn't available).
+Either way, the resulting `pnpm` version should match
+`package.json#packageManager`.
 
 `pnpm verify` and `pnpm test:e2e` were both run clean locally on
 2026-07-31. CI (`life-helper-verify.yml`) has not yet run — it fires on the
