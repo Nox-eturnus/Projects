@@ -58,14 +58,25 @@ in the plan requires a dedicated repo.
   as load-bearing for anything downstream; it reads as "current stable at
   time of writing." Starting a fresh project in mid-2026 on a superseded
   major would be the wrong call.
-- **Icon generation is hand-rolled, not `@vite-pwa/assets-generator`.** That
+- **Icon generation avoids `@vite-pwa/assets-generator` / `sharp`.** That
   tool depends on `sharp`, whose prebuilt native binding fails to `dlopen`
-  on this Windows + Node 26.4.0 combination (`ERR_DLOPEN_FAILED`). Rather
-  than chase a native-binary fix, `scripts/generate-icons.mjs` rasterizes
-  the icon set by hand and encodes PNG using only Node's built-in `zlib` —
-  zero native dependencies, deterministic, and in keeping with the
-  project's own offline/zero-cost bias. Source vector kept at
-  `assets/logo.svg` for reference; regenerate with `pnpm generate-icons`.
+  on this Windows + Node 26.4.0 combination (`ERR_DLOPEN_FAILED`).
+  `scripts/generate-icons.mjs` uses `jimp` instead — a pure-JS image
+  library with no native bindings to fail. The source design lives at
+  `assets/app-icon-source.jpeg` (a real designed icon, not a placeholder);
+  the script resizes it into every size the manifest needs. Regenerate
+  with `pnpm generate-icons` after replacing the source file. (An earlier
+  version of this script hand-drew a placeholder "LH" monogram and
+  encoded PNG via raw `zlib`, avoiding even `jimp` — that placeholder is
+  gone now that a real design exists, but the same native-binary
+  workaround logic carried over to the jimp-based replacement.)
+- **Maskable icon reuses the same crop as the "any" icons, not a
+  safe-zone-aware variant.** `maskable-icon-512x512.png` is pixel-identical
+  to `pwa-512x512.png`. The source design already has generous padding
+  around its rounded-square card, so it survives Android's adaptive-icon
+  masking reasonably well, but the outer shadow/corners may clip slightly
+  under some mask shapes. Acceptable for now; revisit with a
+  purpose-built safe-zone crop if it looks wrong on a real device.
 - **`vite-plugin-pwa`'s virtual module is aliased out under test.**
   `virtual:pwa-register/react` doesn't resolve inside Vitest's transform
   pipeline (`workbox-window` import fails, then a `file://` URL error).
