@@ -1,0 +1,41 @@
+name: Life Helper verify
+
+on:
+  push:
+    paths:
+      - 'Life_Helper/**'
+      - '.github/workflows/life-helper-verify.yml'
+
+concurrency:
+  group: life-helper-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: Life_Helper
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read pinned Node version
+        id: node-version
+        run: echo "version=$(cat .nvmrc)" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Life_Helper/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.node-version.outputs.version }}
+          cache: pnpm
+          cache-dependency-path: Life_Helper/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify
+        run: pnpm verify
