@@ -13,7 +13,6 @@ The projects reflect both exploratory research and practical implementations bui
 
 ## Projects Included
 
-- [**Moderna**](./Moderna): mRNA Quantum Folding — Quantum optimization for RNA secondary structure prediction (NP-hard pseudoknots using QUBO, VQE, QAOA).
 - [**Q_ALU**](./Q_ALU): Quantum Arithmetic Logic Unit implementation.
 - [**Quantum Multi-Target Search**](./Quantum-Multi-Target-Search-using-Grover-Algorithm): Quantum search algorithm using Grover's algorithm for multiple targets.
 - [**Web Scrapper**](./Web_Scrapper): Web scraping utility.
