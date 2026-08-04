@@ -1,9 +1,15 @@
+/// <reference types="vite/client" />
 /**
  * Environment-agnostic migration runner. Deliberately has no dependency on
  * any particular SQLite binding: it is exercised in tests against
  * `node:sqlite` (see schema.test.ts) and is the same code Part A3 will
  * drive against `@sqlite.org/sqlite-wasm` in the browser worker — only the
  * `SqliteConnection` adapter changes between the two.
+ *
+ * `import.meta.glob` needs an explicit `vite/client` types reference here
+ * because this file is also reached (via ops.ts) from tsconfig.e2e.json,
+ * which — unlike tsconfig.app.json — doesn't list "vite/client" in its
+ * `types` array.
  */
 
 export interface SqliteStatement {

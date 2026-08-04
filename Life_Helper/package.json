@@ -21,6 +21,8 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:unit && pnpm build"
   },
   "dependencies": {
+    "@sqlite.org/sqlite-wasm": "3.53.0-build1",
+    "comlink": "^4.4.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -35,6 +37,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
     "@vitest/coverage-v8": "^4.1.10",
+    "cross-env": "^10.1.0",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
