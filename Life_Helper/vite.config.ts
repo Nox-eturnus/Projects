@@ -7,6 +7,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const isTest = mode === 'test'
+  // debug-db.html/src/db/debugHarness.ts give raw read/write access to the
+  // local database with no auth gate. Fine for e2e (see playwright.config.ts,
+  // which sets this) and dev, but it must never ship in the real deploy.
+  const includeDebugHarness = process.env.LIFE_HELPER_INCLUDE_DEBUG_HARNESS === '1'
 
   return {
     test: {
@@ -21,6 +25,16 @@ export default defineConfig(({ mode }) => {
       },
       exclude: ['e2e/**', 'node_modules/**'],
     },
+    build: includeDebugHarness
+      ? {
+          rollupOptions: {
+            input: {
+              main: fileURLToPath(new URL('./index.html', import.meta.url)),
+              debugDb: fileURLToPath(new URL('./debug-db.html', import.meta.url)),
+            },
+          },
+        }
+      : undefined,
     resolve: isTest
       ? {
           alias: {
