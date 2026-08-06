@@ -1,0 +1,98 @@
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 48rem;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--ink);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 24rem;
+}
+
+.list {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.demoFrame {
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-3);
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+}
+
+.swatchName {
+  font-family: ui-monospace, monospace;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.swatchRole {
+  font-size: var(--text-xs);
+  color: var(--ink-secondary);
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.contrastTable {
+  width: 100%;
+  min-width: 28rem;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.contrastTable th,
+.contrastTable td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.contrastTable th {
+  color: var(--ink-secondary);
+  font-weight: 600;
+}
