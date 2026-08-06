@@ -1,31 +1,31 @@
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 1rem;
+  bottom: var(--space-4);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  background: #141221;
-  color: #f4f2ff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--ink);
+  color: var(--surface-paper);
+  box-shadow: var(--shadow-raised);
   z-index: 1000;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .toast button {
-  background: #7c5cff;
-  color: #141221;
+  background: var(--surface-paper);
+  color: var(--ink);
   border: none;
-  border-radius: 0.5rem;
-  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
   font-weight: 600;
   cursor: pointer;
 }
 
 .toast button:focus-visible {
-  outline: 2px solid #f4f2ff;
+  outline: 2px solid var(--surface-paper);
   outline-offset: 2px;
 }

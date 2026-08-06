@@ -1,0 +1,60 @@
+.sheet {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  top: auto;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 32rem;
+  max-height: 85vh;
+  border: none;
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  padding: 0;
+  background: var(--surface-paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-raised);
+}
+
+.sheet::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--ink);
+}
+
+.close {
+  border: none;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: var(--text-xl);
+  line-height: 1;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.close:hover {
+  background: var(--surface-raised);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.body {
+  padding: var(--space-4);
+  overflow-y: auto;
+}

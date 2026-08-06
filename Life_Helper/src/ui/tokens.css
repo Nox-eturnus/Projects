@@ -1,0 +1,85 @@
+/**
+ * Design tokens (Part A4). Colour values come from Decision 13 — the palette
+ * sampled from the app icon — not a framework default. Keep every hex value here
+ * byte-identical to src/ui/contrast.ts's lightTokens/darkTokens; that file is the
+ * source of truth for the contrast ratios recorded in
+ * docs/phase_A4_design_system.md.
+ *
+ * Token names describe what a colour may do (--accent-fill, --muted-stroke),
+ * not a generic ramp step, so the two colours that fail WCAG AA against the
+ * paper surface (accent, muted) are hard to reach for as text by accident.
+ * Only --ink and --ink-secondary are cleared to carry text.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Light theme (default) */
+  --surface-paper: #fcf7f0;
+  --surface-raised: #f4ebe0;
+  --ink: #505e53;
+  --ink-secondary: #616d60;
+  --muted-fill: #9d937f;
+  --muted-stroke: #9d937f;
+  --accent-fill: #d1b594;
+  --accent-stroke: #d1b594;
+  --hairline: #e3dcd0;
+  --focus-ring: var(--ink);
+
+  /* Type scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Radii */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+
+  /* Elevation (sheets, toasts) */
+  --shadow-raised: 0 4px 20px rgba(0, 0, 0, 0.16);
+}
+
+/* System dark mode, unless a manual choice below overrides it. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface-paper: #20261f;
+    --surface-raised: #2a3128;
+    --ink: #f4ebe0;
+    --ink-secondary: #c9c0ab;
+    --muted-fill: #8b8270;
+    --muted-stroke: #8b8270;
+    --accent-fill: #a9835c;
+    --accent-stroke: #a9835c;
+    --hairline: #3a4238;
+    --shadow-raised: 0 4px 20px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* Manual override, e.g. the gallery's theme toggle, wins regardless of OS setting. */
+[data-theme='dark'] {
+  --surface-paper: #20261f;
+  --surface-raised: #2a3128;
+  --ink: #f4ebe0;
+  --ink-secondary: #c9c0ab;
+  --muted-fill: #8b8270;
+  --muted-stroke: #8b8270;
+  --accent-fill: #a9835c;
+  --accent-stroke: #a9835c;
+  --hairline: #3a4238;
+  --shadow-raised: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
