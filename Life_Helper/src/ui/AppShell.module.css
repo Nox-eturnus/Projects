@@ -1,0 +1,129 @@
+.shell {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-paper);
+  color: var(--ink);
+}
+
+.skipLink {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--surface-raised);
+  color: var(--ink);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  z-index: 100;
+}
+
+.skipLink:focus {
+  left: var(--space-4);
+  top: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.brand {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.navList {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: var(--space-3) var(--space-2);
+  color: var(--ink-secondary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  border-top: 2px solid transparent;
+}
+
+.navLink:hover {
+  background: var(--surface-raised);
+}
+
+.navLink:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.navLink[data-current] {
+  color: var(--ink);
+  font-weight: 600;
+  border-top-color: var(--accent-stroke);
+}
+
+.main {
+  flex: 1;
+  padding: var(--space-4);
+}
+
+/* Mobile (<768px): bottom tab bar, fixed to the viewport so content can scroll under it. */
+@media (max-width: 767px) {
+  .nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--surface-paper);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .main {
+    padding-bottom: calc(var(--space-6) + 3rem);
+  }
+}
+
+/* Desktop (>=768px): header spans the top, nav becomes a left sidebar. */
+@media (min-width: 768px) {
+  .shell {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .header {
+    width: 100%;
+  }
+
+  .nav {
+    width: 14rem;
+    flex: none;
+    border-right: 1px solid var(--hairline);
+  }
+
+  .navList {
+    flex-direction: column;
+  }
+
+  .navLink {
+    justify-content: flex-start;
+    border-top: none;
+    border-left: 2px solid transparent;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .navLink[data-current] {
+    border-left-color: var(--accent-stroke);
+    border-top-color: transparent;
+  }
+
+  .main {
+    padding: var(--space-6);
+  }
+}

@@ -63,8 +63,12 @@ export default defineConfig(({ mode }) => {
                 start_url: '/',
                 scope: '/',
                 display: 'standalone',
-                background_color: '#141221',
-                theme_color: '#141221',
+                // Manifest JSON can't reference tokens.css's custom properties, so these
+                // are kept in sync with --surface-paper / --ink (Decision 13) by hand —
+                // the splash screen and OS chrome must match the icon, not the old
+                // pre-Decision-13 placeholder palette.
+                background_color: '#fcf7f0',
+                theme_color: '#505e53',
                 icons: [
                   {
                     src: '/pwa-192x192.png',
