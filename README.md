@@ -30,5 +30,5 @@ The projects reflect both exploratory research and practical implementations bui
    ```
 2. Navigate to the desired project directory:
    ```bash
-   cd Moderna
+   cd Q_ALU
    ```
