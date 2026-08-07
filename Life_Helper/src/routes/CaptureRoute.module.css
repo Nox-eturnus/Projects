@@ -44,11 +44,15 @@
   justify-content: center;
   width: 3rem;
   height: 3rem;
-  font-size: var(--text-xl);
   color: var(--ink);
   background: var(--surface-raised);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
+}
+
+.micButton svg {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .micButton:hover {
@@ -82,11 +86,4 @@
   margin: 0;
   color: var(--ink-secondary);
   font-size: var(--text-base);
-}
-
-/* TEMPORARY — see the note in CaptureRoute.tsx next to lastLatencyMs. */
-.latencyDebug {
-  margin: 0;
-  color: var(--ink-secondary);
-  font-size: var(--text-xs);
 }

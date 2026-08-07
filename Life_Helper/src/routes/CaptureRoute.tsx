@@ -29,13 +29,6 @@ const RECENT_CAPTURES_SQL = `
  */
 export function CaptureRoute() {
   const [text, setText] = useState('')
-  // TEMPORARY — Part B1's Android device verification only. Decision 9's
-  // "keypress to persisted < 200ms" budget needs an on-device number, and
-  // this is the cheapest way to read one off a phone screen with no
-  // laptop/remote-debugging tether. Remove this state, the timing in
-  // handleKeyDown, and the <p> below once that number is recorded in
-  // docs/phase_B1_capture_surface.md.
-  const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { data, loading } = useQuery<RecentCapture>(RECENT_CAPTURES_SQL, [], {
     tables: ['items'],
@@ -63,15 +56,7 @@ export function CaptureRoute() {
     const raw = text
     if (raw.trim().length === 0) return
     setText('')
-    // Timed from this same keydown, not from an earlier keystroke — this is
-    // the "commit" half of Decision 9's budget (write durably persisted),
-    // not the full first-character-to-here typing latency, which is the
-    // browser's own input handling and not something this write path
-    // controls.
-    const start = performance.now()
-    void captureTask(raw, { mutate: (input) => dbClient.mutate(input) }).then(() => {
-      setLastLatencyMs(Math.round(performance.now() - start))
-    })
+    void captureTask(raw, { mutate: (input) => dbClient.mutate(input) })
   }
 
   function handleMicClick(): void {
@@ -109,14 +94,22 @@ export function CaptureRoute() {
           aria-label="Dictate with the system keyboard"
           onClick={handleMicClick}
         >
-          <span aria-hidden="true">🎤</span>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="9" y="2" width="6" height="12" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0" />
+            <line x1="12" y1="18" x2="12" y2="22" />
+            <line x1="8" y1="22" x2="16" y2="22" />
+          </svg>
         </button>
       </div>
-
-      {lastLatencyMs !== null ? (
-        // TEMPORARY — see the note at lastLatencyMs's declaration above.
-        <p className={styles.latencyDebug}>Captured in {lastLatencyMs}ms</p>
-      ) : null}
 
       <section className={styles.recent}>
         <h2 className={styles.sectionTitle}>Recently captured</h2>
