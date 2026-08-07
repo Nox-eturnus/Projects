@@ -1,8 +1,8 @@
 # Phase B, Part B1 — Capture surface
 
-Status: **done**, except two Android-device-only Definition of Done lines
-(see "What's deferred to a real device" below) — this session has no
-physical Android hardware to measure against.
+Status: **done.** Every Definition of Done line is verified, including the
+two that needed a real Android device (see "Verified on a real Android
+device" below).
 
 ## What's in place
 
@@ -82,7 +82,13 @@ this part must not implement speech recognition, bundle a model, or call
 a transcription API — Android's own keyboard dictation already covers it
 for free once the system keyboard is showing. A button that only focuses
 the field looks like it does nothing, but "does nothing beyond what the
-platform already provides" is the literal requirement here.
+platform already provides" is the literal requirement here. Its icon is
+an inline SVG (a stroke-based capsule/stand/base mic glyph, matching a
+reference shape), not an emoji or a raster image — `stroke="currentColor"`
+means it inherits `--ink` and switches with the theme for free, which a
+🎤 emoji or a PNG can't do, and it's the only way to stay inside "no color
+hardcoded outside the token file" (Part A4's Definition of Done, which
+this part still has to honor).
 
 ## A pre-existing test-infrastructure gap, fixed in passing
 
@@ -116,27 +122,33 @@ Neither gap is specific to capture — any future component that imports
 same file Part A4 already established as the place for jsdom-limitation
 workarounds, means Part C and later don't rediscover this.
 
-## What's deferred to a real device
+## Verified on a real Android device
 
-Two Definition of Done lines are Android-hardware-only and this session
-had no physical device to measure against:
+This session had no physical Android hardware, so these two Definition of
+Done lines were checked by deploying the branch to a Cloudflare Pages
+preview (`https://life-helper-phase-b1-capture.life-helper.pages.dev`)
+and testing from an actual phone, not simulated:
 
-- **keypress-to-persisted under 200ms, measured on a mid-range Android
-  device.** What _is_ verified: `captureTask()` called directly against a
-  real worker+OPFS `dbClient` in a desktop Chromium browser resolved in
-  ~80–120ms end-to-end (two writes, six `ops` rows), comfortably inside
-  budget on hardware far slower than a modern mid-range phone would be
-  for the same local-only SQLite write — but this is not a substitute for
-  the device measurement the plan asks for.
-- **dictation produces text in the field on Android.** The mechanism
-  (focus the field, let the system keyboard's own mic button handle it —
-  see "Design decisions" above) has no code path for this repo to get
-  wrong beyond focusing correctly, which e2e-tests do cover, but the
-  actual dictation behavior is entirely the OS keyboard's, unverifiable
-  without a device.
+- **keypress-to-persisted under 200ms.** Measured with a temporary
+  on-screen "Captured in Xms" readout (timed from the same Enter keydown
+  that clears the field to `captureTask()`'s `mutate()` promise
+  resolving — the write-durability half of the budget, not general
+  typing/input latency, which is the OS keyboard's concern, not this
+  write path's). Three consecutive real captures: **20ms, 32ms, 30ms** —
+  comfortably inside the 200ms budget, consistent with the ~80–120ms
+  measured earlier in a desktop browser. The readout and its supporting
+  state were removed from `CaptureRoute.tsx` once this number was
+  recorded here; it was never meant to ship.
+- **dictation produces text in the field on Android.** Confirmed directly:
+  tapping the mic button focuses the field and brings up the system
+  keyboard, whose own microphone key performed the dictation — exactly
+  the "no speech recognition of our own" mechanism this part is supposed
+  to rely on, and nothing else.
 
-Record both against a real device before treating Part B4's capture gate
-as satisfied.
+Both device-dependent conditions in Part B4's capture gate are now
+satisfied; the rest of that gate (7 consecutive days of real usage, 30
+real items, home-screen install) is a usage period that hasn't started
+yet and belongs to B4, not B1.
 
 ## Verification
 
@@ -145,13 +157,13 @@ pnpm verify      # typecheck + lint + format + 141 unit tests (17 files) + build
 pnpm test:e2e    # 11 Playwright tests, including all 5 capture.spec.ts scenarios below — green
 ```
 
-| DoD requirement                                             | Where                                                                                     |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| capture works fully offline, network disabled               | `e2e/capture.spec.ts`: offline test (`context.setOffline(true)` before typing/submitting) |
-| keypress-to-persisted < 200ms on a mid-range Android device | **Deferred** — see "What's deferred to a real device"                                     |
-| the input never loses focus between consecutive captures    | `e2e/capture.spec.ts`: consecutive-captures test; `CaptureRoute.test.tsx` unit-level      |
-| dictation produces text in the field on Android             | **Deferred** — see "What's deferred to a real device"                                     |
-| all three view states from Decision 7 are implemented       | `CaptureRoute.test.tsx`: empty/cold/loaded tests; manually confirmed in the Browser pane  |
+| DoD requirement                                             | Where                                                                                             |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| capture works fully offline, network disabled               | `e2e/capture.spec.ts`: offline test (`context.setOffline(true)` before typing/submitting)         |
+| keypress-to-persisted < 200ms on a mid-range Android device | Real device, Cloudflare Pages preview: 20ms, 32ms, 30ms — see "Verified on a real Android device" |
+| the input never loses focus between consecutive captures    | `e2e/capture.spec.ts`: consecutive-captures test; `CaptureRoute.test.tsx` unit-level              |
+| dictation produces text in the field on Android             | Real device, confirmed via the phone's own keyboard mic — see "Verified on a real Android device" |
+| all three view states from Decision 7 are implemented       | `CaptureRoute.test.tsx`: empty/cold/loaded tests; manually confirmed in the Browser pane          |
 
 Additionally verified manually in a real browser (Claude Code Browser
 pane) beyond what's captured by the tables above: the shell renders
