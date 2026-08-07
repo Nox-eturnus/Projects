@@ -10,6 +10,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Today' },
+  { to: '/capture', label: 'Capture' },
   { to: '/gallery', label: 'Gallery' },
 ]
 
