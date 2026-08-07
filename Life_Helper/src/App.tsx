@@ -1,4 +1,6 @@
+import { useGlobalCaptureShortcut } from './capture/useGlobalCaptureShortcut'
 import { PwaPrompts } from './pwa/PwaPrompts'
+import { CaptureRoute } from './routes/CaptureRoute'
 import { GalleryRoute } from './routes/GalleryRoute'
 import { AppShell } from './ui/AppShell'
 import { RouterProvider, Routes } from './ui/router'
@@ -12,17 +14,28 @@ function TodayPlaceholder() {
   )
 }
 
+function AppRoutes() {
+  // Must be mounted under RouterProvider (it calls useRouter()), and above
+  // any single route, so Ctrl/Cmd+K opens capture regardless of which route
+  // is current — see docs/phase_B1_capture_surface.md.
+  useGlobalCaptureShortcut()
+  return (
+    <Routes
+      routes={[
+        { path: '/', element: <TodayPlaceholder /> },
+        { path: '/capture', element: <CaptureRoute /> },
+        { path: '/gallery', element: <GalleryRoute /> },
+      ]}
+      notFound={<p>Page not found.</p>}
+    />
+  )
+}
+
 function App() {
   return (
     <RouterProvider>
       <AppShell>
-        <Routes
-          routes={[
-            { path: '/', element: <TodayPlaceholder /> },
-            { path: '/gallery', element: <GalleryRoute /> },
-          ]}
-          notFound={<p>Page not found.</p>}
-        />
+        <AppRoutes />
       </AppShell>
       <PwaPrompts />
     </RouterProvider>
