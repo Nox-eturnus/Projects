@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { captureTask } from '../capture/captureTask.js'
+import { parse, resolveCapture, tokenKey } from '../capture/parse.js'
 import { FOCUS_CAPTURE_EVENT } from '../capture/useGlobalCaptureShortcut.js'
 import { dbClient } from '../db/client.js'
 import { useQuery } from '../db/useQuery.js'
@@ -22,17 +23,29 @@ const RECENT_CAPTURES_SQL = `
 `
 
 /**
- * Part B1's capture surface. Decision 3: exactly one required field (the
- * raw text), no modal, no confirmation, no network round trip. Enter
- * submits; Shift+Enter inserts a newline; the input stays focused across
- * consecutive captures rather than blurring after submit.
+ * Part B1's capture surface, extended by Part B2's deterministic parser.
+ * Decision 3: exactly one required field (the raw text), no modal, no
+ * confirmation, no network round trip. Enter submits; Shift+Enter inserts
+ * a newline; the input stays focused across consecutive captures rather
+ * than blurring after submit.
+ *
+ * Chips below the field show what the parser recognized (Decision 5) and
+ * are individually removable before commit. Removing a date/estimate chip
+ * un-applies it (its raw text goes back into the title, the field is left
+ * unset); removing any other chip just dismisses the suggestion — see
+ * parse.ts's resolveCapture() doc comment for why those never touch the
+ * title either way.
  */
 export function CaptureRoute() {
   const [text, setText] = useState('')
+  const [removedKeys, setRemovedKeys] = useState<ReadonlySet<string>>(new Set())
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { data, loading } = useQuery<RecentCapture>(RECENT_CAPTURES_SQL, [], {
     tables: ['items'],
   })
+
+  const parsed = useMemo(() => parse(text), [text])
+  const chips = parsed.tokens.filter((token) => !removedKeys.has(tokenKey(token)))
 
   useEffect(() => {
     textareaRef.current?.focus()
@@ -45,18 +58,32 @@ export function CaptureRoute() {
     }
   }, [])
 
+  function removeChip(key: string): void {
+    setRemovedKeys((prev) => new Set(prev).add(key))
+  }
+
   // Clears (and keeps focus in) the field the instant Enter is pressed,
   // without waiting for the write to finish — Decision 3 says capture must
   // never block, and that includes never disabling the field while its
-  // write is in flight. captureTask() itself still trims/validates; a
-  // blank submit is simply a no-op that leaves the field as-is.
+  // write is in flight.
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
     if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
     event.preventDefault()
     const raw = text
-    if (raw.trim().length === 0) return
+    const resolved = resolveCapture(raw, removedKeys)
+    // A pure date/estimate capture (e.g. just "tomorrow") strips down to an
+    // empty title — falling back to the raw text, unparsed, is what keeps
+    // "unparsed input still produces a valid item" true even then, since
+    // items.title can never be empty. scheduledFor/estimateMin still apply
+    // regardless: the fallback only concerns what the title *displays*.
+    const title = resolved.title.trim().length > 0 ? resolved.title : raw.trim()
+    if (title.length === 0) return
     setText('')
-    void captureTask(raw, { mutate: (input) => dbClient.mutate(input) })
+    setRemovedKeys(new Set())
+    void captureTask(
+      { title, scheduledFor: resolved.scheduledFor, estimateMin: resolved.estimateMin },
+      { mutate: (input) => dbClient.mutate(input) },
+    )
   }
 
   function handleMicClick(): void {
@@ -110,6 +137,28 @@ export function CaptureRoute() {
           </svg>
         </button>
       </div>
+
+      {chips.length > 0 ? (
+        <ul className={styles.chips} aria-label="Parsed from your capture">
+          {chips.map((token) => (
+            <li key={`${tokenKey(token)}-${token.start.toString()}`}>
+              <button
+                type="button"
+                className={styles.chip}
+                aria-label={`Remove ${token.label}`}
+                onClick={() => {
+                  removeChip(tokenKey(token))
+                }}
+              >
+                <span aria-hidden="true">{token.label}</span>
+                <span aria-hidden="true" className={styles.chipRemove}>
+                  ×
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <section className={styles.recent}>
         <h2 className={styles.sectionTitle}>Recently captured</h2>
