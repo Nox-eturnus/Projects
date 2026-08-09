@@ -11,6 +11,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Today' },
   { to: '/capture', label: 'Capture' },
+  { to: '/inbox', label: 'Inbox' },
   { to: '/gallery', label: 'Gallery' },
 ]
 
