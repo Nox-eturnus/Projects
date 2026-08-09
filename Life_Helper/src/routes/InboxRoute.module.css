@@ -1,0 +1,30 @@
+.inbox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 40rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.list {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.coldMessage {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-base);
+}

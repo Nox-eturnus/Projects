@@ -2,6 +2,7 @@ import { useGlobalCaptureShortcut } from './capture/useGlobalCaptureShortcut'
 import { PwaPrompts } from './pwa/PwaPrompts'
 import { CaptureRoute } from './routes/CaptureRoute'
 import { GalleryRoute } from './routes/GalleryRoute'
+import { InboxRoute } from './routes/InboxRoute'
 import { AppShell } from './ui/AppShell'
 import { RouterProvider, Routes } from './ui/router'
 
@@ -24,6 +25,7 @@ function AppRoutes() {
       routes={[
         { path: '/', element: <TodayPlaceholder /> },
         { path: '/capture', element: <CaptureRoute /> },
+        { path: '/inbox', element: <InboxRoute /> },
         { path: '/gallery', element: <GalleryRoute /> },
       ]}
       notFound={<p>Page not found.</p>}
