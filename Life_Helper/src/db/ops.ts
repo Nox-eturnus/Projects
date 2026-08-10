@@ -269,6 +269,86 @@ export function selectAllOps(db: SqliteConnection): OpRow[] {
   return db.prepare('SELECT * FROM ops ORDER BY rowid').all() as unknown as OpRow[]
 }
 
+const MATERIALIZED_TABLES: readonly TableName[] = [
+  'items',
+  'links',
+  'tags',
+  'task_fields',
+  'routine_fields',
+  'container_fields',
+  'person_fields',
+  'note_fields',
+]
+
+export interface TableComparison {
+  readonly table: TableName
+  readonly liveRowCount: number
+  readonly replayedRowCount: number
+  readonly matches: boolean
+}
+
+export interface ReplayComparisonResult {
+  readonly ok: boolean
+  readonly tables: readonly TableComparison[]
+}
+
+// bigint (some sqlite bindings return integer columns this way) doesn't
+// survive JSON.stringify, so it's normalized to a string first — this is
+// only ever used to build a comparison key, never persisted or displayed
+// as the value itself.
+function normalizeValue(value: unknown): unknown {
+  return typeof value === 'bigint' ? value.toString() : value
+}
+
+function rowKey(row: Record<string, unknown>): string {
+  return JSON.stringify(
+    Object.keys(row)
+      .sort()
+      .map((column) => [column, normalizeValue(row[column])]),
+  )
+}
+
+function rowsMatch(
+  a: readonly Record<string, unknown>[],
+  b: readonly Record<string, unknown>[],
+): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (rowKey(a[i]) !== rowKey(b[i])) return false
+  }
+  return true
+}
+
+/**
+ * Decision 2's replay claim, checked against whatever is actually in `live`
+ * — not a fixture. `replayed` is expected to be a database built by running
+ * `applyMigrations()` then `replayOps(replayed, selectAllOps(live))` on a
+ * fresh connection; this function only compares the two, so it works
+ * equally well against a `node:sqlite` fixture pair (see ops.test.ts) or a
+ * real device's OPFS-backed database and an in-memory replay of it (see
+ * worker.ts's verifyReplay(), Part B4's capture gate).
+ *
+ * Compares every materialized table's rows, ordered by primary key so row
+ * order can't itself cause a false mismatch, column-order-independent.
+ */
+export function compareMaterializedTables(
+  live: SqliteConnection,
+  replayed: SqliteConnection,
+): ReplayComparisonResult {
+  const tables = MATERIALIZED_TABLES.map((table): TableComparison => {
+    const orderBy = TABLES[table].primaryKey.join(', ')
+    const liveRows = live.prepare(`SELECT * FROM ${table} ORDER BY ${orderBy}`).all()
+    const replayedRows = replayed.prepare(`SELECT * FROM ${table} ORDER BY ${orderBy}`).all()
+    return {
+      table,
+      liveRowCount: liveRows.length,
+      replayedRowCount: replayedRows.length,
+      matches: rowsMatch(liveRows, replayedRows),
+    }
+  })
+  return { ok: tables.every((t) => t.matches), tables }
+}
+
 /**
  * Reconstructs materialized tables from an `ops` log alone. Groups ops by
  * (entity_table, entity_id, hlc) to recover the atomic per-row writes that
