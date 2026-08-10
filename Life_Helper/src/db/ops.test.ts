@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import { applyMigrations, type SqliteConnection } from './migrate'
 import { createHlcClock, type HlcState } from './hlc'
-import { mutate, replayOps, selectAllOps, type MutateInput } from './ops'
+import { compareMaterializedTables, mutate, replayOps, selectAllOps, type MutateInput } from './ops'
 
 function memoryStore() {
   let state: HlcState | undefined
@@ -353,5 +353,119 @@ describe('replayOps', () => {
     for (const table of ['items', 'links', 'tags', 'task_fields']) {
       expect(tableRows(target, table)).toEqual([])
     }
+  })
+})
+
+describe('compareMaterializedTables', () => {
+  it('reports ok when a replay reproduces the live database exactly', () => {
+    const live = freshDb()
+    const clock = clockFor('device-1')
+    mutate(
+      live,
+      {
+        writes: [
+          {
+            table: 'items',
+            key: { id: 'task-1' },
+            fields: { kind: 'task', title: 'Ship B4', created_at: 1, updated_at: 1 },
+          },
+          { table: 'task_fields', key: { item_id: 'task-1' }, fields: { due_at: 100 } },
+        ],
+      },
+      'device-1',
+      clock,
+    )
+    mutate(
+      live,
+      { writes: [{ table: 'items', key: { id: 'task-1' }, fields: { title: 'Ship B4 gate' } }] },
+      'device-1',
+      clock,
+    )
+
+    const replayed = freshDb()
+    replayOps(replayed, selectAllOps(live))
+
+    const result = compareMaterializedTables(live, replayed)
+    expect(result.ok).toBe(true)
+    expect(result.tables.every((t) => t.matches)).toBe(true)
+    const itemsComparison = result.tables.find((t) => t.table === 'items')
+    expect(itemsComparison).toMatchObject({ liveRowCount: 1, replayedRowCount: 1, matches: true })
+  })
+
+  it('reports which table diverges when the replay does not match', () => {
+    const live = freshDb()
+    const replayed = freshDb()
+    const clock = clockFor('device-1')
+    mutate(
+      live,
+      {
+        writes: [
+          {
+            table: 'items',
+            key: { id: 'task-1' },
+            fields: { kind: 'task', title: 'Original', created_at: 1, updated_at: 1 },
+          },
+        ],
+      },
+      'device-1',
+      clock,
+    )
+    // Simulate a divergence directly, rather than through replayOps, so
+    // this test is about the comparison itself, not replay correctness
+    // (which the "reproduces exactly" case above already covers).
+    mutate(
+      replayed,
+      {
+        writes: [
+          {
+            table: 'items',
+            key: { id: 'task-1' },
+            fields: { kind: 'task', title: 'Diverged', created_at: 1, updated_at: 1 },
+          },
+        ],
+      },
+      'device-1',
+      clockFor('device-1'),
+    )
+
+    const result = compareMaterializedTables(live, replayed)
+    expect(result.ok).toBe(false)
+    const itemsComparison = result.tables.find((t) => t.table === 'items')
+    expect(itemsComparison?.matches).toBe(false)
+    expect(result.tables.filter((t) => t.table !== 'items').every((t) => t.matches)).toBe(true)
+  })
+
+  it('is order-independent: differently-ordered but equal rows still match', () => {
+    const live = freshDb()
+    const replayed = freshDb()
+    // A fixed hlc for both writes in both databases — using two real
+    // (Date.now()-based) clocks here would make the two databases' `hlc`
+    // columns differ by however many milliseconds elapsed between the two
+    // mutate() calls below, turning this into a flaky test of clock timing
+    // rather than the row-ordering independence it's meant to check.
+    const fixedClock = { next: () => '000000000000001:00000:device-1', peek: () => '' }
+    for (const db of [live, replayed]) {
+      mutate(
+        db,
+        {
+          writes: [
+            {
+              table: 'items',
+              key: { id: 'b' },
+              fields: { kind: 'task', title: 'B', created_at: 2, updated_at: 2 },
+            },
+            {
+              table: 'items',
+              key: { id: 'a' },
+              fields: { kind: 'task', title: 'A', created_at: 1, updated_at: 1 },
+            },
+          ],
+        },
+        'device-1',
+        fixedClock,
+      )
+    }
+
+    expect(compareMaterializedTables(live, replayed).ok).toBe(true)
   })
 })

@@ -9,7 +9,16 @@
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm'
 import * as Comlink from 'comlink'
 import { applyMigrations, type SqliteConnection, type SqliteStatement } from './migrate.js'
-import { mutate, type MutateInput, type MutateResult, type TableName } from './ops.js'
+import {
+  compareMaterializedTables,
+  mutate,
+  replayOps,
+  selectAllOps,
+  type MutateInput,
+  type MutateResult,
+  type ReplayComparisonResult,
+  type TableName,
+} from './ops.js'
 import { createHlcClock, type HlcClock, type HlcState } from './hlc.js'
 
 const DB_FILENAME = '/life-helper.sqlite3'
@@ -135,12 +144,14 @@ type ChangeListener = (tables: TableName[]) => void
 
 export class WorkerApiImpl {
   private db?: SqliteConnection
+  private sqlite3?: Awaited<ReturnType<typeof sqlite3InitModule>>
   private deviceId = ''
   private clock?: HlcClock
   private readonly listeners = new Map<string, ChangeListener>()
 
   async init(): Promise<{ deviceId: string }> {
     const sqlite3 = await sqlite3InitModule()
+    this.sqlite3 = sqlite3
     const poolUtil = await retryAsync(
       () => sqlite3.installOpfsSAHPoolVfs({ name: VFS_POOL_NAME }),
       8,
@@ -176,6 +187,29 @@ export class WorkerApiImpl {
 
   getDeviceId(): string {
     return this.deviceId
+  }
+
+  /**
+   * Part B4's capture gate: "the ops replay test passes with real captured
+   * data, not fixtures." Builds a fresh in-memory database, replays this
+   * device's actual `ops` log into it, and compares every materialized
+   * table against the live OPFS-backed one. Nothing here leaves the
+   * device or the browser's own memory — the in-memory database is
+   * discarded when this call returns (Decision 8's privacy boundary is
+   * about network egress, not local computation, but there's no reason to
+   * touch that line even so).
+   */
+  verifyReplay(): ReplayComparisonResult {
+    if (!this.db) throw new Error('WorkerApiImpl.verifyReplay() called before init()')
+    if (!this.sqlite3) throw new Error('WorkerApiImpl.verifyReplay() called before init()')
+
+    const ops = selectAllOps(this.db)
+    const replayedOo1 = new this.sqlite3.oo1.DB({ filename: ':memory:' }) as unknown as Oo1Db
+    const replayedDb = new SqliteWasmConnection(replayedOo1)
+    applyMigrations(replayedDb)
+    replayOps(replayedDb, ops)
+
+    return compareMaterializedTables(this.db, replayedDb)
   }
 
   /** Returns a subscription id; unsubscribe with offChange(id). */
