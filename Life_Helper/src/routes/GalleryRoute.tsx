@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { dbClient } from '../db/client.js'
+import type { ReplayComparisonResult } from '../db/ops.js'
 import { Button } from '../ui/Button'
 import { contrastPairs } from '../ui/contrast'
 import { EmptyState } from '../ui/EmptyState'
@@ -24,6 +26,21 @@ const SWATCH_TOKENS = [
 export function GalleryRoute() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [threeState, setThreeState] = useState<ViewState>('loaded')
+  const [replayResult, setReplayResult] = useState<ReplayComparisonResult | null>(null)
+  const [replayRunning, setReplayRunning] = useState(false)
+  const [replayError, setReplayError] = useState<string | null>(null)
+
+  async function runReplayCheck(): Promise<void> {
+    setReplayRunning(true)
+    setReplayError(null)
+    try {
+      setReplayResult(await dbClient.verifyReplay())
+    } catch (error) {
+      setReplayError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setReplayRunning(false)
+    }
+  }
 
   return (
     <div className={styles.gallery}>
@@ -160,6 +177,54 @@ export function GalleryRoute() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Data integrity (Part B4's capture gate)</h2>
+        <p>
+          Replays this device&apos;s real <code>ops</code> log into a fresh in-memory database and
+          compares every table against what&apos;s actually stored. Nothing leaves the device. Run
+          this after real usage, not against an empty or seeded database — the gate requires it to
+          pass against real captured data, not fixtures.
+        </p>
+        <Button
+          onClick={() => {
+            void runReplayCheck()
+          }}
+          disabled={replayRunning}
+        >
+          {replayRunning ? 'Running…' : 'Run ops replay verification'}
+        </Button>
+        {replayError ? <p role="alert">{replayError}</p> : null}
+        {replayResult ? (
+          <div className={styles.tableScroll}>
+            <table className={styles.contrastTable}>
+              <thead>
+                <tr>
+                  <th>Table</th>
+                  <th>Live rows</th>
+                  <th>Replayed rows</th>
+                  <th>Match</th>
+                </tr>
+              </thead>
+              <tbody>
+                {replayResult.tables.map((table) => (
+                  <tr key={table.table}>
+                    <td>{table.table}</td>
+                    <td>{table.liveRowCount}</td>
+                    <td>{table.replayedRowCount}</td>
+                    <td>{table.matches ? 'pass' : 'FAIL'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p role="status">
+              {replayResult.ok
+                ? 'All tables match. Record this result in docs/usage_log.md.'
+                : 'Mismatch found — do not record the gate as passed. See docs/phase_A3_db_layer.md and file a bug.'}
+            </p>
+          </div>
+        ) : null}
       </section>
     </div>
   )

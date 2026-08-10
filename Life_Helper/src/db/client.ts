@@ -16,7 +16,7 @@
  */
 import * as Comlink from 'comlink'
 import type { WorkerApiImpl } from './worker.js'
-import type { MutateInput, MutateResult, TableName } from './ops.js'
+import type { MutateInput, MutateResult, ReplayComparisonResult, TableName } from './ops.js'
 
 const LOCK_NAME = 'life-helper-db-writer'
 const CHANNEL_NAME = 'life-helper-db'
@@ -24,7 +24,7 @@ const REQUEST_TIMEOUT_MS = 10_000
 
 type RemoteWorkerApi = Comlink.Remote<WorkerApiImpl>
 type ChangeCallback = (tables: TableName[]) => void
-type RequestOp = 'mutate' | 'query' | 'getDeviceId'
+type RequestOp = 'mutate' | 'query' | 'getDeviceId' | 'verifyReplay'
 
 interface RequestMessage {
   type: 'request'
@@ -141,6 +141,7 @@ export class DbClient {
       const { sql, params } = payload as { sql: string; params: unknown[] }
       return this.api.query(sql, params)
     }
+    if (op === 'verifyReplay') return this.api.verifyReplay()
     return this.api.getDeviceId()
   }
 
@@ -223,6 +224,14 @@ export class DbClient {
     await this.ready
     if (this.role === 'leader') return this.deviceId
     return this.sendToLeader('getDeviceId', undefined) as Promise<string>
+  }
+
+  /** Part B4's capture gate: verifies ops replay against this device's real
+   * data. See worker.ts's verifyReplay() doc comment. */
+  async verifyReplay(): Promise<ReplayComparisonResult> {
+    await this.ready
+    if (this.role === 'leader' && this.api) return this.api.verifyReplay()
+    return this.sendToLeader('verifyReplay', undefined) as Promise<ReplayComparisonResult>
   }
 
   /** Local, same-tab, synchronous pub/sub — no BroadcastChannel/Comlink involved. */
