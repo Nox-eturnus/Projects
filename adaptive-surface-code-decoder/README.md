@@ -208,7 +208,7 @@ Phase 20 implements a **causal cumulative-prefix streaming replay benchmark**, *
 
 ## Featured Figures
 
-The pipeline outputs 17 publication-grade figures in `results/figures/`. Below are 6 representative results:
+The pipeline outputs 17 figures in `results/figures/`. Below are 6 representative results:
 
 ### 1. Circuit-Level Threshold Curves
 Demonstrates crossing at $p_{\text{th}} \approx 0.72\%$ across code distances $d \in \{3, 5, 7\}$ under full circuit noise.
