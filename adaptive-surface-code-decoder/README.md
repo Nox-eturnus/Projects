@@ -164,27 +164,28 @@ In standard QEC architectures, the decoder choice is static. However, syndrome d
 The framework implements:
 1. **Online Feature Extraction**: Calculates defect density $\rho = \|s\|_1 / N_{\text{dets}}$ and syndrome event bounding boxes in $O(N_{\text{dets}})$ time.
 2. **Heuristic Pareto Lookup (`DensityBinPolicy`)**: Dispatches to the lowest-failure decoder whose P99 latency is within $\tau_{\text{budget}}$ for the syndrome's density bin.
-3. **Latency-Budgeted Adaptive Decoding**: Minimizes predicted logical failure subject to predicted P99 latency constraints, with actual deadline violations measured independently.
+3. **Latency-Budgeted Decoding**: Selects decoders using empirical P99 latency constraints and separately measures actual deadline violations.
 
 ---
 
 ## Learned Decoder Selector
 
-Moving beyond heuristic density binning, `scripts/12_learned_selector.py` trains separate `DecisionTreeRegressor` models per decoder for logical-failure risk and P99 latency using five physical/topological features:
-$$\mathbf{x} = [\rho, \text{distance}, p, \text{rounds}, \text{bias\_ratio}]$$
+Moving beyond heuristic density binning, `scripts/12_learned_selector.py` trains separate `DecisionTreeRegressor` models per decoder to predict logical-failure risk and P99 latency from:
+- syndrome defect density `rho`
+- code distance
+- physical error rate `p`
+- number of syndrome rounds
+- bias ratio
 
 ### Key Scientific Qualification: Budget-Dependent Trade-Off
-The learned selector provides a **budget-dependent trade-off rather than uniformly outperforming the lookup policy**:
 
-- **Strict Real-Time Regime ($\tau_{\text{budget}} = 20\,\mu\text{s}$)**:
-  - Learned selector achieves $\approx 16.67\%$ coverage with $\approx 1.29\%$ deadline violation rate by selectively dispatching ultra-fast low-density configurations.
-  - The lookup table finds no viable decoder satisfying the strict P99 envelope ($0\%$ coverage).
-- **Early Real-Time Regime ($\tau_{\text{budget}} = 50\,\mu\text{s}$)**:
-  - Learned coverage expands to $\approx 24.79\%$, matching the lookup policy ($\approx 25\%$).
-- **Intermediate Budget Regime ($\tau_{\text{budget}} = 100\,\mu\text{s}$)**:
-  - The learned selector achieves its highest relative reliability advantage, reducing logical error rate to $P_L \approx 0.01389$ (vs. lookup $P_L \approx 0.01853$) by routing complex syndrome topologies to higher-accuracy decoders.
-- **Relaxed / Offline Regime ($\tau_{\text{budget}} \ge 500\,\mu\text{s}$)**:
-  - Both approaches achieve $100\%$ coverage; the static lookup table becomes competitive or slightly better due to deterministic global assignment.
+The learned selector does not uniformly outperform the lookup policy.
+- **20 µs:** learned coverage ≈ 16.67%, lookup coverage = 0%.
+- **50 µs:** learned coverage ≈ 24.79%, lookup coverage = 25%.
+- **100 µs:** learned coverage ≈ 59.80% versus 100% for lookup, while achieving lower logical failure on its feasible selections (`P_L ≈ 0.01389` versus `0.01853`).
+- **≥ 500 µs:** both approaches achieve full coverage, and deterministic lookup becomes competitive or slightly better.
+
+Predicted latency constraints are not hard real-time guarantees; empirical deadline-violation rates are measured separately.
 
 ---
 
@@ -193,7 +194,7 @@ The learned selector provides a **budget-dependent trade-off rather than uniform
 Real-world QEC operates continuously over time. The causal streaming module (`qec_lab/streaming.py` and `scripts/13_streaming_benchmark.py`) investigates temporal decoding dynamics.
 
 ### Key Scientific Qualification: Causal Replay Proxy
-This project implements a **causal cumulative-prefix streaming replay benchmark**, *not* a production incremental windowed FPGA decoder:
+Phase 20 implements a **causal cumulative-prefix streaming replay benchmark**, *not* a production incremental windowed FPGA decoder:
 - At measurement round $k$, only detector groups up to $k$ are exposed ($t \le k$); future detectors are masked to zero.
 - The decoder is executed causally on available history to track intermediate logical frame evolution.
 - **Key Invariant**: The final streaming prediction identically matches the standard full-block MWPM prediction (`final_block_disagreement_rate = 0`).
@@ -207,7 +208,7 @@ This project implements a **causal cumulative-prefix streaming replay benchmark*
 | Metric / Experiment | Findings & Observed Values |
 |---|---|
 | **Circuit Threshold** | $p_{\text{th}} \approx 0.72\%$ under full circuit-level depolarizing noise ($d=3, 5, 7$). |
-| **MWPM P99 Latency** | Measured from $18.6\,\mu\text{s}$ ($d=3$) to $92.9\,\mu\text{s}$ ($d=11$). |
+| **MWPM P99 Latency** | Approximately 18.6 µs (`d=3`), 50.1 µs (`d=5`), and 93.8 µs (`d=7`) in the measured Windows/Python CPU benchmark. |
 | **Correlated Noise Gain** | Correlation-aware MWPM reduced logical error rates by up to $1.8\times$ in high-crosstalk regimes. |
 | **Noise Mismatch** | Underestimating $p_{\text{true}}$ by $10\times$ caused $< 8\%$ relative degradation; matching graph weights are robust to prior scaling. |
 | **Adaptive Throughput** | Heuristic & learned adaptive dispatching yielded $2.1\times - 3.4\times$ speedups over static high-accuracy decoding. |
@@ -216,7 +217,7 @@ This project implements a **causal cumulative-prefix streaming replay benchmark*
 
 ## Featured Figures
 
-The pipeline outputs 17 figures in `results/figures/`. Below are 6 representative results:
+The pipeline outputs 17 publication-grade figures in `results/figures/`. Below are 6 representative results:
 
 ### 1. Circuit-Level Threshold Curves
 Demonstrates crossing at $p_{\text{th}} \approx 0.72\%$ across code distances $d \in \{3, 5, 7\}$ under full circuit noise.

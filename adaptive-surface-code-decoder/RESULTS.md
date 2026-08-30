@@ -169,19 +169,18 @@ Real-world QEC operates continuously over time. The causal streaming module (`qe
 - At measurement round $k \in \{1, \dots, d\}$, future detectors $t > k$ are causally masked to zero.
 - The decoder is executed causally on available history to track intermediate logical frame evolution.
 
-### Key Invariant & Results:
-- **Exact Full-Block Agreement**: The final cumulative streaming prediction strictly matches standard block MWPM:
-  $$\text{final\_block\_disagreement\_rate} = 0.0$$
-- **Frame Stability Fraction**: Measures the probability that an intermediate logical prediction at round $k$ remains unchanged in all subsequent rounds $k+1 \dots d$.
-- **Replay Overhead**: Quantifies the computational cost of prefix re-decoding across code cycles.
+### Key Invariant:
+The final cumulative streaming prediction strictly matches standard block MWPM:
+$$\text{final\_block\_disagreement\_rate} = 0.0$$
 
-```text
-Distance    Rounds (d)    Mean Stability Fraction    Replay Overhead Factor    Disagreement Rate
--------------------------------------------------------------------------------------------------
-d=3         3             0.542                      2.41x                     0.0%
-d=5         5             0.515                      4.12x                     0.0%
-d=7         7             0.488                      5.89x                     0.0%
-```
+### Representative stride-1 causal replay results:
+
+| Distance | Temporal Groups | Updates/Shot | Mean Stability Fraction | Final Block Disagreement |
+|---|---:|---:|---:|---:|
+| `d=3` | 4 | 4 | 0.350 | 0.0% |
+| `d=5` | 6 | 6 | 0.492 | 0.0% |
+| `d=7` | 8 | 8 | 0.675 | 0.0% |
+| `d=9` | 10 | 10 | 0.809 | 0.0% |
 
 > [!IMPORTANT]
 > **Methodological Qualification**: This benchmark is a causal *software replay proxy* evaluating temporal frame stability and prefix decoding latency. It is not an incremental/windowed FPGA hardware decoder, but it establishes baseline frame-stability metrics for designing windowed streaming architectures.
@@ -194,7 +193,7 @@ Plotting all decoders, heuristic policies, and learned selectors in $(\text{P99 
 
 1. **MWPM**: Defines the ultra-low-latency anchor ($18.6 - 92.9\,\mu\text{s}$).
 2. **Correlated MWPM**: Shifts along the frontier ($74.1 - 208.7\,\mu\text{s}$, $P_L \approx 0.0014 - 0.0169$).
-3. **Learned Selector**: Forms the optimal adaptive envelope in the intermediate budget regime ($50 - 200\,\mu\text{s}$).
+3. **Learned Selector**: Provides a competitive adaptive operating point in portions of the intermediate latency-budget regime, with a trade-off between coverage, logical failure, and deadline violations.
 4. **Static BP+OSD**: High-accuracy anchor for offline verification or relaxed latency regimes ($250\,\mu\text{s} - 24.5\,\text{ms}$).
 
 ---
