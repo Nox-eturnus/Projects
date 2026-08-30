@@ -186,7 +186,7 @@ The learned selector's advantage over static lookup is **strictly budget-depende
 Real-world QEC operates continuously over time. The causal streaming module (`qec_lab/streaming.py` and `scripts/13_streaming_benchmark.py`) investigates temporal decoding dynamics.
 
 ### Key Scientific Qualification: Causal Replay Proxy
-Phase 20 implements a **causal cumulative-prefix streaming replay benchmark**, *not* a production incremental windowed FPGA decoder:
+This project implements a **causal cumulative-prefix streaming replay benchmark**, *not* a production incremental windowed FPGA decoder:
 - At measurement round $k$, only detector groups up to $k$ are exposed ($t \le k$); future detectors are masked to zero.
 - The decoder is executed causally on available history to track intermediate logical frame evolution.
 - **Frame Stability**: Measures the probability of intermediate logical prediction changes before final boundary measurement.
