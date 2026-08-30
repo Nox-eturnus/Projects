@@ -415,30 +415,6 @@ adaptive-surface-code-decoder/
 
 ---
 
-## Future Work
-
-- **FPGA/ASIC Emulation**: Integrating cycle-accurate hardware simulation models (e.g. AXI-stream decoder co-processors).
-- **Windowed & Incremental Streaming Decoders**: Implementing true overlapping-window streaming matching (such as overlapping-window PyMatching) for continuous execution without full prefix re-computation.
-- **3D Color Codes & Floquet Codes**: Extending the adaptive selection framework to topological color codes, subsystem codes, and dynamic Floquet codes.
-- **Reinforcement Learning Dispatchers**: Training online reinforcement learning agents to optimize decoding policies under time-varying hardware drift.
-
----
-
-## Citation
-
-If you use this codebase or benchmark methodology in your research, please cite:
-
-```bibtex
-@software{adaptive_surface_code_decoder_2026,
-  author = {Aarush Das Bansiwal},
-  title = {Adaptive Surface-Code Decoding and Logical-Qubit Reliability Benchmarking under Circuit-Level Noise},
-  year = {2026},
-  url = {https://github.com/Nox-eturnus/adaptive-surface-code-decoder}
-}
-```
-
----
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
