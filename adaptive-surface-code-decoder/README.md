@@ -27,8 +27,6 @@ A comprehensive scientific framework for benchmarking quantum error correction (
 - [Running the Tests](#running-the-tests)
 - [Repository Structure](#repository-structure)
 - [Limitations & Systems Caveats](#limitations--systems-caveats)
-- [Future Work](#future-work)
-- [Citation](#citation)
 - [License](#license)
 
 ---
@@ -40,8 +38,8 @@ Fault-tolerant quantum computing relies on quantum error correcting codes to pro
 However, real-time quantum error correction imposes a severe **decoding backlog problem**: syndrome extraction cycles occur on microsecond timescales ($\sim 200\,\text{ns} - 1\,\mu\text{s}$ in superconducting qubits), while high-accuracy decoders (such as Belief Propagation with Ordered Statistics Decoding) often require millisecond timescales per syndrome on standard CPUs.
 
 This repository provides an end-to-end experimental framework to investigate:
-1. **Threshold & Sub-Threshold Scaling**: High-statistics Monte Carlo estimation of fault-tolerant thresholds and exponential logical suppression across code distances $d \in \{3, 5, 7\}$.
-2. **Decoder Reliability vs. Latency Trade-offs**: Rigorous comparison of Minimum-Weight Perfect Matching (MWPM), Correlation-Aware MWPM, Union-Find (UF), and BP+OSD.
+1. **Threshold & Sub-Threshold Scaling**: High-statistics Monte Carlo estimation of fault-tolerant thresholds and exponential logical suppression across code distances $d \in \{3, 5, 7, 9, 11\}$.
+2. **Decoder Reliability vs. Latency Trade-offs**: Rigorous comparison of Minimum-Weight Perfect Matching (MWPM), Correlation-Aware MWPM, Union-Find (UF), BP+OSD, and Belief-Find / BP+Union-Find.
 3. **Complex Noise Dynamics**: Biased Pauli dephasing ($p_Z \gg p_X, p_Y$), two-qubit gate error correlations, noise-model parameter mismatch, and leakage/erasure proxies.
 4. **Adaptive & Learned Decoding**: Online syndrome feature extraction and policy-driven decoder dispatching that dynamically balances logical failure rates against real-time latency budgets ($\tau_{\text{budget}} \in [20\,\mu\text{s}, 100\,\text{ms}]$).
 5. **Causal Streaming Replay**: Round-by-round prefix decoding simulating temporal syndrome streaming and evaluating frame update latency and correction stability.
@@ -66,14 +64,14 @@ The framework is structured as a modular Python package (`qec_lab`) supported by
 ```mermaid
 flowchart TD
     subgraph Circuit_Generation["Circuit Generation (Stim)"]
-        A[Rotated Surface Code d=3, 5, 7] --> B[Circuit-Level Noise Injection]
+        A[Rotated Surface Code d=3..11] --> B[Circuit-Level Noise Injection]
         B --> C[Detector Error Model DEM]
     end
 
-    subgraph Decoders_Layer["Decoders (Adapter Pattern)"]
+    subgraph Decoders_Layer["Decoders & Adapters"]
         C --> D1[MWPM - PyMatching]
         C --> D2[Correlated MWPM]
-        C --> D3[Union-Find]
+        C --> D3[Union-Find & Belief-Find]
         C --> D4[BP + OSD - LDPC]
     end
 
@@ -100,13 +98,14 @@ flowchart TD
 
 ## Decoders
 
-The framework provides a unified interface (`DecoderAdapter`) across four core decoding algorithms:
+The framework provides unified interfaces across core decoding algorithms:
 
 | Decoder | Engine / Backend | Theoretical Complexity | Strengths | Trade-offs |
 |---|---|---|---|---|
 | **MWPM** | [PyMatching](https://github.com/oscarhiggott/PyMatching) (C++ blossom) | $O(N \log N)$ average | Fast, robust, industry standard | Ignores hyperedge error correlations |
 | **Correlated MWPM** | PyMatching (correlated weights) | $O(N \log N)$ average | Handles two-qubit correlated errors | Slight runtime overhead |
 | **Union-Find (UF)** | `ldpc.UnionFindDecoder` (Python) | $O(N \alpha(N))$ theoretical | Near-linear algorithmic scaling | Sub-optimal threshold compared to MWPM |
+| **Belief-Find** | `SinterBeliefFindDecoder` | $O(I_{\text{max}} \cdot N + N \alpha(N))$ | BP soft-decision synergy with UF peeling | Implementation dependent runtime |
 | **BP+OSD** | `ldpc.BpOsdDecoder` + `beliefmatching` | $O(I_{\text{max}} \cdot N^2 + N^3)$ | High accuracy on correlated/LDPC codes | Higher latency; non-deterministic iterations |
 
 ---
@@ -146,7 +145,7 @@ sequenceDiagram
     participant F as Plot Generator
 
     S->>S: 02: Threshold Sweeps (d=3,5,7)
-    S->>B: 03-04: Multi-Decoder Latency & Throughput
+    S->>B: 03-04: Multi-Decoder Latency & Throughput (MWPM, BP-OSD, Belief-Find)
     S->>S: 05-06: Noise Mismatch, Bias & Correlations
     S->>P: 07-09: Policy Dataset & Calibration Table
     P->>L: 10-12: Budget Sweep & Learned Model Training
@@ -165,19 +164,27 @@ In standard QEC architectures, the decoder choice is static. However, syndrome d
 The framework implements:
 1. **Online Feature Extraction**: Calculates defect density $\rho = \|s\|_1 / N_{\text{dets}}$ and syndrome event bounding boxes in $O(N_{\text{dets}})$ time.
 2. **Heuristic Pareto Lookup (`DensityBinPolicy`)**: Dispatches to the lowest-failure decoder whose P99 latency is within $\tau_{\text{budget}}$ for the syndrome's density bin.
-3. **Latency-Guaranteed Decoding**: Guarantees bounded deadline violations while preserving sub-threshold accuracy.
+3. **Latency-Budgeted Adaptive Decoding**: Minimizes predicted logical failure subject to predicted P99 latency constraints, with actual deadline violations measured independently.
 
 ---
 
 ## Learned Decoder Selector
 
-Moving beyond heuristic density binning, `scripts/12_learned_selector.py` trains machine-learning regressors (Decision Trees and Random Forests) on offline calibration data.
+Moving beyond heuristic density binning, `scripts/12_learned_selector.py` trains separate `DecisionTreeRegressor` models per decoder for logical-failure risk and P99 latency using five physical/topological features:
+$$\mathbf{x} = [\rho, \text{distance}, p, \text{rounds}, \text{bias\_ratio}]$$
 
-### Key Scientific Qualification: Budget-Dependent Advantage
-The learned selector's advantage over static lookup is **strictly budget-dependent**:
-- **Strict Real-Time Regime ($\tau \le 50\,\mu\text{s}$)**: Ultra-fast decoders (MWPM) are mandatory. The learned selector defaults to MWPM, matching static baseline behavior.
-- **Intermediate Budget Regime ($100\,\mu\text{s} \le \tau \le 5\,\text{ms}$)**: The learned selector achieves its highest utility, selectively routing high-risk syndrome topologies to BP+OSD or Correlated MWPM while keeping clean syndromes on MWPM paths, reducing overall logical failure rates by up to $15-30\%$ without exceeding the time budget.
-- **Relaxed / Offline Regime ($\tau \ge 20\,\text{ms}$)**: All decoders comfortably meet deadlines; highest-accuracy decoders can be run unconditionally.
+### Key Scientific Qualification: Budget-Dependent Trade-Off
+The learned selector provides a **budget-dependent trade-off rather than uniformly outperforming the lookup policy**:
+
+- **Strict Real-Time Regime ($\tau_{\text{budget}} = 20\,\mu\text{s}$)**:
+  - Learned selector achieves $\approx 16.67\%$ coverage with $\approx 1.29\%$ deadline violation rate by selectively dispatching ultra-fast low-density configurations.
+  - The lookup table finds no viable decoder satisfying the strict P99 envelope ($0\%$ coverage).
+- **Early Real-Time Regime ($\tau_{\text{budget}} = 50\,\mu\text{s}$)**:
+  - Learned coverage expands to $\approx 24.79\%$, matching the lookup policy ($\approx 25\%$).
+- **Intermediate Budget Regime ($\tau_{\text{budget}} = 100\,\mu\text{s}$)**:
+  - The learned selector achieves its highest relative reliability advantage, reducing logical error rate to $P_L \approx 0.01389$ (vs. lookup $P_L \approx 0.01853$) by routing complex syndrome topologies to higher-accuracy decoders.
+- **Relaxed / Offline Regime ($\tau_{\text{budget}} \ge 500\,\mu\text{s}$)**:
+  - Both approaches achieve $100\%$ coverage; the static lookup table becomes competitive or slightly better due to deterministic global assignment.
 
 ---
 
@@ -189,6 +196,7 @@ Real-world QEC operates continuously over time. The causal streaming module (`qe
 This project implements a **causal cumulative-prefix streaming replay benchmark**, *not* a production incremental windowed FPGA decoder:
 - At measurement round $k$, only detector groups up to $k$ are exposed ($t \le k$); future detectors are masked to zero.
 - The decoder is executed causally on available history to track intermediate logical frame evolution.
+- **Key Invariant**: The final streaming prediction identically matches the standard full-block MWPM prediction (`final_block_disagreement_rate = 0`).
 - **Frame Stability**: Measures the probability of intermediate logical prediction changes before final boundary measurement.
 - **Replay Overhead**: Quantifies the computational cost of prefix re-decoding across code cycles.
 
@@ -199,7 +207,7 @@ This project implements a **causal cumulative-prefix streaming replay benchmark*
 | Metric / Experiment | Findings & Observed Values |
 |---|---|
 | **Circuit Threshold** | $p_{\text{th}} \approx 0.72\%$ under full circuit-level depolarizing noise ($d=3, 5, 7$). |
-| **MWPM P99 Latency** | Scaled from $\sim 14\,\mu\text{s}$ ($d=3$) to $\sim 45\,\mu\text{s}$ ($d=7$) on single-core x86_64. |
+| **MWPM P99 Latency** | Measured from $18.6\,\mu\text{s}$ ($d=3$) to $92.9\,\mu\text{s}$ ($d=11$). |
 | **Correlated Noise Gain** | Correlation-aware MWPM reduced logical error rates by up to $1.8\times$ in high-crosstalk regimes. |
 | **Noise Mismatch** | Underestimating $p_{\text{true}}$ by $10\times$ caused $< 8\%$ relative degradation; matching graph weights are robust to prior scaling. |
 | **Adaptive Throughput** | Heuristic & learned adaptive dispatching yielded $2.1\times - 3.4\times$ speedups over static high-accuracy decoding. |
@@ -215,7 +223,7 @@ Demonstrates crossing at $p_{\text{th}} \approx 0.72\%$ across code distances $d
 ![Threshold curves](results/figures/01_threshold_curves.png)
 
 ### 2. Tail Latency Scaling (P99)
-Empirical P99 latency scaling across code distances for all four decoding engines.
+Empirical P99 latency scaling across code distances for all benchmarked decoding engines.
 ![P99 latency scaling](results/figures/03_p99_latency_scaling.png)
 
 ### 3. Adaptive Pareto Frontier
@@ -244,10 +252,10 @@ Global comparison of all decoders, adaptive policies, and learned selectors in r
 
 ### Setup Virtual Environment
 
-```bash
+```powershell
 # Clone the repository
-git clone https://github.com/Nox-eturnus/adaptive-surface-code-decoder.git
-cd adaptive-surface-code-decoder
+git clone https://github.com/Nox-eturnus/Projects.git
+cd Projects\adaptive-surface-code-decoder
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -288,7 +296,7 @@ python scripts/01_first_surface_code.py
 # 3. Monte Carlo threshold sweeps (generates results/threshold/pymatching.csv)
 python scripts/02_threshold_sweep.py
 
-# 4. Multi-decoder baseline comparison (MWPM, Correlated MWPM, UF, BP-OSD)
+# 4. Multi-decoder baseline comparison (MWPM, Correlated MWPM, Belief-Find, BP-OSD)
 python scripts/03_decoder_comparison.py
 
 # 5. High-resolution P50/P95/P99 latency & throughput profiling
@@ -390,7 +398,7 @@ adaptive-surface-code-decoder/
 │   ├── mismatch/                # Prior probability mismatch data
 │   ├── noise_models/            # Leakage and erasure proxy records
 │   ├── threshold/               # Sinter threshold Monte Carlo datasets
-│   └── figures/                 # 17 publication-quality PNG figures
+│   └── figures/                 # 17 publication-quality PNG figures (01 to 17)
 │
 ├── README.md                    # Primary repository documentation
 ├── RESULTS.md                   # Comprehensive scientific analysis & findings

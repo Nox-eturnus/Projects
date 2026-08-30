@@ -1,6 +1,6 @@
 # Experimental Results and Scientific Analysis
 
-This document provides a detailed scientific analysis of the experimental benchmarks conducted across all 20 phases of the **Adaptive Surface-Code Decoder** project. 
+This document provides a detailed scientific analysis of the experimental benchmarks conducted across all 20 phases of the **Adaptive Surface-Code Decoder** project.
 
 ---
 
@@ -13,7 +13,7 @@ This document provides a detailed scientific analysis of the experimental benchm
 6. [Decoder / Noise-Model Parameter Mismatch](#6-decoder--noise-model-parameter-mismatch)
 7. [Logical X and Z Scaling](#7-logical-x-and-z-scaling)
 8. [Adaptive Decoder Selection (Heuristic Density Binning)](#8-adaptive-decoder-selection-heuristic-density-binning)
-9. [Learned Decoder Selector (Budget-Dependent Routing)](#9-learned-decoder-selector-budget-dependent-routing)
+9. [Learned Decoder Selector (Budget-Dependent Trade-Off)](#9-learned-decoder-selector-budget-dependent-trade-off)
 10. [Causal Streaming Replay Benchmark](#10-causal-streaming-replay-benchmark)
 11. [Global Reliability–Latency Trade-off](#11-global-reliabilitylatency-trade-off)
 12. [Methodological Limitations and Systems Caveats](#12-methodological-limitations-and-systems-caveats)
@@ -44,39 +44,38 @@ At $p = 0.001$, scaling from $d=3$ to $d=7$ suppresses the logical failure rate 
 
 ## 2. Decoder Reliability Comparison
 
-We benchmarked four distinct decoding algorithms on identical syndrome datasets:
+We benchmarked decoding algorithms across distances $d \in \{3, 5, 7, 9\}$ under circuit-level noise:
 1. **MWPM** (`pymatching`): Standard Blossom-based matching on detector error model graphs.
 2. **Correlated MWPM** (`pymatching` with `enable_correlations=True`): Weight-adjusted matching incorporating 2-qubit gate hyperedge correlations.
-3. **Union-Find** (`ldpc.UnionFindDecoder`): Cluster-growth and peeling decoder.
-4. **BP+OSD** (`ldpc.BpOsdDecoder` + `beliefmatching`): Minimum-sum Belief Propagation with Order-0 Ordered Statistics Decoding.
+3. **Belief-Find / BP+Union-Find** (`SinterBeliefFindDecoder`): Minimum-sum Belief Propagation combined with Union-Find cluster peeling.
+4. **BP+OSD** (`SinterBpOsdDecoder`): Minimum-sum Belief Propagation with Order-0 Ordered Statistics Decoding.
+5. **Union-Find** (`ldpc.UnionFindDecoder`): Inversion-based cluster growth and peeling.
 
 ### Key Observations:
 - **Correlated MWPM** achieved the lowest overall logical error rate under circuit noise containing multi-qubit fault mechanisms, outperforming standard MWPM by $1.2\times - 1.8\times$ in dense fault regimes.
-- **BP+OSD** showed strong error-suppression capability on small distances ($d=3, 5$), but exhibited convergence latency scaling with $O(I_{\text{max}} \cdot N^2)$.
-- **Union-Find** exhibited a slightly depressed threshold ($\sim 0.55\% - 0.60\%$) relative to MWPM ($\sim 0.72\%$), consistent with theoretical predictions for cluster-peeling approximations.
+- **BP+OSD** showed strong error-suppression capability on small distances ($d=3, 5$), but exhibited super-linear runtime scaling with check matrix dimensions.
+- **Belief-Find** demonstrated competitive logical error rates bridging the gap between matching and BP decoders while utilizing syndrome soft priors.
 
 ---
 
 ## 3. Decoder Latency and Throughput
 
-Single-shot and batch latency distributions were profiled with high-resolution hardware timers (`perf_counter_ns`), measuring P50 (median), P95, P99 tail latency, and throughput (syndromes/second).
+Single-shot latency distributions were profiled with high-resolution hardware timers (`perf_counter_ns`), measuring tail latency across code distances $d \in \{3, 5, 7, 9, 11\}$:
+
+### Representative P99 Latency Scaling:
 
 ```text
-Decoder             Distance    P50 (µs)    P95 (µs)    P99 (µs)    Throughput (shots/s)
-----------------------------------------------------------------------------------------
-MWPM                d=3         7.2         11.8        14.2        ~130,000
-MWPM                d=5         14.8        24.1        29.6        ~62,000
-MWPM                d=7         24.5        38.2        46.1        ~38,000
-Correlated MWPM     d=3         12.1        19.4        24.0        ~78,000
-Correlated MWPM     d=5         26.4        44.2        54.3        ~35,000
-Correlated MWPM     d=7         48.0        81.5        99.2        ~19,000
-BP+OSD              d=3         480.0       1,210.0     2,150.0     ~1,800
-BP+OSD              d=5         2,100.0     5,400.0     8,900.0     ~410
-Union-Find (Py)     d=3         1,450.0     3,200.0     5,800.0     ~650
+Distance    MWPM       Correlated MWPM    Union-Find (Py)    BP+OSD
+----------------------------------------------------------------------
+d=3         18.6 µs    74.1 µs            259 µs             251 µs
+d=5         50.1 µs    163.0 µs           3,029 µs           2,389 µs
+d=7         93.8 µs    154.0 µs           18,581 µs          3,208 µs
+d=9         56.9 µs    126.5 µs           132,997 µs         8,846 µs
+d=11        92.9 µs    208.7 µs           1,243,947 µs       24,519 µs
 ```
 
 > [!NOTE]
-> **Implementation Note on Union-Find**: The Union-Find decoder benchmarked here uses `ldpc.UnionFindDecoder`, a pure-Python reference implementation. Its observed millisecond-level latency reflects Python interpreter overhead and matrix operations rather than the theoretical $O(N \alpha(N))$ asymptotic scaling of hardware/C++ Union-Find implementations.
+> **Implementation Qualification**: The poor Union-Find latency scaling is specific to the current Python implementation (`ldpc.UnionFindDecoder`) and should not be interpreted as the theoretical asymptotic performance of Union-Find decoders in general, which achieve $O(N \alpha(N))$ complexity in optimized C++/FPGA architectures.
 
 ---
 
@@ -129,57 +128,63 @@ To address the latency-accuracy trade-off, we implemented online feature extract
 A lookup table maps $(d, \rho)$ pairs to the optimal decoder whose empirical $P99$ latency satisfies the allocated budget $\tau_{\text{budget}}$.
 
 ### Results:
-- In low-density regimes ($\rho < 0.01$), 94% of shots are resolved by fast MWPM in $< 15\,\mu\text{s}$.
+- In low-density regimes ($\rho < 0.01$), 94% of shots are resolved by fast MWPM in $< 20\,\mu\text{s}$.
 - In high-density regimes ($\rho > 0.05$), the policy escalates the shot to Correlated MWPM or BP+OSD.
 - The adaptive policy achieved **98.7% of Correlated MWPM reliability** while delivering a **$2.6\times$ higher aggregate throughput**.
 
 ---
 
-## 9. Learned Decoder Selector (Budget-Dependent Routing)
+## 9. Learned Decoder Selector (Budget-Dependent Trade-Off)
 
-Using offline calibration datasets (10,000+ labeled syndrome shots per distance), we trained machine learning regressors (Decision Trees / Random Forests) to predict the probability of logical failure $P(\text{fail} \mid s, \text{decoder})$ given syndrome topological features:
-$$\mathbf{x} = [\rho, k, d, p, \eta, r]$$
+Moving beyond heuristic density binning, `scripts/12_learned_selector.py` trains separate `DecisionTreeRegressor` models per decoder for logical-failure risk and P99 latency using physical and syndrome features:
+$$\mathbf{x} = [\rho, \text{distance}, p, \text{rounds}, \text{bias\_ratio}]$$
 
 ```mermaid
 flowchart LR
     S[Syndrome s] --> FE[Feature Extractor]
-    FE --> ML[Learned Selector Model]
+    FE --> ML[Learned DecisionTree Regressors]
     Budget[Latency Budget tau] --> ML
     ML --> D{Selected Decoder}
-    D -->|tau <= 50 us| MWPM[Fast MWPM]
-    D -->|100 us <= tau <= 5 ms| CMWPM[Correlated MWPM / BP-OSD]
-    D -->|tau >= 20 ms| BPOSD[BP + OSD]
+    D -->|tau = 20 us| MWPM[MWPM - Selective Low-Density]
+    D -->|tau = 100 us| CMWPM[Correlated MWPM / BP-OSD]
+    D -->|tau >= 500 us| ALL[Global High-Accuracy Decoders]
 ```
 
-### Scientific Finding: Budget-Dependent Advantage
-The advantage of the learned selector over static lookup is strictly budget-dependent:
-1. **Tight Budget ($\tau_{\text{budget}} \le 50\,\mu\text{s}$)**: MWPM is the only feasible candidate. The learned selector achieves 0% deadline violations by selecting MWPM.
-2. **Intermediate Budget ($100\,\mu\text{s} \le \tau_{\text{budget}} \le 5\,\text{ms}$)**: The learned selector outperforms static assignment, routing complex syndrome topologies to higher-order decoders while keeping simple shots on fast paths. Logical failure rates dropped by **18% - 28%** compared to a fixed MWPM policy under the same average runtime.
-3. **Unconstrained Budget ($\tau_{\text{budget}} \ge 20\,\text{ms}$)**: All decoders meet deadlines; the system defaults to global maximum-reliability decoding.
+### Empirical Budget-Dependent Comparison:
+
+The learned selector provides a **budget-dependent trade-off rather than uniformly outperforming the lookup policy**:
+
+| Budget ($\tau_{\text{budget}}$) | Learned Coverage | Lookup Coverage | Learned Deadline Violation | Performance Summary |
+|---|---|---|---|---|
+| **$20\,\mu\text{s}$** | **$16.67\%$** | $0.0\%$ | $1.29\%$ | Learned selector finds feasible fast paths for low-density syndromes; lookup table finds 0 feasible candidates. |
+| **$50\,\mu\text{s}$** | $24.79\%$ | $25.0\%$ | $0.13\%$ | Both methods achieve comparable early real-time coverage. |
+| **$100\,\mu\text{s}$** | $59.80\%$ | $100.0\%$ | $1.77\%$ | Learned selector achieves $P_L \approx 0.01389$ vs. lookup $P_L \approx 0.01853$ (a $\sim 25\%$ error reduction). |
+| **$\ge 500\,\mu\text{s}$** | $100.0\%$ | $100.0\%$ | $0.00\%$ | Both achieve full coverage; deterministic lookup becomes competitive or slightly better. |
 
 ---
 
 ## 10. Causal Streaming Replay Benchmark
 
-Real-time quantum processors continuously stream detector measurements round-by-round. We developed a causal cumulative-prefix streaming benchmark (`qec_lab/streaming.py`):
+Real-world QEC operates continuously over time. The causal streaming module (`qec_lab/streaming.py` and `scripts/13_streaming_benchmark.py`) implements a **causal cumulative-prefix streaming replay benchmark**:
 - At measurement round $k \in \{1, \dots, d\}$, future detectors $t > k$ are causally masked to zero.
 - The decoder is executed causally on available history to track intermediate logical frame evolution.
 
-### Key Metrics:
-- **Prefix Update Latency**: Time required to decode cumulative prefix $1 \dots k$.
-- **Frame Stability Fraction**: Probability that an intermediate logical prediction at round $k$ remains unchanged in all subsequent rounds $k+1 \dots d$.
-- **Replay Overhead**: Ratio of cumulative prefix decoding time to single final-round block decoding time.
+### Key Invariant & Results:
+- **Exact Full-Block Agreement**: The final cumulative streaming prediction strictly matches standard block MWPM:
+  $$\text{final\_block\_disagreement\_rate} = 0.0$$
+- **Frame Stability Fraction**: Measures the probability that an intermediate logical prediction at round $k$ remains unchanged in all subsequent rounds $k+1 \dots d$.
+- **Replay Overhead**: Quantifies the computational cost of prefix re-decoding across code cycles.
 
 ```text
-Distance    Rounds (d)    Stride    Mean Stability Fraction    Replay Overhead Factor
-----------------------------------------------------------------------------------------
-d=3         3             1         0.542                      2.41x
-d=5         5             1         0.515                      4.12x
-d=7         7             1         0.488                      5.89x
+Distance    Rounds (d)    Mean Stability Fraction    Replay Overhead Factor    Disagreement Rate
+-------------------------------------------------------------------------------------------------
+d=3         3             0.542                      2.41x                     0.0%
+d=5         5             0.515                      4.12x                     0.0%
+d=7         7             0.488                      5.89x                     0.0%
 ```
 
 > [!IMPORTANT]
-> **Methodological Qualification**: This benchmark is a causal *software replay proxy* measuring temporal frame stability and prefix decoding latency. It is not an incremental/windowed FPGA hardware decoder, but it provides essential baseline metrics for designing windowed streaming architectures.
+> **Methodological Qualification**: This benchmark is a causal *software replay proxy* evaluating temporal frame stability and prefix decoding latency. It is not an incremental/windowed FPGA hardware decoder, but it establishes baseline frame-stability metrics for designing windowed streaming architectures.
 
 ---
 
@@ -187,10 +192,10 @@ d=7         7             1         0.488                      5.89x
 
 Plotting all decoders, heuristic policies, and learned selectors in $(\text{P99 Latency}, P_L)$ space reveals the unified Pareto frontier:
 
-1. **MWPM**: Defines the ultra-low-latency anchor ($\sim 15 - 45\,\mu\text{s}$, $P_L \approx 1.8 \times 10^{-3}$ at $d=5, p=0.003$).
-2. **Correlated MWPM**: Shifter along the frontier ($\sim 40 - 100\,\mu\text{s}$, $P_L \approx 1.1 \times 10^{-3}$).
-3. **Learned Selector**: Forms the optimal adaptive envelope, bridging the gap between MWPM speed and Correlated MWPM/BP-OSD accuracy.
-4. **Static BP+OSD**: High-reliability anchor for offline verification or relaxed latency regimes ($\sim 5 - 10\,\text{ms}$).
+1. **MWPM**: Defines the ultra-low-latency anchor ($18.6 - 92.9\,\mu\text{s}$).
+2. **Correlated MWPM**: Shifts along the frontier ($74.1 - 208.7\,\mu\text{s}$, $P_L \approx 0.0014 - 0.0169$).
+3. **Learned Selector**: Forms the optimal adaptive envelope in the intermediate budget regime ($50 - 200\,\mu\text{s}$).
+4. **Static BP+OSD**: High-accuracy anchor for offline verification or relaxed latency regimes ($250\,\mu\text{s} - 24.5\,\text{ms}$).
 
 ---
 
@@ -205,4 +210,4 @@ Plotting all decoders, heuristic policies, and learned selectors in $(\text{P99 
 
 ---
 
-*All figures corresponding to these results are located in `results/figures/` and can be regenerated via `python scripts/14_generate_all_plots.py`.*
+*All 17 figures corresponding to these results are located in `results/figures/` (numbered `01_` through `17_`) and can be regenerated via `python scripts/14_generate_all_plots.py`.*
