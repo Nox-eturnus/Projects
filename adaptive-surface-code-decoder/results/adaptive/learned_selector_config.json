@@ -1,0 +1,41 @@
+{
+  "model_family": "DecisionTreeRegressor",
+  "selection_objective": "min predicted logical failure subject to predicted P99 <= budget",
+  "features": [
+    "rho",
+    "distance",
+    "p",
+    "rounds",
+    "bias_ratio"
+  ],
+  "budgets_us": [
+    20.0,
+    50.0,
+    100.0,
+    200.0,
+    500.0,
+    1000.0,
+    5000.0,
+    20000.0,
+    100000.0
+  ],
+  "max_depth": 6,
+  "min_samples_leaf": 5,
+  "decoders": [
+    "mwpm",
+    "mwpm_correlated",
+    "union_find",
+    "bp_osd"
+  ],
+  "calibration_p": [
+    0.002,
+    0.004,
+    0.006,
+    0.008
+  ],
+  "heldout_p": [
+    0.003,
+    0.005,
+    0.007
+  ]
+}

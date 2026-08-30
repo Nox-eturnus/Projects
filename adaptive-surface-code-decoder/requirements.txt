@@ -1,0 +1,22 @@
+# Core Quantum Error Correction & Simulation
+stim>=1.16.0
+sinter>=1.16.0
+pymatching>=2.4.0
+ldpc>=2.4.1
+beliefmatching>=0.2.0
+
+# Scientific Computing & Data Processing
+numpy>=2.0.0
+scipy>=1.14.0
+pandas>=2.2.0
+pyarrow>=17.0.0
+scikit-learn>=1.5.0
+
+# Visualization & Benchmarking
+matplotlib>=3.9.0
+psutil>=6.0.0
+tqdm>=4.66.0
+
+# Packaging & Testing
+setuptools>=70.0.0
+pytest>=8.0.0

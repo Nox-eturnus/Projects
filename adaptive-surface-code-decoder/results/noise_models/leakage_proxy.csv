@@ -1,0 +1,7 @@
+model,distance,p_idle,shots,logical_failure_rate,mean_syndrome_density
+baseline,3,0.002,20000,0.0029,0.02383125
+persistent_error_proxy,3,0.01,20000,0.01045,0.03588125
+baseline,5,0.002,20000,0.0008,0.027276666666666668
+persistent_error_proxy,5,0.01,20000,0.00635,0.04263125
+baseline,7,0.002,20000,0.00015,0.029636309523809523
+persistent_error_proxy,7,0.01,20000,0.0036,0.04563333333333333

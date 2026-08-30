@@ -1,0 +1,1 @@
+"""Adaptive surface-code decoding research package."""
