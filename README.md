@@ -1,4 +1,4 @@
-# Aarush Das Bansiwal — Project Repository
+# Aarush Das Bansiwal - Project Repository
 
 This repository serves as a consolidated collection of my academic, research, and personal projects.  
 
@@ -12,7 +12,7 @@ The projects reflect both exploratory research and practical implementations bui
 ---
 
 ## Projects Included
-
+- [**Adaptive Surface-Code Decoder**](./adaptive-surface-code-decoder): Surface-code QEC benchmarking framework with adaptive decoder selection, latency analysis, and reliability evaluation.
 - [**Q_ALU**](./Q_ALU): Quantum Arithmetic Logic Unit implementation.
 - [**Quantum Multi-Target Search**](./Quantum-Multi-Target-Search-using-Grover-Algorithm): Quantum search algorithm using Grover's algorithm for multiple targets.
 - [**Web Scrapper**](./Web_Scrapper): Web scraping utility.
