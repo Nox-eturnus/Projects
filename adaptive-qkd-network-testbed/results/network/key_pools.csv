@@ -1,0 +1,6 @@
+u,v,key_bits,active
+A,B,269744,True
+A,C,149744,False
+B,D,91744,True
+B,C,145000,True
+D,C,159744,True

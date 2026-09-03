@@ -1,0 +1,7 @@
+scenario_id,recommended_action,executed_action,selected_utility,secure_bits,oracle_utility,oracle_gap,security_violation
+0,decoy_bb84|mu=0.40|nu=0.05|p=0.80|N=100000000000,ABORT,0.0,0.0,0.0,0.0,False
+5,decoy_bb84|mu=0.40|nu=0.10|p=0.80|N=100000000000,ABORT,0.0,0.0,0.0,0.0,False
+10,decoy_bb84|mu=0.40|nu=0.10|p=0.80|N=100000000000,decoy_bb84|mu=0.40|nu=0.10|p=0.80|N=100000000000,6237261.10548049,41101900.0,6237261.10548049,0.0,False
+15,decoy_bb84|mu=0.40|nu=0.10|p=0.90|N=100000000000,decoy_bb84|mu=0.40|nu=0.10|p=0.90|N=100000000000,6582380.953626703,88571817.0,6582380.953626703,0.0,False
+20,decoy_bb84|mu=0.40|nu=0.05|p=0.90|N=100000000000,ABORT,0.0,0.0,2233582.6659667054,2233582.6659667054,False
+25,decoy_bb84|mu=0.55|nu=0.05|p=0.90|N=100000000000,ABORT,0.0,0.0,0.0,0.0,False

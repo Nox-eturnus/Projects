@@ -1,0 +1,16 @@
+frozen_on: "2026-09-01"
+
+etsi:
+  qkd_014:
+    baseline: "ETSI GS QKD 014 V1.1.1 (2019-02)"
+    role: "application-facing key delivery API"
+  qkd_020:
+    baseline: "ETSI GS QKD 020 V1.1.1 (2026-06)"
+    role: "interoperable KMS-to-KMS API"
+
+itu:
+  - "ITU-T Y.3802"
+  - "ITU-T Y.3803"
+  - "ITU-T Y.3806"
+  - "ITU-T X.1711 (03/2026)"
+  - "ITU-T Y.3823 (04/2026)"

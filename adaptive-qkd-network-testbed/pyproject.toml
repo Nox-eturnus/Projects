@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adaptive-qkd-network-testbed"
+version = "0.1.0"
+description = "Research testbed for finite-key QKD, key management, networking, and adaptive protocol selection."
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.setuptools.packages.find]
+include = ["qkd_lab*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

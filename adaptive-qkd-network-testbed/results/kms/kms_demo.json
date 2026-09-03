@@ -1,0 +1,54 @@
+{
+  "metrics": {
+    "available": 2,
+    "reserved": 0,
+    "consumed": 2,
+    "void": 0,
+    "available_bits": 512,
+    "reserved_bits": 0,
+    "consumed_bits": 512,
+    "void_bits": 0
+  },
+  "keys": [
+    {
+      "key_id": "3cd75feb-00ac-49ec-9ca4-c170b8c233d8",
+      "peer_id": "SAE_B",
+      "bits": 256,
+      "state": "consumed",
+      "created_at": "2026-09-02T16:05:59.577796+00:00",
+      "protocol": "decoy_bb84",
+      "eps_sec": 1e-10,
+      "eps_cor": 1e-15
+    },
+    {
+      "key_id": "15c8349d-9e15-46fe-baf8-d0d1945a1c16",
+      "peer_id": "SAE_B",
+      "bits": 256,
+      "state": "consumed",
+      "created_at": "2026-09-02T16:05:59.577819+00:00",
+      "protocol": "decoy_bb84",
+      "eps_sec": 1e-10,
+      "eps_cor": 1e-15
+    },
+    {
+      "key_id": "d52880aa-c2ef-4c8f-b851-45aac9293261",
+      "peer_id": "SAE_B",
+      "bits": 256,
+      "state": "available",
+      "created_at": "2026-09-02T16:05:59.577828+00:00",
+      "protocol": "decoy_bb84",
+      "eps_sec": 1e-10,
+      "eps_cor": 1e-15
+    },
+    {
+      "key_id": "363b99ec-397e-44a7-abc6-c3890c7ca145",
+      "peer_id": "SAE_B",
+      "bits": 256,
+      "state": "available",
+      "created_at": "2026-09-02T16:05:59.577835+00:00",
+      "protocol": "decoy_bb84",
+      "eps_sec": 1e-10,
+      "eps_cor": 1e-15
+    }
+  ]
+}

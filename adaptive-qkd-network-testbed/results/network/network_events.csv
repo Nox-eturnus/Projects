@@ -1,0 +1,3 @@
+event,success,path,trusted
+initial_request,True,A-C-D,C
+AC_down_reroute,True,A-B-D,B

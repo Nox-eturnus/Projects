@@ -1,0 +1,22 @@
+{
+  "versions": {
+    "versions": [
+      "v1"
+    ]
+  },
+  "transfer": {
+    "status": "relayed",
+    "key_ids": [
+      "interop-key-1"
+    ]
+  },
+  "ack": {
+    "message": "success"
+  },
+  "void": {
+    "status": "voided",
+    "key_ids": [
+      "interop-key-1"
+    ]
+  }
+}

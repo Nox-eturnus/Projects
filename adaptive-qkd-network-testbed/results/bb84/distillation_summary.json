@@ -1,0 +1,14 @@
+{
+  "pulses": 30000000,
+  "distance_km": 0.0,
+  "x_detected": 732816,
+  "x_qber": 0.015001037095259928,
+  "reconciliation_algorithm": "cascade_blockwise",
+  "reconciliation_disclosed_bits": 111851,
+  "reconciliation_messages": 111851,
+  "finite_key_secure_bits": 2454,
+  "phase_error_upper": 0.08449249168395292,
+  "abort": false,
+  "privacy_amplified_key_bits": 2454,
+  "key_material_logged": false
+}

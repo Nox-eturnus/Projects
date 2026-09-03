@@ -1,0 +1,9 @@
+distance_km,protocol,secure_bits,abort
+20,decoy_bb84,1270575426,False
+20,mdi_qkd,112099063,False
+50,decoy_bb84,298329690,False
+50,mdi_qkd,17589177,False
+80,decoy_bb84,64431420,False
+80,mdi_qkd,108405,False
+100,decoy_bb84,19060907,False
+100,mdi_qkd,0,True

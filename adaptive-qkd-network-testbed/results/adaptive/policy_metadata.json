@@ -1,0 +1,14 @@
+{
+  "features": [
+    "distance_km",
+    "recent_qber",
+    "recent_gain",
+    "dark_probability",
+    "detector_efficiency",
+    "key_pool_bits",
+    "demand_bps",
+    "mdi_capable"
+  ],
+  "training_scenarios": 24,
+  "split_rule": "scenario_id % 5 != 0"
+}

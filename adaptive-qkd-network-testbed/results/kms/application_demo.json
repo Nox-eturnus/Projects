@@ -1,0 +1,15 @@
+{
+  "aes_gcm_roundtrip": true,
+  "otp_roundtrip": true,
+  "otp_authenticated": true,
+  "kms_metrics": {
+    "available": 0,
+    "reserved": 0,
+    "consumed": 1,
+    "void": 0,
+    "available_bits": 0,
+    "reserved_bits": 0,
+    "consumed_bits": 256,
+    "void_bits": 0
+  }
+}

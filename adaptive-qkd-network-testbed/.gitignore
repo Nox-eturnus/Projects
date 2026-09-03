@@ -1,0 +1,51 @@
+# Byte-compiled / optimized / CPython generated files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Distribution / packaging
+build/
+dist/
+eggs/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Environment and Secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Temporary files and logs
+*.tmp
+*.temp
+*.log

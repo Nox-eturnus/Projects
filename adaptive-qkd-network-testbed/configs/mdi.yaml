@@ -1,0 +1,50 @@
+protocol: mdi_qkd
+pulses: 1000000
+seed: 24680
+
+alice:
+  signal:
+    mu: 0.40
+    probability: 0.80
+  decoy:
+    mu: 0.10
+    probability: 0.15
+  vacuum:
+    mu: 0.0002
+    probability: 0.05
+
+bob:
+  signal:
+    mu: 0.40
+    probability: 0.80
+  decoy:
+    mu: 0.10
+    probability: 0.15
+  vacuum:
+    mu: 0.0002
+    probability: 0.05
+
+basis:
+  p_z_alice: 0.90
+  p_z_bob: 0.90
+
+channel:
+  attenuation_db_per_km: 0.20
+  alice_to_charlie_km: 25.0
+  bob_to_charlie_km: 25.0
+
+charlie:
+  detector_efficiency: 0.60
+  dark_probability: 1.0e-7
+  misalignment: 0.015
+
+finite_key:
+  failure_probability: 1.0e-10
+  eps_cor: 1.0e-15
+  eps_prime: 1.0e-12
+  eps_hat: 1.0e-12
+  eps_e: 1.0e-12
+  eps_b: 1.0e-12
+  eps_0: 1.0e-12
+  eps_1: 1.0e-12
+  eps_pa: 1.0e-12

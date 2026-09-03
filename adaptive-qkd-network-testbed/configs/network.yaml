@@ -1,0 +1,7 @@
+nodes: [A, B, C, D]
+links:
+  - {u: A, v: B, distance_km: 30.0, key_bits: 200000, secure_rate_bps: 70000, mdi_capable: false}
+  - {u: B, v: D, distance_km: 70.0, key_bits: 80000, secure_rate_bps: 12000, mdi_capable: true}
+  - {u: A, v: C, distance_km: 45.0, key_bits: 150000, secure_rate_bps: 40000, mdi_capable: false}
+  - {u: C, v: D, distance_km: 50.0, key_bits: 130000, secure_rate_bps: 30000, mdi_capable: false}
+  - {u: B, v: C, distance_km: 25.0, key_bits: 90000, secure_rate_bps: 55000, mdi_capable: false}

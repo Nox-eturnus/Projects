@@ -1,0 +1,31 @@
+protocol: decoy_bb84
+pulses: 1000000
+seed: 12345
+
+source:
+  signal:
+    mu: 0.50
+    probability: 0.80
+  decoy:
+    mu: 0.10
+    probability: 0.15
+  vacuum:
+    mu: 0.0002
+    probability: 0.05
+
+basis:
+  p_x_alice: 0.90
+  p_x_bob: 0.90
+
+channel:
+  length_km: 25.0
+  attenuation_db_per_km: 0.20
+
+detector:
+  efficiency: 0.25
+  dark_probability: 1.0e-7
+  misalignment: 0.015
+  n_detectors: 2
+
+postprocessing:
+  f_ec: 1.16
