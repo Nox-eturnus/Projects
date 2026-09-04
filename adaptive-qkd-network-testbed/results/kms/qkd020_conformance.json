@@ -2,7 +2,8 @@
   "versions": {
     "versions": [
       "v1"
-    ]
+    ],
+    "synchronous_mode": true
   },
   "transfer": {
     "status": "relayed",

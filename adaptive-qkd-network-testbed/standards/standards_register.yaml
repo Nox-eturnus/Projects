@@ -4,13 +4,36 @@ etsi:
   qkd_014:
     baseline: "ETSI GS QKD 014 V1.1.1 (2019-02)"
     role: "application-facing key delivery API"
+    paths:
+      - "GET /api/v1/keys/{slave_SAE_ID}/status"
+      - "POST /api/v1/keys/{slave_SAE_ID}/enc_keys"
+      - "POST /api/v1/keys/{master_SAE_ID}/dec_keys"
   qkd_020:
     baseline: "ETSI GS QKD 020 V1.1.1 (2026-06)"
     role: "interoperable KMS-to-KMS API"
+    synchronous_mode: true
+    paths:
+      - "GET /kmapi/versions"
+      - "POST /kmapi/v1/ext_keys"
+      - "POST /kmapi/v1/ext_keys/ack"
+      - "POST /kmapi/v1/ext_keys/void"
 
 itu:
-  - "ITU-T Y.3802"
-  - "ITU-T Y.3803"
-  - "ITU-T Y.3806"
-  - "ITU-T X.1711 (03/2026)"
-  - "ITU-T Y.3823 (04/2026)"
+  y_3802: "ITU-T Y.3802 (12/2020) - Quantum key distribution networks: Functional architecture"
+  y_3803: "ITU-T Y.3803 (12/2020) - Quantum key distribution networks: Key management"
+  y_3804: "ITU-T Y.3804 (12/2020) - Quantum key distribution networks: Control and management"
+  y_3806: "ITU-T Y.3806 (11/2021) - Quantum key distribution networks: Requirements for quality of service assurance"
+  y_3823: "ITU-T Y.3823 (04/2026) - Quantum key distribution networks: End-to-end quality of service allocation and control"
+  x_1711: "ITU-T X.1711 (03/2026) - Security guidelines for quantum key distribution network protocols"
+
+finite_key_security_scope:
+  bb84:
+    type: "theorem-level composable finite-key security"
+    reference: "Lim, Curty, Walenta, Xu, Zbinden, Phys. Rev. A 89, 022307 (2014)"
+    guarantees:
+      correctness: "eps_cor-correctness via 2-universal Toeplitz hashing with tag length t >= ceil(log2(1/eps_cor)) and 1-bit verification leakage"
+      secrecy: "eps_sec-secrecy via smooth min-entropy with Serfling / Chernoff finite-size statistical bounds"
+  mdi_qkd:
+    type: "finite-resource engineering model"
+    reference: "Curty et al., Nature Communications 5, 3732 (2014)"
+    notes: "3-intensity decoy-state estimation with conservative bound (vacuum yield omitted as lower bound for robust engineering analysis). Delineated from full theorem-level composable min-entropy proofs."

@@ -1,0 +1,21 @@
+{
+  "timestamp_utc": "2026-09-04T16:36:29.571525+00:00",
+  "git_commit": "8391cdf",
+  "python_version": "3.13.13 | packaged by Anaconda, Inc. | (main, Apr 14 2026, 06:12:50) [MSC v.1942 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "policy_dataset_sha256": "8c77175d195af8d23a9563ba71d2c65f37824339118008a5e7c3ff5f54eba2dd",
+  "features": [
+    "distance_km",
+    "recent_qber",
+    "recent_gain",
+    "dark_probability",
+    "detector_efficiency",
+    "key_pool_bits",
+    "demand_bps",
+    "mdi_capable"
+  ],
+  "training_optimal_action": "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=100000000000",
+  "num_test_scenarios": 16,
+  "num_test_trajectories": 2,
+  "security_violations_adaptive": 0
+}

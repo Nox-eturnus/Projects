@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from qkd_lab.kms.models import ManagedKey, KeyState, utcnow
+from qkd_lab.kms.models import KeyState, ManagedKey, utcnow
 from qkd_lab.kms.store import KeyStore
 
 
@@ -47,7 +47,10 @@ def create_qkd020_app(store: KeyStore) -> FastAPI:
 
     @app.get("/kmapi/versions")
     def versions():
-        return {"versions": ["v1"]}
+        return {
+            "versions": ["v1"],
+            "synchronous_mode": True,
+        }
 
     @app.post("/kmapi/v1/ext_keys")
     def ext_keys(container: ExtKeyContainer):
@@ -56,7 +59,7 @@ def create_qkd020_app(store: KeyStore) -> FastAPI:
         if len(container.target_sae_ids) != 1:
             raise HTTPException(status_code=400, detail="research baseline supports exactly one target SAE")
         target = container.target_sae_ids[0]
-        imported = []
+        keys_to_import: list[ManagedKey] = []
         try:
             for item in container.keys:
                 raw = base64.b64decode(item.value, validate=True)
@@ -70,18 +73,23 @@ def create_qkd020_app(store: KeyStore) -> FastAPI:
                     protocol="qkd020_import",
                     eps_sec=1e-10,
                     eps_cor=1e-15,
+                    initiator_sae_id=container.initiator_sae_id,
+                    target_sae_id=target,
                 )
-                store.import_key(key, peer_id=target)
-                imported.append(item.key_id)
+                keys_to_import.append(key)
+            imported_items = store.import_keys_batch(keys_to_import, peer_id=target)
+            imported = [k.key_id for k in imported_items]
         except Exception as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"status": "relayed", "key_ids": imported}
 
     @app.post("/kmapi/v1/ext_keys/ack")
-    def ext_keys_ack(container: AckContainer):
-        if container.ack_status not in {"relayed", "voided", "failed", "key not present"}:
-            raise HTTPException(status_code=400, detail="invalid ack_status")
-        app.state.acks.append(container.model_dump())
+    def ext_keys_ack(container: AckContainer | list[AckContainer]):
+        items = [container] if isinstance(container, AckContainer) else container
+        for item in items:
+            if item.ack_status not in {"relayed", "voided", "failed", "key not present"}:
+                raise HTTPException(status_code=400, detail="invalid ack_status")
+            app.state.acks.append(item.model_dump())
         return {"message": "success"}
 
     @app.post("/kmapi/v1/ext_keys/void")
@@ -89,7 +97,13 @@ def create_qkd020_app(store: KeyStore) -> FastAPI:
         if not container.key_ids and not container.all_confirmation:
             raise HTTPException(status_code=400, detail="supply key_ids or set all_confirmation=true")
         if container.all_confirmation:
-            key_ids = [k.key_id for k in store.available()]
+            # Multi-tenant safety: Scope all_confirmation strictly to specified initiator/target SAE pair
+            available_keys = store.available()
+            key_ids = [
+                k.key_id for k in available_keys
+                if (k.peer_id in container.target_sae_ids) and
+                   (k.initiator_sae_id is None or k.initiator_sae_id == container.initiator_sae_id)
+            ]
         else:
             key_ids = container.key_ids
         try:

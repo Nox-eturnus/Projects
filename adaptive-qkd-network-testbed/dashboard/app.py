@@ -13,22 +13,31 @@ app = FastAPI(
 )
 
 
-def current_graph():
-    """
-    Build the current QKD network graph directly from the repository
-    network configuration.
+_PERSISTENT_GRAPH: nx.Graph | None = None
 
-    The dashboard therefore visualizes the same link state used by the
-    network simulation rather than maintaining a separate copy.
-    """
+
+def get_network_graph() -> nx.Graph:
+    """Return the persistent module-level QKD network graph."""
+    global _PERSISTENT_GRAPH
+    if _PERSISTENT_GRAPH is None:
+        cfg = load_yaml("configs/network.yaml")
+        links = [QKDLinkState(**item) for item in cfg["links"]]
+        _PERSISTENT_GRAPH = build_graph(links)
+    return _PERSISTENT_GRAPH
+
+
+def reset_network_graph() -> nx.Graph:
+    """Reset the persistent network graph to configured initial state."""
+    global _PERSISTENT_GRAPH
     cfg = load_yaml("configs/network.yaml")
+    links = [QKDLinkState(**item) for item in cfg["links"]]
+    _PERSISTENT_GRAPH = build_graph(links)
+    return _PERSISTENT_GRAPH
 
-    links = [
-        QKDLinkState(**item)
-        for item in cfg["links"]
-    ]
 
-    return build_graph(links)
+def current_graph() -> nx.Graph:
+    """Backward-compatible helper returning the persistent network graph."""
+    return get_network_graph()
 
 
 @app.get("/api/state")
@@ -36,11 +45,9 @@ def state():
     """
     Return the current configured network state.
 
-    This endpoint intentionally exposes only values already present in
-    the underlying QKDLinkState objects. The dashboard must not invent
-    additional security metrics.
+    This endpoint exposes values present in the underlying QKDLinkState objects.
     """
-    graph = current_graph()
+    graph = get_network_graph()
 
     links = []
 
@@ -57,6 +64,9 @@ def state():
                 "qber": link.qber,
                 "active": link.active,
                 "mdi_capable": link.mdi_capable,
+                "charlie_node": link.charlie_node,
+                "length_ac_km": link.length_ac_km,
+                "length_bc_km": link.length_bc_km,
             }
         )
 
@@ -64,6 +74,21 @@ def state():
         "nodes": sorted(graph.nodes),
         "links": links,
     }
+
+
+@app.post("/api/reset")
+def reset():
+    reset_network_graph()
+    return state()
+
+
+@app.post("/api/step")
+def step(seconds: float = 1.0):
+    from qkd_lab.network.simulator import generate_keys
+    graph = get_network_graph()
+    generate_keys(graph, seconds)
+    return state()
+
 
 
 @app.get("/", response_class=HTMLResponse)

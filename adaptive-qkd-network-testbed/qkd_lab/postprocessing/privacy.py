@@ -25,15 +25,15 @@ def toeplitz_matrix(output_bits: int, input_bits: int, seed: np.ndarray) -> np.n
 
 def toeplitz_hash(bits: np.ndarray, output_bits: int, seed: np.ndarray) -> np.ndarray:
     bits = np.asarray(bits, dtype=np.uint8).reshape(-1)
+    if output_bits <= 0:
+        return np.zeros(0, dtype=np.uint8)
     if output_bits > len(bits):
         raise ValueError("privacy amplification cannot increase key length")
-    if output_bits == 0:
-        return np.zeros(0, dtype=np.uint8)
     return (toeplitz_matrix(output_bits, len(bits), seed) @ bits) % 2
 
 
 def random_toeplitz_seed(output_bits: int, input_bits: int, seed: int | None = None) -> np.ndarray:
-    if output_bits == 0:
+    if output_bits <= 0 or input_bits <= 0:
         return np.zeros(0, dtype=np.uint8)
     rng = make_rng(seed)
     return rng.integers(0, 2, size=output_bits + input_bits - 1, dtype=np.uint8)
@@ -44,10 +44,10 @@ def toeplitz_hash_fast(bits: np.ndarray, output_bits: int, seed: np.ndarray) -> 
     from scipy.linalg import matmul_toeplitz
 
     bits = np.asarray(bits, dtype=np.uint8).reshape(-1)
+    if output_bits <= 0:
+        return np.zeros(0, dtype=np.uint8)
     if output_bits > len(bits):
         raise ValueError("privacy amplification cannot increase key length")
-    if output_bits == 0:
-        return np.zeros(0, dtype=np.uint8)
     expected = output_bits + len(bits) - 1
     seed = np.asarray(seed, dtype=np.uint8).reshape(-1)
     if len(seed) != expected:

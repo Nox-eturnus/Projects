@@ -1,15 +1,21 @@
 {
   "aes_gcm_roundtrip": true,
   "otp_roundtrip": true,
-  "otp_authenticated": true,
+  "otp_authenticated_it": true,
+  "tamper_protection_verified": true,
+  "keys_consumed_from_kms": [
+    "9486dad0-e431-4657-b545-88d9351decd1",
+    "089e2696-0279-43cb-989f-7b9f6696a675",
+    "e90d7110-5690-4e6c-ad48-e6b8dbdd26c9"
+  ],
   "kms_metrics": {
     "available": 0,
     "reserved": 0,
-    "consumed": 1,
+    "consumed": 3,
     "void": 0,
     "available_bits": 0,
     "reserved_bits": 0,
-    "consumed_bits": 256,
+    "consumed_bits": 1096,
     "void_bits": 0
   }
 }

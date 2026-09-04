@@ -1,10 +1,10 @@
-from __future__ import annotations
-
+import math
 from dataclasses import asdict
 
 import pandas as pd
 
 from qkd_lab.adaptive.actions import QKDAction, action_is_feasible
+from qkd_lab.estimation.confidence import conservative_telemetry_bounds
 from qkd_lab.estimation.finite_key_bb84 import estimate_lim2014
 from qkd_lab.estimation.finite_key_mdi import MDIFiniteKeyBudget, estimate_mdi_finite_key
 from qkd_lab.models import BasisProbabilities, ChannelParameters, DetectorParameters, IntensitySetting
@@ -56,14 +56,26 @@ def evaluate_action_outcome(scenario: dict, action: QKDAction) -> dict:
         }
 
     distance = float(scenario["distance_km"])
-    qber_estimate = min(0.10, max(0.0, float(scenario["recent_qber"])))
+    recent_qber = float(scenario["recent_qber"])
+    recent_gain = float(scenario.get("recent_gain", 0.01))
+    qber_estimate, gain_estimate = conservative_telemetry_bounds(recent_qber, recent_gain)
+
     dark = float(scenario["dark_probability"])
     efficiency = float(scenario["detector_efficiency"])
     action_intensities = _intensities(action)
 
+    # Derive effective channel attenuation from conservative gain bound
+    mu_sig = action.mu_signal
+    if distance > 0.0 and mu_sig > 0.0:
+        net_opt_gain = max(1e-9, gain_estimate - 2.0 * dark)
+        transmittance_est = max(1e-8, min(1.0, net_opt_gain / max(efficiency * mu_sig, 1e-6)))
+        atten_db_km = max(0.15, min(2.0, -10.0 * math.log10(transmittance_est) / distance))
+    else:
+        atten_db_km = 0.20
+
     if action.protocol == "decoy_bb84":
         basis = BasisProbabilities(action.p_key_basis, action.p_key_basis)
-        channel = ChannelParameters(distance, 0.20)
+        channel = ChannelParameters(distance, atten_db_km)
         detector = DetectorParameters(efficiency, dark, qber_estimate, 2)
         block = expected_decoy_bb84_block(
             action.block_size,
@@ -85,7 +97,7 @@ def evaluate_action_outcome(scenario: dict, action: QKDAction) -> dict:
         physical = MDIPhysicalParameters(
             alice_to_charlie_km=distance / 2.0,
             bob_to_charlie_km=distance / 2.0,
-            attenuation_db_per_km=0.20,
+            attenuation_db_per_km=atten_db_km,
             detector_efficiency=efficiency,
             dark_probability=dark,
             misalignment=qber_estimate,

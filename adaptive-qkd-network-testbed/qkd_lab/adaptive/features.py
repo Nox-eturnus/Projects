@@ -21,6 +21,6 @@ FORBIDDEN_LEAKAGE_FEATURES = (
 
 
 def validate_feature_columns(columns: list[str]) -> None:
-    bad = sorted(set(columns) & set(FORBIDDEN_LEAKAGE_FEATURES))
-    if bad:
-        raise ValueError(f"feature leakage detected: {bad}")
+    disallowed = sorted(set(columns) - set(ALLOWED_FEATURES))
+    if disallowed:
+        raise ValueError(f"disallowed feature columns detected (not in allowlist): {disallowed}")

@@ -97,10 +97,15 @@ def create_qkd014_app(
         x_sae_id: str | None = Header(default=None, alias="X-SAE-ID"),
     ):
         caller = require_caller(x_sae_id)
+        if master_SAE_ID != master_sae_id:
+            raise HTTPException(status_code=400, detail=f"mismatched master_SAE_ID: expected {master_sae_id}, got {master_SAE_ID}")
         key_ids = [x.key_id for x in request.key_ids]
         try:
             keys = store.consume_by_ids(key_ids, peer_id=caller)
-        except (KeyError, RuntimeError, PermissionError) as exc:
+            for k in keys:
+                if k.initiator_sae_id is not None and k.initiator_sae_id != master_sae_id:
+                    raise PermissionError(f"key {k.key_id} initiator does not match master SAE {master_sae_id}")
+        except (KeyError, RuntimeError, PermissionError, ValueError) as exc:
             raise HTTPException(status_code=401, detail=str(exc)) from exc
         return _key_container(keys)
 

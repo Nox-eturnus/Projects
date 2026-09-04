@@ -1,6 +1,6 @@
-u,v,key_bits,active
-A,B,269744,True
-A,C,149744,False
-B,D,91744,True
-B,C,145000,True
-D,C,159744,True
+u,v,key_bits,active,mdi_capable,replenished_bits
+A,B,269744,True,False,0
+A,C,149744,False,False,0
+B,D,91744,True,True,0
+B,C,145000,True,False,0
+D,C,159744,True,False,0
