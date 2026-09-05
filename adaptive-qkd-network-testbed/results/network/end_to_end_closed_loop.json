@@ -39,27 +39,47 @@
       "kms_a_available_bits": 150706888
     },
     "network_routing": {
-      "success": true,
-      "path": [
+      "otp_success": true,
+      "otp_path": [
         "A",
         "B",
         "D"
       ],
+      "otp_key_id": "9c04e3cc-05ca-49bf-97ae-b097beb7b57c",
+      "auth_success": true,
+      "auth_path": [
+        "A",
+        "B",
+        "D"
+      ],
+      "auth_key_id": "5612e152-4590-4324-af74-0fc273e59677",
       "hops": 2,
-      "eps_total": 2e-10,
-      "consumed_per_hop": 512
+      "eps_total": 4e-10,
+      "consumed_per_hop_total": 720
     },
     "application_otp": {
       "message_length_bytes": 58,
       "encryption_mode": "IT-Authenticated-OTP",
-      "decryption_verified": true,
+      "sender_kms": "kms_nodes['A']",
+      "receiver_kms": "kms_nodes['D']",
+      "keys_verified_identical": true,
+      "decryption_verified_at_destination": true,
       "tamper_protection_verified": true,
-      "keys_consumed": [
-        "8d82cf70-e6ff-4625-95b1-e186bfc668df",
-        "405ba9e4-baf9-4254-a903-84ae46e66731"
+      "keys_consumed_a": [
+        "9c04e3cc-05ca-49bf-97ae-b097beb7b57c",
+        "5612e152-4590-4324-af74-0fc273e59677"
+      ],
+      "keys_consumed_d": [
+        "9c04e3cc-05ca-49bf-97ae-b097beb7b57c",
+        "5612e152-4590-4324-af74-0fc273e59677"
       ]
     }
   },
   "security_violations": 0,
-  "predictive_gate_misses": 0
+  "predictive_gate_misses": 0,
+  "provenance": {
+    "git_commit": "50bcdb8",
+    "working_tree_clean": true,
+    "timestamp_utc": "2026-09-05T13:31:48.978636+00:00"
+  }
 }

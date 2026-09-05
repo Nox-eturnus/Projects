@@ -1,11 +1,46 @@
 {
-  "available": 0,
-  "reserved": 0,
-  "consumed": 0,
-  "void": 0,
-  "available_bits": 1778640512,
-  "reserved_bits": 0,
-  "consumed_bits": 0,
-  "void_bits": 0,
-  "reservoir_bits": 1778640512
+  "A": {
+    "available": 2,
+    "reserved": 0,
+    "consumed": 0,
+    "void": 0,
+    "available_bits": 53062101,
+    "reserved_bits": 0,
+    "consumed_bits": 0,
+    "void_bits": 0,
+    "reservoir_bits": 53061589
+  },
+  "B": {
+    "available": 0,
+    "reserved": 0,
+    "consumed": 0,
+    "void": 0,
+    "available_bits": 70140244,
+    "reserved_bits": 0,
+    "consumed_bits": 0,
+    "void_bits": 0,
+    "reservoir_bits": 70140244
+  },
+  "C": {
+    "available": 0,
+    "reserved": 0,
+    "consumed": 0,
+    "void": 0,
+    "available_bits": 13905021,
+    "reserved_bits": 0,
+    "consumed_bits": 0,
+    "void_bits": 0,
+    "reservoir_bits": 13905021
+  },
+  "D": {
+    "available": 2,
+    "reserved": 0,
+    "consumed": 0,
+    "void": 0,
+    "available_bits": 512,
+    "reserved_bits": 0,
+    "consumed_bits": 0,
+    "void_bits": 0,
+    "reservoir_bits": 0
+  }
 }

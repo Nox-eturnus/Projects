@@ -1,6 +1,6 @@
 u,v,key_bits,active,mdi_capable,replenished_bits,status,protocol
-A,B,671653457,True,False,671453713,SECURE_KEY,decoy_bb84
+A,B,52911845,True,False,52712101,SECURE_KEY,decoy_bb84
 A,C,149744,False,False,0,SECURITY_ABORT,none
-B,D,166202,True,True,86458,SECURE_KEY,mdi_qkd
-B,C,856110945,True,False,856020945,SECURE_KEY,decoy_bb84
-D,C,251209151,True,False,251079407,SECURE_KEY,decoy_bb84
+B,D,79744,True,True,0,SECURITY_ABORT,mdi_qkd
+B,C,70060500,True,False,69970500,SECURE_KEY,decoy_bb84
+D,C,13905021,True,False,13775277,SECURE_KEY,decoy_bb84

@@ -9,7 +9,7 @@
     "demand_bps",
     "mdi_capable"
   ],
-  "training_trajectories": 24,
-  "training_scenarios": 192,
+  "training_trajectories": 48,
+  "training_scenarios": 384,
   "split_rule": "trajectory_id % 4 != 0"
 }
