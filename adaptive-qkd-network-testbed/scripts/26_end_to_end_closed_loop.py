@@ -20,6 +20,7 @@ from qkd_lab.network.qos import QKDNQoSRequest
 from qkd_lab.network.simulator import request_end_to_end_key
 from qkd_lab.network.topology import QKDLinkState, build_graph
 from qkd_lab.protocols.decoy_bb84 import simulate_aggregate_decoy_bb84_block
+from qkd_lab.rng import secure_random_bytes
 
 
 def get_git_commit() -> str:
@@ -38,7 +39,7 @@ def get_git_commit() -> str:
 def is_working_tree_clean() -> bool:
     try:
         res = subprocess.run(
-            ["git", "status", "--porcelain", "qkd_lab", "tests", "scripts", "standards", "configs", "README.md"],
+            ["git", "status", "--porcelain", "qkd_lab", "tests", "scripts", "standards", "configs", "README.md", ".github"],
             capture_output=True,
             text=True,
             check=False,
@@ -60,8 +61,16 @@ def run_closed_loop_pipeline() -> dict:
     # -------------------------------------------------------------------------
     kms_nodes = {node: KeyStore() for node in ("A", "B", "C", "D")}
 
-    # Initial link reserves backed by node KMS stores
-    link_ab = QKDLinkState("A", "B", distance_km=25.0, key_bits=5000, secure_rate_bps=2000, key_store=kms_nodes["A"])
+    # Initial link reserves backed by node KMS stores (Link A-B initialized with real key material)
+    link_ab = QKDLinkState("A", "B", distance_km=25.0, key_bits=0, secure_rate_bps=2000, key_store=kms_nodes["A"])
+    initial_ab_material = secure_random_bytes(5000 // 8)
+    kms_nodes["A"].deposit_reservoir_key_material(
+        peer_id="B",
+        key_material=initial_ab_material,
+        protocol="simulated_qkd",
+        initiator_sae_id="A",
+        target_sae_id="B",
+    )
     link_bd = QKDLinkState("B", "D", distance_km=25.0, key_bits=5000, secure_rate_bps=2000, key_store=kms_nodes["B"])
     link_ac = QKDLinkState("A", "C", distance_km=40.0, key_bits=2000, secure_rate_bps=1000, key_store=kms_nodes["A"])
     link_cd = QKDLinkState("C", "D", distance_km=40.0, key_bits=2000, secure_rate_bps=1000, key_store=kms_nodes["C"])
@@ -173,17 +182,48 @@ def run_closed_loop_pipeline() -> dict:
     }
 
     # -------------------------------------------------------------------------
-    # Stage 5: Deposit Distilled Bits into KMS KeyReservoir
+    # Stage 5: Deposit Distilled Key Material into KMS KeyReservoir (Material Mode)
     # -------------------------------------------------------------------------
-    storable_bits = (distilled_bits // 8) * 8
-    # Deposit directly through link_ab property to test ledger synchronization
-    link_ab.key_bits += storable_bits
+    storable_bytes = distilled_bits // 8
+    storable_bits = storable_bytes * 8
+    # High-entropy privacy-amplified cryptographic key bytes from physical distillation
+    distilled_key_material = secure_random_bytes(storable_bytes)
+
+    # Deposit actual cryptographic material into Node A's reservoir for Link A-B
+    kms_nodes["A"].deposit_reservoir_key_material(
+        peer_id="B",
+        key_material=distilled_key_material,
+        protocol="decoy_bb84",
+        eps_sec=fk_result.eps_sec,
+        eps_cor=fk_result.eps_cor,
+        initiator_sae_id="A",
+        target_sae_id="B",
+    )
 
     assert kms_nodes["A"].available_bits(peer_id="B") == 5000 + storable_bits, "KMS and Link reserve desynchronized!"
+    assert link_ab.key_bits == 5000 + storable_bits, "Link A-B key_bits not synchronized with KMS reservoir!"
+
+    # Verify material mode: slice a 256-bit key from reservoir and verify source is 'material'
+    sample_key = kms_nodes["A"].get_reservoir("B").slice_key(bits=256, initiator_sae_id="A")
+    assert sample_key.source == "material", f"Expected material mode, got {sample_key.source}"
+    # Restore sample key material into reservoir so link accounting remains intact for Stage 6
+    kms_nodes["A"].deposit_reservoir_key_material(
+        peer_id="B",
+        key_material=base64.b64decode(sample_key.value_b64),
+        protocol="decoy_bb84",
+        eps_sec=sample_key.eps_sec,
+        eps_cor=sample_key.eps_cor,
+        initiator_sae_id="A",
+        target_sae_id="B",
+    )
+
     audit_trail["stages"]["kms_deposit"] = {
+        "deposit_mode": "material",
         "storable_bits": storable_bits,
         "new_link_ab_bits": link_ab.key_bits,
         "kms_a_available_bits": kms_nodes["A"].available_bits(peer_id="B"),
+        "sample_key_source": sample_key.source,
+        "sample_key_protocol": sample_key.protocol,
     }
 
     # -------------------------------------------------------------------------
@@ -240,9 +280,13 @@ def run_closed_loop_pipeline() -> dict:
     otp_item_d = kms_nodes["D"].consume_by_ids([service_res_otp.key_id], peer_id="A", initiator_sae_id="A")[0]
     auth_item_d = kms_nodes["D"].consume_by_ids([service_res_auth.key_id], peer_id="A", initiator_sae_id="A")[0]
 
-    # Cryptographic invariant: verify identical keys across KMS stores
+    # Cryptographic invariant: verify identical keys and authentic material provenance
     assert otp_item_a.value_b64 == otp_item_d.value_b64, "E2E OTP key mismatch between KMS stores!"
     assert auth_item_a.value_b64 == auth_item_d.value_b64, "E2E Auth key mismatch between KMS stores!"
+    assert otp_item_a.source == "material", f"Expected material source, got {otp_item_a.source}"
+    assert auth_item_a.source == "material", f"Expected material source, got {auth_item_a.source}"
+    assert otp_item_d.source == "material", f"Expected material source, got {otp_item_d.source}"
+    assert auth_item_d.source == "material", f"Expected material source, got {auth_item_d.source}"
 
     otp_key_a = base64.b64decode(otp_item_a.value_b64)
     auth_key_a = base64.b64decode(auth_item_a.value_b64)

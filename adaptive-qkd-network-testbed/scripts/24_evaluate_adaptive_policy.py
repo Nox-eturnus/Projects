@@ -64,7 +64,7 @@ def get_git_commit() -> str:
 def is_working_tree_clean() -> bool:
     try:
         res = subprocess.run(
-            ["git", "status", "--porcelain", "qkd_lab", "tests", "scripts", "standards", "configs", "README.md"],
+            ["git", "status", "--porcelain", "qkd_lab", "tests", "scripts", "standards", "configs", "README.md", ".github"],
             capture_output=True,
             text=True,
             check=False,

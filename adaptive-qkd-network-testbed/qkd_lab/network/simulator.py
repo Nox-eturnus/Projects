@@ -263,9 +263,34 @@ def request_end_to_end_key(
             hops=hops,
         )
 
-    # Multi-hop security composition: sum of epsilon parameters across links
-    link_eps = 1.0e-10
-    eps_total = hops * link_eps
+    # Fail immediately if endpoint KMS stores are missing from kms_nodes mapping
+    if kms_nodes is not None:
+        if source not in kms_nodes or target not in kms_nodes:
+            return ServiceResult(
+                success=False,
+                path=tuple(path),
+                trusted_intermediate_nodes=tuple(path[1:-1]),
+                key_bits_consumed_per_hop=0,
+                message=f"endpoint KMS missing from kms_nodes: source={source in kms_nodes}, target={target in kms_nodes}",
+                eps_total=0.0,
+                hops=hops,
+            )
+
+    links = path_links(graph, path)
+
+    # Multi-hop composable security: sum actual security epsilon across path links
+    link_epsilons: list[float] = []
+    for link in links:
+        eps = 1e-10
+        if link.key_store is not None and hasattr(link.key_store, "get_reservoir"):
+            res = link.key_store.get_reservoir(link.v)
+            if res and res._blocks:
+                eps = res._blocks[0].eps_sec
+        elif hasattr(link, "eps_sec"):
+            eps = getattr(link, "eps_sec", 1e-10)
+        link_epsilons.append(eps)
+    eps_total = sum(link_epsilons)
+
     if eps_total > qos.max_eps_total:
         return ServiceResult(
             success=False,
@@ -276,8 +301,6 @@ def request_end_to_end_key(
             eps_total=eps_total,
             hops=hops,
         )
-
-    links = path_links(graph, path)
 
     # Phase 1: Pre-reservation feasibility check across all links
     for link in links:
@@ -292,37 +315,33 @@ def request_end_to_end_key(
                 hops=hops,
             )
 
-    # Phase 2: Transactional deduction with automatic rollback on any failure
-    deducted_links: list[tuple[Any, int]] = []
-    try:
-        for link in links:
-            if not link.active or link.key_bits < bits:
-                raise RuntimeError("link reserve depleted during reservation phase")
-            link.key_bits -= bits
-            deducted_links.append((link, bits))
-    except Exception as exc:
-        for d_link, d_bits in deducted_links:
-            d_link.key_bits += d_bits
-        return ServiceResult(
-            success=False,
-            path=tuple(path),
-            trusted_intermediate_nodes=tuple(path[1:-1]),
-            key_bits_consumed_per_hop=0,
-            message=f"reservation failed and rolled back: {exc}",
-            eps_total=eps_total,
-            hops=hops,
-        )
-
-    # Phase 3: Trusted-node hop-by-hop relay & delivery into endpoint KMS stores
+    # Phase 2 & 3: Atomic multi-hop reservation and endpoint KMS delivery
+    reservations: list[Any] = []
+    source_key_added = False
     key_id: str | None = None
     key_material: bytes | None = None
+
     if kms_nodes is not None:
         key_id = str(uuid.uuid4())
         key_material = secure_random_bytes(bits // 8)
 
-        # Deliver end-to-end key into endpoint KMS stores
-        if source in kms_nodes and hasattr(kms_nodes[source], "add_key"):
-            kms_nodes[source].add_key(
+    try:
+        # Step A: Reserve bits across all links in the path
+        for link in links:
+            if not link.active or link.key_bits < bits:
+                raise RuntimeError("link reserve depleted during reservation phase")
+            res_obj = link.reserve_bits(bits)
+            reservations.append(res_obj)
+
+        # Step B: Deliver end-to-end key into endpoint KMS stores
+        if kms_nodes is not None:
+            source_kms = kms_nodes[source]
+            target_kms = kms_nodes[target]
+
+            if not hasattr(source_kms, "add_key") or not hasattr(target_kms, "add_key"):
+                raise TypeError("endpoint KMS stores must provide add_key() method")
+
+            source_kms.add_key(
                 peer_id=target,
                 bits=bits,
                 key_id=key_id,
@@ -332,9 +351,11 @@ def request_end_to_end_key(
                 eps_cor=1e-15,
                 initiator_sae_id=source,
                 target_sae_id=target,
+                source="material",
             )
-        if target in kms_nodes and hasattr(kms_nodes[target], "add_key"):
-            kms_nodes[target].add_key(
+            source_key_added = True
+
+            target_kms.add_key(
                 peer_id=source,
                 bits=bits,
                 key_id=key_id,
@@ -344,7 +365,37 @@ def request_end_to_end_key(
                 eps_cor=1e-15,
                 initiator_sae_id=source,
                 target_sae_id=target,
+                source="material",
             )
+
+        # Step C: All operations succeeded - commit link reservations
+        for res_obj in reservations:
+            res_obj.commit()
+
+    except Exception as exc:
+        # Atomic Rollback on any failure:
+        # 1. If source KMS registered key, clean it up
+        if source_key_added and kms_nodes is not None and source in kms_nodes:
+            source_kms = kms_nodes[source]
+            if hasattr(source_kms, "remove_key"):
+                source_kms.remove_key(key_id)
+            elif hasattr(source_kms, "_keys"):
+                source_kms._keys.pop(key_id, None)
+
+        # 2. Roll back all link reservations (exact material and blocks restored)
+        for res_obj in reservations:
+            res_obj.rollback()
+
+        return ServiceResult(
+            success=False,
+            path=tuple(path),
+            trusted_intermediate_nodes=tuple(path[1:-1]),
+            key_bits_consumed_per_hop=0,
+            message=f"reservation failed and rolled back: {exc}",
+            eps_total=eps_total,
+            hops=hops,
+            key_id=None,
+        )
 
     return ServiceResult(
         success=True,
@@ -355,5 +406,4 @@ def request_end_to_end_key(
         eps_total=eps_total,
         hops=hops,
         key_id=key_id,
-        key_material=key_material,
     )

@@ -63,22 +63,45 @@ graph TD
 
 ---
 
-## 3. Standards Alignment (Research Scope)
+## 3. Key Management: Material Mode vs. Budget Mode
+
+The KMS architecture incorporates an atomic `KeyReservoir` that supports dual operating modes:
+
+### Material Mode (Cryptographic Distillation)
+- **Operation**: Physical QKD distillation yields real privacy-amplified byte arrays deposited via `deposit_reservoir_key_material()`.
+- **Slicing**: Continuous byte slices are extracted and encapsulated in `ManagedKey` objects tagged `source="material"`.
+- **Use Case**: Exercised on physical links, local KMS stores, and end-to-end application payloads (One-Time Pad encryption and Wegman-Carter authentication).
+
+### Budget Mode (High-Throughput Simulation)
+- **Operation**: Tracks verified secure bit counts and synthesizes high-entropy CSPRNG keys tagged `source="budget_synthetic"`.
+- **Use Case**: Used for high-throughput routing simulation, topology scaling studies, and extensive Monte Carlo trajectory sweeps without memory exhaustion.
+
+### Composable Multi-Block Slicing & Exact Transactional Rollback
+- **Composable Parameters**: Slicing across multiple reservoir blocks sums security error $\sum \epsilon_{\rm sec}$ and correctness error $\sum \epsilon_{\rm cor}$ under the union bound, recording composite protocol provenance.
+- **Exact Material Rollback**: Reservations (`link.reserve_bits()`) slice exact byte segments from underlying blocks. If path reservation or destination KMS fails, `rollback()` restores the exact byte arrays into the blocks, avoiding numerical additions that would degrade material into synthetic budget.
+
+---
+
+## 4. Standards Alignment & Trusted Relay Semantics
 
 This project provides standards-aligned research models rather than claiming complete production conformance:
 
 | Standard | Role | Implementation Scope in Testbed |
 |---|---|---|
 | **ETSI GS QKD 014 V1.1.1** | Application Key Delivery | Implements `/status`, `/enc_keys`, `/dec_keys`. Atomic caller and initiator validation prevents mutation-before-authorization bugs. Key material in store copies is sanitized upon consumption. |
-| **ETSI GS QKD 020 V1.1.1** | Interoperable KMS-to-KMS | Implements `/kmapi/versions` with capabilities array, transactional `/ext_keys` batch import, structured `/ack` handling, and scoped `/void`. |
+| **ETSI GS QKD 020 V1.1.1** | Interoperable KMS-to-KMS | Implements `/kmapi/versions` with capabilities array, transactional `/ext_keys` batch import, structured `/ack` handling, and scoped `/void`. Preserves key `source` provenance across imports. |
 | **ITU-T Y.3802 / Y.3803** | QKDN Architecture & KMS | Functional architecture separating quantum layer, key management layer, and application interface. |
-| **ITU-T Y.3804** | Control & Management | Dynamic path rerouting and link outage recovery. |
-| **ITU-T Y.3806 / Y.3823** | QoS Assurance & Allocation | Research QoS abstractions modeling hop counts, epsilon composition, and link reserve protection. |
+| **ITU-T Y.3804** | Control & Management | Dynamic path rerouting, link outage recovery, and atomic multi-hop reservation. |
+| **ITU-T Y.3806 / Y.3823** | QoS Assurance & Allocation | Research QoS abstractions modeling hop counts, per-resource epsilon composition, and link reserve protection. |
 | **ITU-T X.1711 (03/2026)** | Protocol Framework | Framework of quantum key distribution (QKD) protocols in QKD networks. |
+
+### Trusted Node Relay Semantics & Endpoint Confidentiality
+- **Atomic Delivery**: Multi-hop end-to-end key requests (`request_end_to_end_key()`) execute as a single atomic transaction: hop reservations and source/target KMS insertions succeed completely or roll back entirely.
+- **Confidentiality**: Routing metadata returned in `ServiceResult` excludes secret key bytes (`key_material` is never leaked outside KMS boundaries); applications retrieve keys strictly through authenticated local KMS interfaces (`consume_by_ids`).
 
 ---
 
-## 4. Adaptive Runtime Evaluation & Baselines
+## 5. Adaptive Runtime Evaluation & Baselines
 
 ### Independent Runtime Verification Architecture
 To eliminate circular security claims, the adaptive runtime evaluation decouples the decision model from physical realization:
@@ -100,12 +123,12 @@ To eliminate circular security claims, the adaptive runtime evaluation decouples
 6. **Always-Abort Baseline**: Safe zero-key abort ($\Delta t = 10.0$ s).
 
 ### Statistical Validation
-- Evaluated across 64 dynamic trajectories (48 train, 16 held-out test) with balanced attack episodes and demand bursts across splits.
+- Evaluated across 96 dynamic trajectories (72 train, 24 held-out test) with balanced attack episodes and demand bursts across splits.
 - **Trajectory Cluster Bootstrap**: Resamples whole trajectories with replacement ($N_{\rm boot} = 1000$) using Common Random Numbers (CRN) to properly account for temporal correlation, producing paired difference 95% confidence intervals and Cohen's $d$.
 
 ---
 
-## 5. Reproducibility & Pipeline Execution
+## 6. Reproducibility & Pipeline Execution
 
 ### Environment Setup
 ```powershell

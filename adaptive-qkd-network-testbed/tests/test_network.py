@@ -77,16 +77,64 @@ def test_trusted_node_e2e_key_relay_delivery():
     res = request_end_to_end_key(g, 'A', 'D', 256, kms_nodes=kms_nodes)
     assert res.success
     assert res.key_id is not None
-    assert res.key_material is not None
+    assert not hasattr(res, "key_material") or getattr(res, "key_material", None) is None
 
     # Node A and Node D consume the delivered key from their respective local stores
     key_a = kms_a.consume_by_ids([res.key_id], peer_id='D', initiator_sae_id='A')[0]
     key_d = kms_d.consume_by_ids([res.key_id], peer_id='A', initiator_sae_id='A')[0]
 
-    # Cryptographic invariant: Delivered key material is identical across endpoints
-    assert key_a.value_b64 == key_d.value_b64
-    assert base64.b64decode(key_a.value_b64) == res.key_material
+    # Cryptographic invariant: Delivered key material is identical across endpoints and confidential
+    raw_a = base64.b64decode(key_a.value_b64)
+    raw_d = base64.b64decode(key_d.value_b64)
+    assert raw_a == raw_d
+    assert len(raw_a) == 32
+    assert key_a.source == "material"
+    assert key_d.source == "material"
     assert key_a.protocol == "trusted_relay_e2e"
     assert key_d.protocol == "trusted_relay_e2e"
     assert link_ab.key_bits == 2000 - 256
     assert link_bd.key_bits == 2000 - 256
+
+
+def test_destination_kms_failure_rolls_back_source_and_links():
+    from unittest.mock import MagicMock
+    from qkd_lab.kms.store import KeyStore
+
+    kms_a = KeyStore()
+    failing_kms_d = MagicMock()
+    failing_kms_d.add_key.side_effect = RuntimeError("Storage engine write failed")
+    kms_nodes = {'A': kms_a, 'D': failing_kms_d}
+
+    link_ab = QKDLinkState('A', 'B', 10, key_bits=2000, secure_rate_bps=1000)
+    link_bd = QKDLinkState('B', 'D', 10, key_bits=2000, secure_rate_bps=1000)
+    g = build_graph([link_ab, link_bd])
+
+    res = request_end_to_end_key(g, 'A', 'D', 256, kms_nodes=kms_nodes)
+    assert not res.success
+    assert res.key_id is None
+    assert "reservation failed and rolled back" in res.message
+
+    # Atomic Invariant: Source KMS must have zero keys remaining
+    assert len(kms_a.safe_metadata()) == 0
+
+    # Links must have exact bits restored
+    assert link_ab.key_bits == 2000
+    assert link_bd.key_bits == 2000
+
+
+def test_missing_endpoint_kms_fails_immediately():
+    from qkd_lab.kms.store import KeyStore
+
+    kms_a = KeyStore()
+    # Node D is missing from kms_nodes mapping
+    kms_nodes = {'A': kms_a}
+
+    link_ab = QKDLinkState('A', 'B', 10, key_bits=2000, secure_rate_bps=1000)
+    link_bd = QKDLinkState('B', 'D', 10, key_bits=2000, secure_rate_bps=1000)
+    g = build_graph([link_ab, link_bd])
+
+    res = request_end_to_end_key(g, 'A', 'D', 256, kms_nodes=kms_nodes)
+    assert not res.success
+    assert "endpoint KMS missing from kms_nodes" in res.message
+    assert link_ab.key_bits == 2000
+    assert link_bd.key_bits == 2000

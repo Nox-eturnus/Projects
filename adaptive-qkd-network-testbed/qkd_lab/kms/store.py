@@ -5,9 +5,10 @@ import threading
 import uuid
 from dataclasses import asdict
 from datetime import timedelta
+from typing import Any
 
 from qkd_lab.kms.models import KeyState, ManagedKey, utcnow
-from qkd_lab.kms.reservoir import KeyReservoir
+from qkd_lab.kms.reservoir import KeyReservoir, ReservoirReservation
 from qkd_lab.rng import secure_random_bytes
 
 
@@ -38,6 +39,7 @@ class KeyStore:
         value: bytes | None = None,
         initiator_sae_id: str | None = None,
         target_sae_id: str | None = None,
+        source: str = "material",
     ) -> ManagedKey:
         if bits <= 0 or bits % 8 != 0:
             raise ValueError("bits must be a positive multiple of 8")
@@ -69,6 +71,7 @@ class KeyStore:
                 eps_cor=eps_cor,
                 initiator_sae_id=initiator_sae_id,
                 target_sae_id=target_sae_id or peer_id,
+                source=source,
             )
             self._keys[key_id] = item
         return item
@@ -103,6 +106,7 @@ class KeyStore:
                 eps_cor=key.eps_cor,
                 initiator_sae_id=key.initiator_sae_id,
                 target_sae_id=key.target_sae_id or target_peer,
+                source=key.source,
             )
             self._keys[imported.key_id] = imported
         return imported
@@ -156,6 +160,7 @@ class KeyStore:
                     eps_cor=key.eps_cor,
                     initiator_sae_id=key.initiator_sae_id,
                     target_sae_id=key.target_sae_id or target_peer,
+                    source=key.source,
                 )
                 self._keys[item.key_id] = item
                 imported_items.append(item)
@@ -228,6 +233,37 @@ class KeyStore:
                 initiator_sae_id=initiator_sae_id,
                 target_sae_id=target_sae_id,
             )
+
+    def reserve_bits(
+        self,
+        peer_id: str | None = None,
+        bits: int | None = None,
+        *,
+        initiator_sae_id: str | None = None,
+        allow_unbound: bool = False,
+        **kwargs: Any,
+    ) -> ReservoirReservation:
+        """Reserve bits from the peer reservoir transactionally."""
+        p_id = peer_id or kwargs.get("peer_id")
+        if p_id is None:
+            raise ValueError("peer_id is required to reserve bits")
+        b_count = bits if bits is not None else kwargs.get("bits")
+        if b_count is None:
+            raise ValueError("bits is required to reserve bits")
+        init_sae = initiator_sae_id or kwargs.get("initiator_sae_id")
+        unbound = allow_unbound if "allow_unbound" not in kwargs else kwargs["allow_unbound"]
+        with self._lock:
+            res = self.get_reservoir(p_id)
+            return res.reserve_bits(
+                b_count,
+                initiator_sae_id=init_sae,
+                allow_unbound=unbound,
+            )
+
+    def remove_key(self, key_id: str) -> bool:
+        """Remove a key by ID (used for atomic transaction rollback)."""
+        with self._lock:
+            return self._keys.pop(key_id, None) is not None
 
     def available_bits(
         self,

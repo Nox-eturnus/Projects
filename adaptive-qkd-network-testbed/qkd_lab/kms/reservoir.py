@@ -6,6 +6,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
+from typing import Any
+
 from qkd_lab.kms.models import KeyState, ManagedKey, utcnow
 from qkd_lab.rng import secure_random_bytes
 
@@ -23,6 +25,40 @@ class DistilledBlock:
     target_sae_id: str | None = None
     key_material: bytearray | bytes | None = None
     source: str = "budget"  # "material" or "budget"
+
+
+@dataclass
+class BlockReservation:
+    block: DistilledBlock
+    bits: int
+    material_slice: bytes | None = None
+
+
+class ReservoirReservation:
+    """Represents a transactional reservation of key bits/material from a KeyReservoir."""
+
+    def __init__(self, reservoir: KeyReservoir, bits: int, segments: list[BlockReservation]) -> None:
+        self.reservoir = reservoir
+        self.bits = bits
+        self.segments = segments
+        self.committed = False
+        self.rolled_back = False
+
+    def commit(self) -> None:
+        self.committed = True
+
+    def rollback(self) -> None:
+        if self.committed or self.rolled_back:
+            return
+        self.reservoir._restore_reservation(self.segments)
+        self.rolled_back = True
+
+    def __enter__(self) -> ReservoirReservation:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        if exc_type is not None and not self.committed and not self.rolled_back:
+            self.rollback()
 
 
 class KeyReservoir:
@@ -163,6 +199,72 @@ class KeyReservoir:
             self._blocks = [b for b in self._blocks if b.remaining_bits > 0]
             return bits
 
+    def reserve_bits(
+        self,
+        bits: int,
+        *,
+        initiator_sae_id: str | None = None,
+        allow_unbound: bool = False,
+    ) -> ReservoirReservation:
+        """Transactionally reserve bits/material from reservoir.
+
+        Returns a ReservoirReservation that can be committed or rolled back.
+        If rolled back, the exact blocks and key material slices are restored.
+        """
+        if bits <= 0:
+            raise ValueError("bits must be positive")
+        with self._lock:
+            avail = self.available_bits(initiator_sae_id=initiator_sae_id, allow_unbound=allow_unbound)
+            if avail < bits:
+                raise RuntimeError(f"insufficient reservoir bits: requested {bits}, available {avail}")
+            remaining_to_reserve = bits
+            segments: list[BlockReservation] = []
+            for b in self._blocks:
+                if initiator_sae_id is not None:
+                    if allow_unbound:
+                        if b.initiator_sae_id is not None and b.initiator_sae_id != initiator_sae_id:
+                            continue
+                    else:
+                        if b.initiator_sae_id != initiator_sae_id:
+                            continue
+                if b.remaining_bits <= 0:
+                    continue
+                take = min(b.remaining_bits, remaining_to_reserve)
+                b.remaining_bits -= take
+                mat_slice: bytes | None = None
+                if b.key_material is not None:
+                    take_bytes = (take + 7) // 8
+                    mat_slice = bytes(b.key_material[:take_bytes])
+                    b.key_material = b.key_material[take_bytes:]
+                segments.append(
+                    BlockReservation(
+                        block=b,
+                        bits=take,
+                        material_slice=mat_slice,
+                    )
+                )
+                remaining_to_reserve -= take
+                if remaining_to_reserve == 0:
+                    break
+
+            self._blocks = [b for b in self._blocks if b.remaining_bits > 0]
+            return ReservoirReservation(self, bits, segments)
+
+    def _restore_reservation(self, segments: list[BlockReservation]) -> None:
+        """Restore previously reserved segments back into reservoir."""
+        with self._lock:
+            for seg in reversed(segments):
+                b = seg.block
+                b.remaining_bits += seg.bits
+                if seg.material_slice is not None:
+                    if b.key_material is None:
+                        b.key_material = bytearray(seg.material_slice)
+                    else:
+                        b.key_material = bytearray(seg.material_slice) + bytearray(b.key_material)
+                if b not in self._blocks:
+                    self._blocks.append(b)
+            self._blocks.sort(key=lambda block: block.created_at)
+
     def slice_key(
         self,
         *,
@@ -182,9 +284,9 @@ class KeyReservoir:
             remaining_to_slice = bits
             collected_material = bytearray()
             is_material = True
-            first_block_protocol = "reservoir_slice"
-            first_block_eps_sec = 1e-10
-            first_block_eps_cor = 1e-15
+            contributing_protocols: list[str] = []
+            composed_eps_sec = 0.0
+            composed_eps_cor = 0.0
 
             for b in self._blocks:
                 if initiator_sae_id is not None:
@@ -201,9 +303,9 @@ class KeyReservoir:
                 b.remaining_bits -= take
                 remaining_to_slice -= take
 
-                first_block_protocol = b.protocol
-                first_block_eps_sec = b.eps_sec
-                first_block_eps_cor = b.eps_cor
+                contributing_protocols.append(b.protocol)
+                composed_eps_sec += b.eps_sec
+                composed_eps_cor += b.eps_cor
 
                 if b.key_material is not None and b.source == "material":
                     take_bytes = take // 8
@@ -225,6 +327,14 @@ class KeyReservoir:
                 key_bytes = secure_random_bytes(bytes_needed)
                 source_tag = "budget_synthetic"
 
+            unique_protocols = sorted(set(contributing_protocols))
+            if len(unique_protocols) == 1:
+                key_protocol = unique_protocols[0]
+            elif len(unique_protocols) > 1:
+                key_protocol = f"composite:{'+'.join(unique_protocols)}"
+            else:
+                key_protocol = "reservoir_slice"
+
             key_id = key_id or str(uuid.uuid4())
             return ManagedKey(
                 key_id=key_id,
@@ -233,9 +343,9 @@ class KeyReservoir:
                 value_b64=base64.b64encode(key_bytes).decode("ascii"),
                 state=KeyState.AVAILABLE,
                 created_at=utcnow(),
-                protocol=first_block_protocol,
-                eps_sec=first_block_eps_sec,
-                eps_cor=first_block_eps_cor,
+                protocol=key_protocol,
+                eps_sec=composed_eps_sec if composed_eps_sec > 0 else 1e-10,
+                eps_cor=composed_eps_cor if composed_eps_cor > 0 else 1e-15,
                 initiator_sae_id=initiator_sae_id,
                 target_sae_id=target_sae_id or self.peer_id,
                 source=source_tag,

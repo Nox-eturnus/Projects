@@ -85,6 +85,45 @@ class QKDLinkState:
         else:
             self._key_bits = val
 
+    def reserve_bits(self, bits: int) -> Any:
+        """Transactionally reserve key bits from this link's reservoir or budget."""
+        if self.key_store is not None and hasattr(self.key_store, "reserve_bits"):
+            return self.key_store.reserve_bits(
+                peer_id=self.v,
+                bits=bits,
+                initiator_sae_id=self.u,
+                allow_unbound=True,
+            )
+        if self.key_bits < bits:
+            raise RuntimeError(
+                f"insufficient key bits on link {self.u}-{self.v}: requested {bits}, available {self.key_bits}"
+            )
+        self.key_bits -= bits
+
+        class _SimpleReservation:
+            def __init__(res_self, link: QKDLinkState, b: int) -> None:
+                res_self.link = link
+                res_self.b = b
+                res_self.committed = False
+                res_self.rolled_back = False
+
+            def commit(res_self) -> None:
+                res_self.committed = True
+
+            def rollback(res_self) -> None:
+                if not res_self.committed and not res_self.rolled_back:
+                    res_self.link.key_bits += res_self.b
+                    res_self.rolled_back = True
+
+            def __enter__(res_self):
+                return res_self
+
+            def __exit__(res_self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+                if exc_type is not None and not res_self.committed and not res_self.rolled_back:
+                    res_self.rollback()
+
+        return _SimpleReservation(self, bits)
+
     def __post_init__(self) -> None:
         if self.charlie_node is not None:
             self.mdi_capable = True

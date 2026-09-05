@@ -14,15 +14,15 @@ class EmpiricalPolicy:
 
     def select(self, context: dict) -> str:
         validate_feature_columns(list(self.feature_columns))
-        candidates = self.table[self.table["feasible"] & (~self.table["abort"])].copy()
-        if candidates.empty:
+        candidates = self.table[self.table["feasible"]].copy()
+        if candidates.empty or not (~candidates["abort"]).any():
             return "ABORT"
 
         # Step 1: Filter on hard constraints like mdi_capable
         pool = candidates
         if "mdi_capable" in self.feature_columns and "mdi_capable" in context:
             pool = pool[pool["mdi_capable"] == context["mdi_capable"]]
-            if pool.empty:
+            if pool.empty or not (~pool["abort"]).any():
                 return "ABORT"
 
         # Step 2: Compute context distance at the unique scenario level to avoid action-row cutoff bias
@@ -51,10 +51,19 @@ class EmpiricalPolicy:
 
         # Step 4: Score candidate actions across all matching rows for equal context support
         matched_rows = pool[pool[id_col].isin(nearest_ids)]
-        score = matched_rows.groupby("action_name", as_index=False)["service_utility"].mean()
+        # Disqualify actions that aborted in 100% of the nearest scenarios
+        successful_actions = set(matched_rows[~matched_rows["abort"]]["action_name"])
+        if not successful_actions:
+            return "ABORT"
+
+        viable_rows = matched_rows[matched_rows["action_name"].isin(successful_actions)]
+        score = viable_rows.groupby("action_name", as_index=False)["service_utility"].mean()
         if score.empty:
             return "ABORT"
-        return str(score.sort_values("service_utility", ascending=False).iloc[0]["action_name"])
+        best = score.sort_values("service_utility", ascending=False).iloc[0]
+        if float(best["service_utility"]) <= -1e5:
+            return "ABORT"
+        return str(best["action_name"])
 
 
 def fit_empirical_policy(frame: pd.DataFrame, feature_columns: list[str]) -> EmpiricalPolicy:
