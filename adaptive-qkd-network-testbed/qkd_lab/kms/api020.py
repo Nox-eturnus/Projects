@@ -49,6 +49,7 @@ def create_qkd020_app(store: KeyStore) -> FastAPI:
     def versions():
         return {
             "versions": ["v1"],
+            "capabilities": ["synchronous_mode"],
             "synchronous_mode": True,
         }
 

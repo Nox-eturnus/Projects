@@ -3,6 +3,9 @@
     "versions": [
       "v1"
     ],
+    "capabilities": [
+      "synchronous_mode"
+    ],
     "synchronous_mode": true
   },
   "transfer": {

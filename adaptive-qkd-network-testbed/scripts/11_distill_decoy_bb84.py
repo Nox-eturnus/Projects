@@ -40,7 +40,8 @@ def main():
     )
     if not rec.success:
         raise RuntimeError("blockwise reconciliation failed")
-    if not verify_equal(rec.alice_key, rec.bob_key, int(sec["verification_bits"])):
+    tag_bits = int(sec.get("verification_bits", 50))
+    if not verify_equal(rec.alice_key, rec.bob_key, tag_bits):
         raise RuntimeError("correctness verification failed")
 
     fk = estimate_lim2014(
@@ -49,6 +50,7 @@ def main():
         eps_sec=float(sec["eps_sec"]),
         eps_cor=float(sec["eps_cor"]),
         leak_ec=rec.disclosed_bits,
+        verification_tag_bits=tag_bits,
     )
     if fk.abort or fk.secure_bits <= 0:
         raise RuntimeError("development case did not produce a positive finite key")

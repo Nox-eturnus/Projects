@@ -192,10 +192,16 @@ class KeyStore:
                 raise RuntimeError("insufficient key material")
             chosen = candidates[:number]
             for key in chosen:
-                self._keys[key.key_id] = key.with_state(KeyState.CONSUMED)
+                self._keys[key.key_id] = key.consumed_and_erased()
             return chosen
 
-    def consume_by_ids(self, key_ids: list[str], *, peer_id: str | None = None) -> list[ManagedKey]:
+    def consume_by_ids(
+        self,
+        key_ids: list[str],
+        *,
+        peer_id: str | None = None,
+        initiator_sae_id: str | None = None,
+    ) -> list[ManagedKey]:
         if not key_ids:
             raise ValueError("at least one key ID is required")
         # Invariant: Reject duplicate key IDs in the request up front to prevent
@@ -205,7 +211,7 @@ class KeyStore:
 
         with self._lock:
             self._purge_expired_keys()
-            # Phase 1: Atomic validation of all requested keys
+            # Phase 1: Atomic validation of all requested keys before any state mutation
             chosen: list[ManagedKey] = []
             for key_id in key_ids:
                 key = self.get(key_id)
@@ -213,11 +219,19 @@ class KeyStore:
                     raise RuntimeError(f"key {key_id} is not available (state: {key.state.value})")
                 if peer_id is not None and key.peer_id != peer_id:
                     raise PermissionError(f"key {key_id} is not assigned to peer {peer_id}")
+                if (
+                    initiator_sae_id is not None
+                    and key.initiator_sae_id is not None
+                    and key.initiator_sae_id != initiator_sae_id
+                ):
+                    raise PermissionError(
+                        f"key {key_id} initiator {key.initiator_sae_id} does not match {initiator_sae_id}"
+                    )
                 chosen.append(key)
 
-            # Phase 2: Atomic mutation
+            # Phase 2: Atomic mutation - sanitize internal KMS copy while returning keys to caller
             for key in chosen:
-                self._keys[key.key_id] = key.with_state(KeyState.CONSUMED)
+                self._keys[key.key_id] = key.consumed_and_erased()
             return chosen
 
     def void(self, key_ids: list[str], *, wipe_secret: bool = True) -> list[str]:

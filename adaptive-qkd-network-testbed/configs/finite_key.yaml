@@ -1,5 +1,5 @@
 eps_sec: 1.0e-10
 eps_cor: 1.0e-15
-verification_bits: 64
+verification_bits: 50
 key_basis: X
 test_basis: Z

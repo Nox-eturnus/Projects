@@ -10,7 +10,10 @@ from qkd_lab.kms.store import KeyStore
 def test_qkd020_transfer_ack_void():
     store = KeyStore()
     c = TestClient(create_qkd020_app(store))
-    assert c.get("/kmapi/versions").json() == {"versions": ["v1"], "synchronous_mode": True}
+    v = c.get("/kmapi/versions").json()
+    assert v["versions"] == ["v1"]
+    assert "synchronous_mode" in v["capabilities"]
+    assert v["synchronous_mode"] is True
     
     payload = {
         "keys": [{"key_id": "k1", "value": base64.b64encode(b"A" * 32).decode()}],

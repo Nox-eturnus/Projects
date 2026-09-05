@@ -9,7 +9,9 @@ def test_consumed_key_not_reissued():
     item = store.add_key(peer_id='B', bits=256)
     got = store.consume(peer_id='B', number=1, bits=256)[0]
     assert got.key_id == item.key_id
+    assert got.value_b64 != ""
     assert store.get(item.key_id).state == KeyState.CONSUMED
+    assert store.get(item.key_id).value_b64 == ""
     assert store.available(peer_id='B', bits=256) == []
 
 

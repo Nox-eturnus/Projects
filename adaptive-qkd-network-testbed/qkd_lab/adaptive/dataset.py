@@ -58,7 +58,16 @@ def evaluate_action_outcome(scenario: dict, action: QKDAction) -> dict:
     distance = float(scenario["distance_km"])
     recent_qber = float(scenario["recent_qber"])
     recent_gain = float(scenario.get("recent_gain", 0.01))
-    qber_estimate, gain_estimate = conservative_telemetry_bounds(recent_qber, recent_gain)
+    observed_err = int(scenario["observed_errors"]) if "observed_errors" in scenario else None
+    detected_cnt = int(scenario["detected_counts"]) if "detected_counts" in scenario else None
+    sent_pulses = int(scenario["sent_pulses"]) if "sent_pulses" in scenario else None
+    qber_estimate, gain_estimate = conservative_telemetry_bounds(
+        recent_qber,
+        recent_gain,
+        observed_errors=observed_err,
+        detected_counts=detected_cnt,
+        sent_pulses=sent_pulses,
+    )
 
     dark = float(scenario["dark_probability"])
     efficiency = float(scenario["detector_efficiency"])
@@ -89,14 +98,17 @@ def evaluate_action_outcome(scenario: dict, action: QKDAction) -> dict:
             action_intensities,
             eps_sec=EPS_SEC,
             eps_cor=EPS_COR,
+            f_ec=1.16,
         )
         secure_bits = float(result.secure_bits)
         abort = bool(result.abort)
     else:
         basis = MDIBasisProbabilities(action.p_key_basis, action.p_key_basis)
+        lac = float(scenario.get("length_ac_km", distance / 2.0))
+        lbc = float(scenario.get("length_bc_km", distance / 2.0))
         physical = MDIPhysicalParameters(
-            alice_to_charlie_km=distance / 2.0,
-            bob_to_charlie_km=distance / 2.0,
+            alice_to_charlie_km=lac,
+            bob_to_charlie_km=lbc,
             attenuation_db_per_km=atten_db_km,
             detector_efficiency=efficiency,
             dark_probability=dark,
@@ -122,11 +134,16 @@ def evaluate_action_outcome(scenario: dict, action: QKDAction) -> dict:
     delivered = min(demand_bits, available_after_generation)
     deficit = max(0.0, demand_bits - delivered)
 
-    # Security is already a hard gate above. This utility only ranks secure,
-    # physically feasible candidates by service value and generation delay.
-    utility = delivered - 2.0 * deficit - 100.0 * block_seconds
+    # Time-normalized utility (Finding 14):
+    # Evaluates service rate performance (bps) and generation latency penalty
+    # so that 100s actions do not artificially earn 10x more utility than 10s actions.
+    delivered_rate_bps = delivered / block_seconds
+    deficit_rate_bps = deficit / block_seconds
+    latency_penalty = 10.0 * block_seconds
+
+    utility = delivered_rate_bps - 2.0 * deficit_rate_bps - latency_penalty
     if abort:
-        utility -= 1.0e9
+        utility -= 1.0e6
 
     return {
         "feasible": True,

@@ -1,9 +1,10 @@
 {
-  "timestamp_utc": "2026-09-04T16:36:29.571525+00:00",
-  "git_commit": "8391cdf",
+  "timestamp_utc": "2026-09-05T10:07:29.725286+00:00",
+  "git_commit": "b16e910",
+  "working_tree_clean": false,
   "python_version": "3.13.13 | packaged by Anaconda, Inc. | (main, Apr 14 2026, 06:12:50) [MSC v.1942 64 bit (AMD64)]",
   "platform": "Windows-11-10.0.26200-SP0",
-  "policy_dataset_sha256": "8c77175d195af8d23a9563ba71d2c65f37824339118008a5e7c3ff5f54eba2dd",
+  "policy_dataset_sha256": "375de3e9253eda192e294073f83636377728ed2be25c8f3b56db705677136648",
   "features": [
     "distance_km",
     "recent_qber",
@@ -14,8 +15,9 @@
     "demand_bps",
     "mdi_capable"
   ],
-  "training_optimal_action": "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=100000000000",
-  "num_test_scenarios": 16,
-  "num_test_trajectories": 2,
+  "training_optimal_action": "decoy_bb84|mu=0.40|nu=0.10|p=0.80|N=100000000000",
+  "num_test_scenarios": 64,
+  "num_test_trajectories": 8,
+  "bootstrap_method": "trajectory_cluster_bootstrap",
   "security_violations_adaptive": 0
 }

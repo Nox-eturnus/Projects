@@ -54,18 +54,28 @@ def main():
         tamper_caught = True
     assert tamper_caught, "tampered ciphertext must be rejected by IT authenticator"
 
-    # 4. Backward-compatible raw OTP + HMAC check
-    otp_cipher_raw = xor_bytes(plaintext, otp_key)
-    hmac_tag = authenticate(otp_cipher_raw, auth_key)
-    assert verify_authentication(otp_cipher_raw, auth_key, hmac_tag)
-    assert xor_bytes(otp_cipher_raw, otp_key) == plaintext
+    # 4. Backward-compatible raw OTP + HMAC check with fresh, separate KMS key material
+    # Invariant: Never reuse OTP or authentication key material.
+    otp_item_2 = store.add_key(peer_id="SAE_B", bits=pt_bits, protocol="decoy_bb84")
+    auth_item_2 = store.add_key(peer_id="SAE_B", bits=256, protocol="decoy_bb84")
+    consumed_2 = store.consume_by_ids([otp_item_2.key_id, auth_item_2.key_id], peer_id="SAE_B")
+    otp_key_2 = base64.b64decode(consumed_2[0].value_b64)
+    auth_key_2 = base64.b64decode(consumed_2[1].value_b64)
+
+    otp_cipher_raw = xor_bytes(plaintext, otp_key_2)
+    hmac_tag = authenticate(otp_cipher_raw, auth_key_2)
+    assert verify_authentication(otp_cipher_raw, auth_key_2, hmac_tag)
+    assert xor_bytes(otp_cipher_raw, otp_key_2) == plaintext
+
+    all_consumed = [aes_item.key_id, otp_item.key_id, auth_item.key_id, otp_item_2.key_id, auth_item_2.key_id]
+    assert len(set(all_consumed)) == 5, "all consumed keys must be unique"
 
     summary = {
         "aes_gcm_roundtrip": True,
         "otp_roundtrip": True,
         "otp_authenticated_it": True,
         "tamper_protection_verified": True,
-        "keys_consumed_from_kms": [aes_item.key_id, otp_item.key_id, auth_item.key_id],
+        "keys_consumed_from_kms": all_consumed,
         "kms_metrics": store.metrics(),
     }
     Path("results/kms").mkdir(parents=True, exist_ok=True)

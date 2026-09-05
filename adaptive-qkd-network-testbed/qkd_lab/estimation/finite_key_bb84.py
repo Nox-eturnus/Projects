@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import exp, factorial, floor, log, log2, sqrt
+from math import ceil, exp, factorial, floor, log, log2, sqrt
 
 from qkd_lab.math_utils import h2
 from qkd_lab.models import CountRecord, IntensitySetting
@@ -67,7 +67,8 @@ def _vacuum_single_bounds(
     t1 = tau_n(intensities, 1)
 
     # Eq. (2), Lim et al. PRA 89, 022307 (2014).
-    s0 = t0 * (mu2.mu * records[(basis, mu3.name)].detected - mu3.mu * n2_plus) / (mu2.mu - mu3.mu)
+    # Explicitly uses the finite-statistical lower bound n3_minus, matching the published theorem.
+    s0 = t0 * (mu2.mu * n3_minus - mu3.mu * n2_plus) / (mu2.mu - mu3.mu)
     s0 = max(0.0, s0)
 
     denom = mu1.mu * (mu2.mu - mu3.mu) - mu2.mu**2 + mu3.mu**2
@@ -116,6 +117,7 @@ def estimate_lim2014(
     eps_cor: float,
     leak_ec: int | None = None,
     f_ec: float = 1.16,
+    verification_tag_bits: int | None = None,
 ) -> Lim2014Result:
     if not 0.0 < eps_sec < 1.0 or not 0.0 < eps_cor < 1.0:
         raise ValueError("security parameters must lie in (0,1)")
@@ -136,7 +138,10 @@ def estimate_lim2014(
     if leak_ec is None:
         leak_ec = int(max(0.0, f_ec * x_total * h2(min(0.5, qber_x))))
 
-    finite_penalty = 6.0 * log2(21.0 / eps_sec) + log2(2.0 / eps_cor)
+    # Required 2-universal verification tag length: t_ver = ceil(-log2(eps_cor))
+    t_ver = max(1, ceil(-log2(eps_cor)))
+    extra_ver_leak = max(0, (verification_tag_bits - t_ver)) if verification_tag_bits is not None else 0
+    finite_penalty = 6.0 * log2(21.0 / eps_sec) + log2(2.0 / eps_cor) + extra_ver_leak
     ell = s_x0 + s_x1 * (1.0 - h2(phi)) - leak_ec - finite_penalty
     secure_bits = max(0, floor(ell))
 

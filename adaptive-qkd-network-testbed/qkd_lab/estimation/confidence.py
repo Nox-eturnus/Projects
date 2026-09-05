@@ -56,9 +56,22 @@ def conservative_telemetry_bounds(
     recent_gain: float,
     sample_size: int = 2000,
     failure_probability: float = 1e-4,
+    *,
+    observed_errors: int | None = None,
+    detected_counts: int | None = None,
+    sent_pulses: int | None = None,
 ) -> tuple[float, float]:
     """Calculate conservative confidence bounds for observed channel telemetry.
     
+    Parameters:
+        recent_qber: Point-estimate QBER.
+        recent_gain: Point-estimate gain.
+        sample_size: Fallback pseudo-sample size if raw telemetry counts are not provided.
+        failure_probability: Tail probability for confidence bounds.
+        observed_errors: Exact observed error count from telemetry.
+        detected_counts: Exact observed detector click count.
+        sent_pulses: Exact pulses sent in telemetry observation window.
+        
     Returns:
         (qber_upper_bound, gain_lower_bound)
         
@@ -68,14 +81,28 @@ def conservative_telemetry_bounds(
     """
     recent_qber = max(0.0, min(1.0, float(recent_qber)))
     recent_gain = max(0.0, min(1.0, float(recent_gain)))
-    n = max(10, int(sample_size))
 
-    qber_successes = int(round(recent_qber * n))
-    qber_interval = clopper_pearson_interval(qber_successes, n, failure_probability)
-    qber_upper = qber_interval.upper
+    # Use actual counts if available
+    if detected_counts is not None and detected_counts > 0:
+        err_k = observed_errors if observed_errors is not None else int(round(recent_qber * detected_counts))
+        err_k = max(0, min(detected_counts, err_k))
+        qber_interval = clopper_pearson_interval(err_k, detected_counts, failure_probability)
+        qber_upper = qber_interval.upper
+    else:
+        n = max(10, int(sample_size))
+        qber_successes = int(round(recent_qber * n))
+        qber_interval = clopper_pearson_interval(qber_successes, n, failure_probability)
+        qber_upper = qber_interval.upper
 
-    gain_successes = int(round(recent_gain * n))
-    gain_interval = clopper_pearson_interval(gain_successes, n, failure_probability)
-    gain_lower = gain_interval.lower
+    if sent_pulses is not None and sent_pulses > 0:
+        det_k = detected_counts if detected_counts is not None else int(round(recent_gain * sent_pulses))
+        det_k = max(0, min(sent_pulses, det_k))
+        gain_interval = clopper_pearson_interval(det_k, sent_pulses, failure_probability)
+        gain_lower = gain_interval.lower
+    else:
+        n = max(10, int(sample_size))
+        gain_successes = int(round(recent_gain * n))
+        gain_interval = clopper_pearson_interval(gain_successes, n, failure_probability)
+        gain_lower = gain_interval.lower
 
     return float(qber_upper), float(gain_lower)

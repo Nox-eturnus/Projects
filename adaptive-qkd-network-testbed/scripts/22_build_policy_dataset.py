@@ -15,6 +15,7 @@ def generate_dynamic_trajectories() -> list[dict]:
     steps_per_trajectory = cfg["steps_per_trajectory"]
     drift_sigma = cfg["drift_sigma_qber"]
     attack_prob = cfg["attack_probability"]
+    burst_prob = cfg.get("burst_probability", 0.35)
     burst_demand = cfg["burst_demand_bps"]
     normal_demand = cfg["normal_demand_bps"]
 
@@ -23,13 +24,17 @@ def generate_dynamic_trajectories() -> list[dict]:
 
     for traj_id in range(num_trajectories):
         # Baseline conditions for this trajectory
-        distance = float(rng.uniform(15, 110))
+        distance = float(rng.uniform(15, 100))
         dark_prob = float(10 ** rng.uniform(-8, -5))
         det_eff = float(rng.uniform(0.25, 0.70))
         mdi_capable = bool(rng.random() < 0.50)
         has_attack = bool(rng.random() < attack_prob)
         attack_start = rng.integers(2, max(3, steps_per_trajectory - 2)) if has_attack else -1
         attack_duration = rng.integers(2, 4)
+
+        has_burst = bool(rng.random() < burst_prob)
+        burst_start = rng.integers(2, max(3, steps_per_trajectory - 2)) if has_burst else -1
+        burst_duration = 2
 
         base_qber = float(rng.uniform(0.015, 0.045))
         qber = base_qber
@@ -54,13 +59,18 @@ def generate_dynamic_trajectories() -> list[dict]:
             base_gain = float(max(1e-7, 0.12 * (10 ** (-0.02 * distance))))
             gain = max(1e-7, base_gain * gain_penalty)
 
-            # 3. Demand burst
-            is_burst = (step == 3 or step == 4) and (traj_id % 2 == 1)
+            # 3. Demand burst (occurs across both odd and even trajectories)
+            is_burst = has_burst and (burst_start <= step < burst_start + burst_duration)
             demand = burst_demand if is_burst else normal_demand
 
-            # Key pool dynamic evolution: previous step consumption
+            # Key pool dynamic evolution for training scenario distribution
             if step > 0:
                 key_pool = max(0.0, key_pool - demand * 0.1 + float(rng.uniform(0, 100_000)))
+
+            # Realistic observable telemetry counts
+            sent_pulses = 100_000
+            detected_cnt = max(1, int(round(gain * sent_pulses)))
+            observed_err = max(0, min(detected_cnt, int(round(effective_qber * detected_cnt))))
 
             scenario = {
                 "scenario_id": global_id,
@@ -70,11 +80,17 @@ def generate_dynamic_trajectories() -> list[dict]:
                 "distance_km": distance,
                 "recent_qber": effective_qber,
                 "recent_gain": gain,
+                "observed_errors": observed_err,
+                "detected_counts": detected_cnt,
+                "sent_pulses": sent_pulses,
                 "dark_probability": dark_prob,
                 "detector_efficiency": det_eff,
                 "key_pool_bits": key_pool,
                 "demand_bps": float(demand),
                 "mdi_capable": mdi_capable,
+                "charlie_node": f"Charlie_{traj_id}" if mdi_capable else None,
+                "length_ac_km": distance / 2.0,
+                "length_bc_km": distance / 2.0,
             }
             scenarios.append(scenario)
             global_id += 1

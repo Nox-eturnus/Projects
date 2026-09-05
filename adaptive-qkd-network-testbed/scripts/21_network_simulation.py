@@ -1,10 +1,11 @@
 from pathlib import Path
-
+import json
 import pandas as pd
 
 from qkd_lab.config import load_yaml
+from qkd_lab.kms.store import KeyStore
 from qkd_lab.network.qos import QKDNQoSRequest
-from qkd_lab.network.simulator import generate_keys, replenish_from_qkd_physics, request_end_to_end_key
+from qkd_lab.network.simulator import replenish_from_qkd_physics, request_end_to_end_key
 from qkd_lab.network.topology import QKDLinkState, build_graph
 
 
@@ -42,10 +43,9 @@ def main():
         "eps_total": second.eps_total,
     })
 
-    # 3. Dynamic replenishment from physical finite-key QKD distillation
-    replenished = replenish_from_qkd_physics(graph, pulses_per_link=20_000_000)
-    # Also apply background rate replenishment for remaining duration
-    generate_keys(graph, 1.0)
+    # 3. Dynamic replenishment directly into KeyStore from physical finite-key QKD distillation
+    store = KeyStore()
+    replenished = replenish_from_qkd_physics(graph, pulses_per_link=100_000_000_000, key_store=store)
 
     pools = [
         {
@@ -54,7 +54,9 @@ def main():
             "key_bits": data["state"].key_bits,
             "active": data["state"].active,
             "mdi_capable": data["state"].mdi_capable,
-            "replenished_bits": replenished.get((u, v), 0),
+            "replenished_bits": replenished[(u, v)].secure_bits,
+            "status": replenished[(u, v)].status.value,
+            "protocol": replenished[(u, v)].protocol,
         }
         for u, v, data in graph.edges(data=True)
     ]
@@ -62,6 +64,9 @@ def main():
     Path("results/network").mkdir(parents=True, exist_ok=True)
     pd.DataFrame(events).to_csv("results/network/network_events.csv", index=False)
     pd.DataFrame(pools).to_csv("results/network/key_pools.csv", index=False)
+    Path("results/network/network_kms_metrics.json").write_text(
+        json.dumps(store.metrics(), indent=2), encoding="utf-8"
+    )
     print(pd.DataFrame(events).to_string(index=False))
     print("\nKey Pools after Physical QKD Replenishment:")
     print(pd.DataFrame(pools).to_string(index=False))

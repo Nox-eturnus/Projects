@@ -55,6 +55,6 @@ Core paths implemented in this research testbed:
 - **ITU-T Y.3802 (12/2020)**: Quantum key distribution networks - Functional architecture.
 - **ITU-T Y.3803 (12/2020)**: Quantum key distribution networks - Key management.
 - **ITU-T Y.3804 (12/2020)**: Quantum key distribution networks - Control and management.
-- **ITU-T Y.3806 (11/2021)**: Quantum key distribution networks - Requirements for quality of service assurance.
+- **ITU-T Y.3806 (09/2021)**: Quantum key distribution networks - Requirements for quality of service assurance.
 - **ITU-T Y.3823 (04/2026)**: Quantum key distribution networks - End-to-end quality of service allocation and control.
-- **ITU-T X.1711 (03/2026)**: Security guidelines for quantum key distribution network protocols.
+- **ITU-T X.1711 (03/2026)**: Framework of quantum key distribution (QKD) protocols in QKD networks.

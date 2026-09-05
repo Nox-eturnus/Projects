@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class QKDNQoSRequest:
-    """ITU-T Y.3806 / Y.3823 compliant QoS specification for QKD network requests."""
+    """Research QoS abstraction aligned with selected ITU-T Y.3806 / Y.3823 concepts."""
     source: str
     target: str
     key_bits: int

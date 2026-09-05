@@ -43,6 +43,10 @@ class ManagedKey:
         """Wipe secret key material in memory and mark key void."""
         return replace(self, value_b64="", state=KeyState.VOID)
 
+    def consumed_and_erased(self) -> "ManagedKey":
+        """Wipe secret key material in memory upon consumption in the KeyStore."""
+        return replace(self, value_b64="", state=KeyState.CONSUMED)
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)

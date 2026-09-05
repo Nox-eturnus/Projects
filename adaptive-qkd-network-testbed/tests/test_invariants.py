@@ -107,28 +107,55 @@ def test_allowlist_feature_validation():
 def test_non_tautological_security_violation_check():
     import importlib
     eval_mod = importlib.import_module("scripts.24_evaluate_adaptive_policy")
+    evaluate_decision_independent = eval_mod.evaluate_decision_independent
     evaluate_decision = eval_mod.evaluate_decision
 
-    # Scenario group where action 'action_fail' has abort=True or secure_bits <= 0
+    # 1. Conservative predictive gate aborts unsafe high-QBER scenario safely
+    insecure_ctx = {
+        "distance_km": 95.0,
+        "recent_qber": 0.12,
+        "recent_gain": 0.0001,
+        "dark_probability": 1e-5,
+        "detector_efficiency": 0.3,
+        "key_pool_bits": 500_000.0,
+        "demand_bps": 12000.0,
+        "mdi_capable": False,
+    }
+    action_str = "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=100000000000"
+    gate_res = evaluate_decision_independent(action_str, insecure_ctx, key_pool=500_000.0)
+    # The conservative predictive gate correctly intervened and executed ABORT
+    assert gate_res["executed"] == "ABORT"
+    assert gate_res["violation"] is False
+
+    # 2. Independent realization audit flags violation if an action is executed but fails in physical simulation
     fake_group = pd.DataFrame([
         {
             "action_name": "action_insecure",
             "feasible": True,
-            "abort": False,  # Pretend gate let it through
-            "secure_bits": 0.0,  # But realized secure bits <= 0
+            "abort": False,
+            "secure_bits": 0.0,
             "service_utility": -100.0,
         }
     ])
+    compat_res = evaluate_decision("action_insecure", fake_group)
+    assert compat_res["executed"] == "action_insecure"
+    assert compat_res["violation"] is True
 
-    res = evaluate_decision("action_insecure", fake_group)
-    assert res["executed"] == "action_insecure"
-    # Must flag violation because an action was executed but produced zero secure bits
-    assert res["violation"] is True
-
-    # Safe abort
-    abort_res = evaluate_decision("ABORT", fake_group)
-    assert abort_res["executed"] == "ABORT"
-    assert abort_res["violation"] is False
+    # 3. Benign scenario succeeds under independent realization with zero violations
+    benign_ctx = {
+        "distance_km": 20.0,
+        "recent_qber": 0.015,
+        "recent_gain": 0.04,
+        "dark_probability": 1e-7,
+        "detector_efficiency": 0.5,
+        "key_pool_bits": 500_000.0,
+        "demand_bps": 12000.0,
+        "mdi_capable": False,
+    }
+    benign_res = evaluate_decision_independent(action_str, benign_ctx, key_pool=500_000.0)
+    assert benign_res["executed"] == action_str
+    assert benign_res["secure_bits"] > 0
+    assert benign_res["violation"] is False
 
 
 def test_it_otp_authentication_and_tamper_detection():

@@ -1,13 +1,14 @@
 # Adaptive QKD Policy and Trajectory Configuration
 trajectories:
-  num_trajectories: 8
+  num_trajectories: 32
   steps_per_trajectory: 8
   random_seed: 2026
   drift_sigma_qber: 0.003
   attack_probability: 0.35
+  burst_probability: 0.35
   burst_demand_bps: 80000
   normal_demand_bps: 12000
-  switching_penalty_utility: 5000.0
+  switching_penalty_utility: 50.0
 
 evaluation:
   bootstrap_resamples: 1000

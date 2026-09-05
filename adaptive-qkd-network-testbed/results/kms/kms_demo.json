@@ -11,44 +11,52 @@
   },
   "keys": [
     {
-      "key_id": "3cd75feb-00ac-49ec-9ca4-c170b8c233d8",
+      "key_id": "a688b8ab-f0b7-459e-92a2-a36f44e8ff5f",
       "peer_id": "SAE_B",
       "bits": 256,
       "state": "consumed",
-      "created_at": "2026-09-02T16:05:59.577796+00:00",
+      "created_at": "2026-09-05T09:51:59.776319+00:00",
       "protocol": "decoy_bb84",
       "eps_sec": 1e-10,
-      "eps_cor": 1e-15
+      "eps_cor": 1e-15,
+      "initiator_sae_id": null,
+      "target_sae_id": "SAE_B"
     },
     {
-      "key_id": "15c8349d-9e15-46fe-baf8-d0d1945a1c16",
+      "key_id": "3b0f8964-1f3b-49db-bdc2-2d677a20688b",
       "peer_id": "SAE_B",
       "bits": 256,
       "state": "consumed",
-      "created_at": "2026-09-02T16:05:59.577819+00:00",
+      "created_at": "2026-09-05T09:51:59.776340+00:00",
       "protocol": "decoy_bb84",
       "eps_sec": 1e-10,
-      "eps_cor": 1e-15
+      "eps_cor": 1e-15,
+      "initiator_sae_id": null,
+      "target_sae_id": "SAE_B"
     },
     {
-      "key_id": "d52880aa-c2ef-4c8f-b851-45aac9293261",
+      "key_id": "ec2901f2-db40-4f9b-a86f-f3928549dc54",
       "peer_id": "SAE_B",
       "bits": 256,
       "state": "available",
-      "created_at": "2026-09-02T16:05:59.577828+00:00",
+      "created_at": "2026-09-05T09:51:59.776348+00:00",
       "protocol": "decoy_bb84",
       "eps_sec": 1e-10,
-      "eps_cor": 1e-15
+      "eps_cor": 1e-15,
+      "initiator_sae_id": null,
+      "target_sae_id": "SAE_B"
     },
     {
-      "key_id": "363b99ec-397e-44a7-abc6-c3890c7ca145",
+      "key_id": "590e1de7-ff81-4c40-a782-b1a4cbda8efd",
       "peer_id": "SAE_B",
       "bits": 256,
       "state": "available",
-      "created_at": "2026-09-02T16:05:59.577835+00:00",
+      "created_at": "2026-09-05T09:51:59.776354+00:00",
       "protocol": "decoy_bb84",
       "eps_sec": 1e-10,
-      "eps_cor": 1e-15
+      "eps_cor": 1e-15,
+      "initiator_sae_id": null,
+      "target_sae_id": "SAE_B"
     }
   ]
 }

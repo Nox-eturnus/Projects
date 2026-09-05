@@ -38,7 +38,10 @@ def wegman_carter_tag(key: bytes, message: bytes, tag_bytes: int = 16) -> bytes:
         - Next 16 bytes: one-time pad mask s
         
     Security:
-        Information-theoretic forgery probability <= ceil(len(message)/16) / 2^127.
+        For 16-byte tags (tag_bytes=16), information-theoretic forgery probability is
+        bounded by ceil(len(message)/16) / 2^127.
+        For 8-byte tags (tag_bytes=8), truncation mod 2^64 increases the collision
+        probability to at most ceil(len(message)/16) / 2^64.
         Requires a fresh key (or fresh one-time mask s) for each authenticated message.
     """
     if len(key) < 32:
