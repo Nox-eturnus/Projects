@@ -1,0 +1,65 @@
+{
+  "status": "PASSED",
+  "stages": {
+    "topology_init": {
+      "nodes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "links": [
+        "A-B",
+        "B-D",
+        "A-C",
+        "C-D"
+      ],
+      "initial_link_ab_bits": 5000
+    },
+    "policy_recommendation": {
+      "telemetry_qber": 0.015,
+      "telemetry_distance_km": 25.0,
+      "recommended_action": "decoy_bb84|mu=0.40|nu=0.05|p=0.80|N=10000000000"
+    },
+    "predictive_gate": {
+      "feasible": true,
+      "predicted_abort": false,
+      "predicted_secure_bits": 118250961.0
+    },
+    "physical_qkd_distillation": {
+      "protocol": "decoy_bb84",
+      "pulses": 10000000000,
+      "distilled_bits": 150701893,
+      "phase_error_upper": 0.023978823059743845,
+      "abort": false
+    },
+    "kms_deposit": {
+      "storable_bits": 150701888,
+      "new_link_ab_bits": 150706888,
+      "kms_a_available_bits": 150706888
+    },
+    "network_routing": {
+      "success": true,
+      "path": [
+        "A",
+        "B",
+        "D"
+      ],
+      "hops": 2,
+      "eps_total": 2e-10,
+      "consumed_per_hop": 512
+    },
+    "application_otp": {
+      "message_length_bytes": 58,
+      "encryption_mode": "IT-Authenticated-OTP",
+      "decryption_verified": true,
+      "tamper_protection_verified": true,
+      "keys_consumed": [
+        "8d82cf70-e6ff-4625-95b1-e186bfc668df",
+        "405ba9e4-baf9-4254-a903-84ae46e66731"
+      ]
+    }
+  },
+  "security_violations": 0,
+  "predictive_gate_misses": 0
+}

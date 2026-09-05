@@ -1,10 +1,11 @@
 {
-  "available": 4,
+  "available": 0,
   "reserved": 0,
   "consumed": 0,
   "void": 0,
   "available_bits": 1778640512,
   "reserved_bits": 0,
   "consumed_bits": 0,
-  "void_bits": 0
+  "void_bits": 0,
+  "reservoir_bits": 1778640512
 }

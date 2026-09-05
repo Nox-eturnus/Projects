@@ -1,0 +1,26 @@
+{
+  "versions": {
+    "versions": [
+      "v1"
+    ],
+    "capabilities": [
+      "synchronous_mode"
+    ],
+    "synchronous_mode": true
+  },
+  "transfer": {
+    "status": "relayed",
+    "key_ids": [
+      "interop-key-1"
+    ]
+  },
+  "ack": {
+    "message": "success"
+  },
+  "void": {
+    "status": "voided",
+    "key_ids": [
+      "interop-key-1"
+    ]
+  }
+}

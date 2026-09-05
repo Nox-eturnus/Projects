@@ -4,11 +4,11 @@
   "otp_authenticated_it": true,
   "tamper_protection_verified": true,
   "keys_consumed_from_kms": [
-    "fde99023-2ea7-4ad5-bdd7-703a89739c6e",
-    "2b848fad-66cd-43b3-afae-fea3777bf62d",
-    "d8f60aff-35ce-47e1-b03b-bc83b381e743",
-    "071b74e1-93c4-4a64-ba15-d0e0b5f90f56",
-    "adad1110-bb36-4701-a78b-26225851197b"
+    "98b9b801-04b6-4b5d-9781-274732fd9599",
+    "20c1c901-63d6-4eca-a440-06060140b94f",
+    "b6a256ed-67e2-4284-912a-dd4b646e7b5d",
+    "0ccc10bf-fa8e-4b6a-a186-05a0b0e1dd9d",
+    "0de63dea-b66f-4fa5-92da-be82a5dfa1a7"
   ],
   "kms_metrics": {
     "available": 0,
@@ -18,6 +18,7 @@
     "available_bits": 0,
     "reserved_bits": 0,
     "consumed_bits": 1936,
-    "void_bits": 0
+    "void_bits": 0,
+    "reservoir_bits": 0
   }
 }
