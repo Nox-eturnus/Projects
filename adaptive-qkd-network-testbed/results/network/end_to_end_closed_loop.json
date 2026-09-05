@@ -34,9 +34,12 @@
       "abort": false
     },
     "kms_deposit": {
+      "deposit_mode": "material",
       "storable_bits": 150701888,
       "new_link_ab_bits": 150706888,
-      "kms_a_available_bits": 150706888
+      "kms_a_available_bits": 150706888,
+      "sample_key_source": "material",
+      "sample_key_protocol": "simulated_qkd"
     },
     "network_routing": {
       "otp_success": true,
@@ -45,14 +48,14 @@
         "B",
         "D"
       ],
-      "otp_key_id": "9c04e3cc-05ca-49bf-97ae-b097beb7b57c",
+      "otp_key_id": "89c67a9f-18fb-43f4-a3e6-0ce92665bfcd",
       "auth_success": true,
       "auth_path": [
         "A",
         "B",
         "D"
       ],
-      "auth_key_id": "5612e152-4590-4324-af74-0fc273e59677",
+      "auth_key_id": "e91712d8-9442-4e8a-a18b-9b73cf1289f1",
       "hops": 2,
       "eps_total": 4e-10,
       "consumed_per_hop_total": 720
@@ -66,20 +69,20 @@
       "decryption_verified_at_destination": true,
       "tamper_protection_verified": true,
       "keys_consumed_a": [
-        "9c04e3cc-05ca-49bf-97ae-b097beb7b57c",
-        "5612e152-4590-4324-af74-0fc273e59677"
+        "89c67a9f-18fb-43f4-a3e6-0ce92665bfcd",
+        "e91712d8-9442-4e8a-a18b-9b73cf1289f1"
       ],
       "keys_consumed_d": [
-        "9c04e3cc-05ca-49bf-97ae-b097beb7b57c",
-        "5612e152-4590-4324-af74-0fc273e59677"
+        "89c67a9f-18fb-43f4-a3e6-0ce92665bfcd",
+        "e91712d8-9442-4e8a-a18b-9b73cf1289f1"
       ]
     }
   },
   "security_violations": 0,
   "predictive_gate_misses": 0,
   "provenance": {
-    "git_commit": "50bcdb8",
+    "git_commit": "4937ef0",
     "working_tree_clean": true,
-    "timestamp_utc": "2026-09-05T13:31:48.978636+00:00"
+    "timestamp_utc": "2026-09-05T16:14:12.618007+00:00"
   }
 }
