@@ -39,3 +39,33 @@ def test_qkd014_dec_keys_initiator_authorization_no_mutation():
     assert res.status_code == 401
     # Key in store MUST remain AVAILABLE and NOT mutated to CONSUMED
     assert store.get(item.key_id).state == KeyState.AVAILABLE
+
+
+def test_qkd014_enc_keys_and_status_tenant_isolation():
+    store = KeyStore()
+    # Add key explicitly tagged for SAE_OTHER
+    store.add_key(peer_id='SAE_B', bits=256, initiator_sae_id='SAE_OTHER')
+    
+    # Client initialized for master_sae_id SAE_A
+    c = TestClient(create_qkd014_app(store, source_kme_id='KME_A', target_kme_id='KME_B', master_sae_id='SAE_A'))
+    h = {'X-SAE-ID': 'SAE_A'}
+
+    # SAE_A must NOT see SAE_OTHER's key in status
+    status = c.get('/api/v1/keys/SAE_B/status', headers=h)
+    assert status.status_code == 200
+    assert status.json()['stored_key_count'] == 0
+
+    # SAE_A must NOT be able to consume SAE_OTHER's key via enc_keys
+    res = c.post('/api/v1/keys/SAE_B/enc_keys', headers=h, json={'number': 1, 'size': 256})
+    assert res.status_code == 503
+
+    # Now deposit key material for SAE_A via reservoir
+    store.deposit_reservoir_bits(peer_id='SAE_B', bits=512, initiator_sae_id='SAE_A')
+    status2 = c.get('/api/v1/keys/SAE_B/status', headers=h)
+    assert status2.status_code == 200
+    assert status2.json()['stored_key_count'] == 2
+
+    # Now enc_keys succeeds and consumes SAE_A's key
+    res2 = c.post('/api/v1/keys/SAE_B/enc_keys', headers=h, json={'number': 1, 'size': 256})
+    assert res2.status_code == 200
+    assert len(res2.json()['keys']) == 1

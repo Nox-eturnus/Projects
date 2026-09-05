@@ -180,16 +180,37 @@ def replenish_from_qkd_physics(
 
         link.key_bits += outcome.secure_bits
         storable_bits = (outcome.secure_bits // 8) * 8
-        if key_store is not None and storable_bits > 0:
-            key_store.add_key(
-                peer_id=v,
-                bits=storable_bits,
-                protocol=outcome.protocol,
-                eps_sec=eps_sec,
-                eps_cor=eps_cor,
-                initiator_sae_id=u,
-                target_sae_id=v,
-            )
+        if key_store is not None and storable_bits > 0 and getattr(link, "key_store", None) is None:
+            if hasattr(key_store, "deposit_reservoir_bits"):
+                key_store.deposit_reservoir_bits(
+                    peer_id=v,
+                    bits=storable_bits,
+                    protocol=outcome.protocol,
+                    eps_sec=eps_sec,
+                    eps_cor=eps_cor,
+                    initiator_sae_id=u,
+                    target_sae_id=v,
+                )
+            elif isinstance(key_store, dict) and u in key_store and hasattr(key_store[u], "deposit_reservoir_bits"):
+                key_store[u].deposit_reservoir_bits(
+                    peer_id=v,
+                    bits=storable_bits,
+                    protocol=outcome.protocol,
+                    eps_sec=eps_sec,
+                    eps_cor=eps_cor,
+                    initiator_sae_id=u,
+                    target_sae_id=v,
+                )
+            elif hasattr(key_store, "add_key"):
+                key_store.add_key(
+                    peer_id=v,
+                    bits=storable_bits,
+                    protocol=outcome.protocol,
+                    eps_sec=eps_sec,
+                    eps_cor=eps_cor,
+                    initiator_sae_id=u,
+                    target_sae_id=v,
+                )
         generated[(u, v)] = outcome
 
     return generated

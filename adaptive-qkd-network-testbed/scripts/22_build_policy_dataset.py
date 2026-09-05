@@ -24,7 +24,7 @@ def generate_dynamic_trajectories() -> list[dict]:
 
     for traj_id in range(num_trajectories):
         # Baseline conditions for this trajectory
-        distance = float(rng.uniform(15, 100))
+        distance = float(rng.uniform(20, 85))
         dark_prob = float(10 ** rng.uniform(-8, -5))
         det_eff = float(rng.uniform(0.25, 0.70))
         mdi_capable = bool(rng.random() < 0.50)
@@ -38,7 +38,12 @@ def generate_dynamic_trajectories() -> list[dict]:
 
         base_qber = float(rng.uniform(0.015, 0.045))
         qber = base_qber
-        key_pool = float(rng.uniform(200_000, 1_500_000))
+        key_pool = float(rng.uniform(200_000, 1_200_000))
+
+        # Asymmetric Charlie placement along fiber link
+        charlie_frac = float(rng.uniform(0.20, 0.80))
+        lac = float(distance * charlie_frac)
+        lbc = float(distance - lac)
 
         for step in range(steps_per_trajectory):
             # 1. Channel drift
@@ -63,9 +68,9 @@ def generate_dynamic_trajectories() -> list[dict]:
             is_burst = has_burst and (burst_start <= step < burst_start + burst_duration)
             demand = burst_demand if is_burst else normal_demand
 
-            # Key pool dynamic evolution for training scenario distribution
+            # Key pool dynamic evolution: demand consumed over 10s decision epoch
             if step > 0:
-                key_pool = max(0.0, key_pool - demand * 0.1 + float(rng.uniform(0, 100_000)))
+                key_pool = max(0.0, key_pool - demand * 10.0 + float(rng.uniform(0, 100_000)))
 
             # Realistic observable telemetry counts
             sent_pulses = 100_000
@@ -89,8 +94,8 @@ def generate_dynamic_trajectories() -> list[dict]:
                 "demand_bps": float(demand),
                 "mdi_capable": mdi_capable,
                 "charlie_node": f"Charlie_{traj_id}" if mdi_capable else None,
-                "length_ac_km": distance / 2.0,
-                "length_bc_km": distance / 2.0,
+                "length_ac_km": lac if mdi_capable else None,
+                "length_bc_km": lbc if mdi_capable else None,
             }
             scenarios.append(scenario)
             global_id += 1

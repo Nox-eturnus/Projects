@@ -54,6 +54,16 @@ def simulate_decoy_bb84_block(
 ) -> DecoyBB84Block:
     if pulses <= 0:
         raise ValueError("pulses must be positive")
+    if pulses > 10_000_000:
+        return simulate_aggregate_decoy_bb84_block(
+            pulses,
+            intensities=intensities,
+            basis=basis,
+            channel=channel,
+            detector=detector,
+            attack=attack,
+            seed=seed,
+        )
     validate_intensities(intensities)
     basis.validate()
     channel.validate()
@@ -93,6 +103,83 @@ def simulate_decoy_bb84_block(
                 qber = combine_independent_bit_error(qber, min(0.5, attack.z_basis_error_addition))
             errors = int(rng.binomial(detected, min(0.5, qber))) if detected else 0
             records[(basis_name, setting.name)] = CountRecord(sent, detected, errors)
+
+    return DecoyBB84Block(
+        pulses=pulses,
+        records=records,
+        intensities=intensities,
+        basis=basis,
+        channel=channel,
+        detector=detector,
+        attack=attack,
+    )
+
+
+def simulate_aggregate_decoy_bb84_block(
+    pulses: int,
+    *,
+    intensities: tuple[IntensitySetting, ...],
+    basis: BasisProbabilities,
+    channel: ChannelParameters,
+    detector: DetectorParameters,
+    attack: AttackProfile | None = None,
+    seed: int | None = None,
+) -> DecoyBB84Block:
+    """Stochastic simulation using aggregate Multinomial/Binomial distributions.
+
+    Runs in O(num_settings) memory and time, enabling exact finite-sample
+    stochastic simulations for arbitrarily large pulse counts (e.g., 10^10 - 10^11).
+    """
+    if pulses <= 0:
+        raise ValueError("pulses must be positive")
+    validate_intensities(intensities)
+    basis.validate()
+    channel.validate()
+    detector.validate()
+    attack = attack or AttackProfile()
+    attack.validate()
+
+    rng = make_rng(seed)
+    effective_channel = attacked_channel(channel, attack)
+    effective_detector = attacked_detector(detector, attack)
+
+    # Sifted match probabilities
+    p_x_match = basis.p_x_alice * basis.p_x_bob
+    p_z_match = (1.0 - basis.p_x_alice) * (1.0 - basis.p_x_bob)
+    p_mismatch = max(0.0, 1.0 - p_x_match - p_z_match)
+
+    categories: list[tuple[IntensitySetting, str]] = []
+    probs: list[float] = []
+    for setting in intensities:
+        categories.append((setting, "X"))
+        probs.append(setting.probability * p_x_match)
+        categories.append((setting, "Z"))
+        probs.append(setting.probability * p_z_match)
+
+    probs.append(p_mismatch)
+    prob_arr = np.array(probs, dtype=float)
+    prob_arr /= prob_arr.sum()
+
+    multinomial_counts = rng.multinomial(pulses, prob_arr)
+
+    records: dict[tuple[str, str], CountRecord] = {}
+    for idx, (setting, basis_name) in enumerate(categories):
+        sent = int(multinomial_counts[idx])
+        if sent == 0:
+            records[(basis_name, setting.name)] = CountRecord(0, 0, 0)
+            continue
+
+        actual_mu = setting.mu * attack.source_intensity_scale
+        gain = coherent_gain(actual_mu, effective_channel, effective_detector)
+        base_qber = coherent_qber(actual_mu, effective_channel, effective_detector)
+        intercept_qber = 0.25 * attack.intercept_resend_fraction
+        qber = combine_independent_bit_error(base_qber, intercept_qber)
+        if basis_name == "Z":
+            qber = combine_independent_bit_error(qber, min(0.5, attack.z_basis_error_addition))
+
+        detected = int(rng.binomial(sent, gain))
+        errors = int(rng.binomial(detected, min(0.5, qber))) if detected > 0 else 0
+        records[(basis_name, setting.name)] = CountRecord(sent, detected, errors)
 
     return DecoyBB84Block(
         pulses=pulses,

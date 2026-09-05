@@ -85,11 +85,11 @@ To eliminate circular security claims, the adaptive runtime evaluation decouples
 1. **Observable Telemetry**: Exact counts `(sent_pulses, detected_counts, observed_errors)` form Clopper-Pearson conservative confidence bounds.
 2. **Predictive Security Gate**: Evaluates whether recommended candidate action $a_t$ is predicted to be secure and feasible. If not, safe `ABORT` is enforced.
 3. **Independent Realized Simulation**: If executed, an independent physical realization with a distinct random seed and physical channel fluctuations generates counts and fresh finite-key estimation.
-4. **Security Violation Audit**: If an action passed the gate but the independent realization failed (`abort=True` or $S_t \le 0$), a security violation is flagged.
-5. **Closed-Loop State Evolution**: Key pool updates dynamically:
-   $$K_{t+1} = \min(K_{\max}, \max(0, K_t + S_t(a_t) - D_t - C_{\rm switch}(a_t, a_{t-1})))$$
-6. **Time-Normalized Utility**: Evaluates service rate performance (bps) and generation delay penalties:
-   $$U = \frac{\text{delivered}}{\Delta t} - 2.0 \frac{\text{deficit}}{\Delta t} - 10.0 \Delta t - C_{\rm switch}$$
+4. **Predictive Gate Miss vs. Security Violation Audit**: If an action passed the conservative gate but the independent realization failed (`abort=True` or $S_t \le 0$), a *predictive gate miss* is recorded. True *security violations* (releasing keys when an abort occurred) are strictly 0 by fundamental protocol construction.
+5. **Closed-Loop State Evolution**: Key pool updates dynamically in bits:
+   $$K_{t+1} = \min(K_{\max}, \max(0, K_t + S_t(a_t) - D_t))$$
+6. **Time-Normalized Utility**: Evaluates service rate performance (bps), latency penalties, and control effort:
+   $$U = \frac{\text{delivered}}{\Delta t} - 2.0 \frac{\text{deficit}}{\Delta t} - 0.05 \Delta t - \frac{C_{\rm switch}}{\Delta t}$$
 
 ### Six-Baseline Comparison
 1. **Fixed BB84 Conservative**: Small block $N=10^{10}$, conservative intensities.
@@ -101,7 +101,7 @@ To eliminate circular security claims, the adaptive runtime evaluation decouples
 
 ### Statistical Validation
 - Evaluated across 32 dynamic trajectories with balanced attack episodes and demand bursts across training and held-out test splits.
-- **Trajectory Cluster Bootstrap**: Resamples whole trajectories with replacement ($N_{\rm boot} = 1000$) to properly account for temporal correlation, producing paired difference 95% confidence intervals and Cohen's $d$.
+- **Trajectory Cluster Bootstrap**: Resamples whole trajectories with replacement ($N_{\rm boot} = 1000$) using Common Random Numbers (CRN) to properly account for temporal correlation, producing paired difference 95% confidence intervals and Cohen's $d$.
 
 ---
 
@@ -153,7 +153,7 @@ python scripts\16_protocol_comparison.py
 # 4. Key Management System & Applications
 python scripts\17_kms_demo.py
 python scripts\18_qkd014_conformance.py
-python scripts\19_qkd020_conformance.py
+python scripts\19_qkd020_interface_checks.py
 python scripts\20_secure_application_demo.py
 
 # 5. Network Simulation & Routing
@@ -163,6 +163,9 @@ python scripts\21_network_simulation.py
 python scripts\22_build_policy_dataset.py
 python scripts\23_fit_adaptive_policy.py
 python scripts\24_evaluate_adaptive_policy.py
+
+# 7. Unified End-to-End Closed-Loop Pipeline
+python scripts\26_end_to_end_closed_loop.py
 
 # 7. Interactive Dashboard
 python scripts\25_run_dashboard.py

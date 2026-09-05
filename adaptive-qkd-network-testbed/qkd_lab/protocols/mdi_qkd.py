@@ -116,6 +116,15 @@ def simulate_mdi_block(
 ) -> MDIBlock:
     if pulses <= 0:
         raise ValueError("pulses must be positive")
+    if pulses > 10_000_000:
+        return simulate_aggregate_mdi_block(
+            pulses,
+            alice_intensities=alice_intensities,
+            bob_intensities=bob_intensities,
+            basis=basis,
+            physical=physical,
+            seed=seed,
+        )
     _validate_intensities(alice_intensities)
     _validate_intensities(bob_intensities)
     physical.validate()
@@ -139,6 +148,73 @@ def simulate_mdi_block(
                 detected = int(rng.binomial(sent, gain)) if sent else 0
                 errors = int(rng.binomial(detected, qber)) if detected else 0
                 records[(basis_name, a.name, b.name)] = CountRecord(sent, detected, errors)
+
+    return MDIBlock(
+        pulses=pulses,
+        records=records,
+        alice_intensities=alice_intensities,
+        bob_intensities=bob_intensities,
+        basis=basis,
+        physical=physical,
+    )
+
+
+def simulate_aggregate_mdi_block(
+    pulses: int,
+    *,
+    alice_intensities: tuple[IntensitySetting, ...],
+    bob_intensities: tuple[IntensitySetting, ...],
+    basis: MDIBasisProbabilities,
+    physical: MDIPhysicalParameters,
+    seed: int | None = None,
+) -> MDIBlock:
+    """Stochastic simulation using aggregate Multinomial/Binomial distributions for MDI-QKD.
+
+    Runs in O(num_settings) memory and time, enabling exact finite-sample
+    stochastic simulations for arbitrarily large pulse counts (e.g., 10^10 - 10^11).
+    """
+    if pulses <= 0:
+        raise ValueError("pulses must be positive")
+    _validate_intensities(alice_intensities)
+    _validate_intensities(bob_intensities)
+    physical.validate()
+    if not (0.0 < basis.p_z_alice < 1.0 and 0.0 < basis.p_z_bob < 1.0):
+        raise ValueError("basis probabilities must lie in (0,1)")
+
+    rng = make_rng(seed)
+
+    p_z_match = basis.p_z_alice * basis.p_z_bob
+    p_x_match = (1.0 - basis.p_z_alice) * (1.0 - basis.p_z_bob)
+    p_mismatch = max(0.0, 1.0 - p_z_match - p_x_match)
+
+    categories: list[tuple[IntensitySetting, IntensitySetting, str]] = []
+    probs: list[float] = []
+    for a in alice_intensities:
+        for b in bob_intensities:
+            categories.append((a, b, "Z"))
+            probs.append(a.probability * b.probability * p_z_match)
+            categories.append((a, b, "X"))
+            probs.append(a.probability * b.probability * p_x_match)
+
+    probs.append(p_mismatch)
+    prob_arr = np.array(probs, dtype=float)
+    prob_arr /= prob_arr.sum()
+
+    multinomial_counts = rng.multinomial(pulses, prob_arr)
+
+    records: dict[tuple[str, str, str], CountRecord] = {}
+    for idx, (a, b, basis_name) in enumerate(categories):
+        sent = int(multinomial_counts[idx])
+        if sent == 0:
+            records[(basis_name, a.name, b.name)] = CountRecord(0, 0, 0)
+            continue
+
+        gain = mdi_coherent_gain(a.mu, b.mu, physical)
+        qber = mdi_coherent_qber(a.mu, b.mu, physical)
+
+        detected = int(rng.binomial(sent, gain))
+        errors = int(rng.binomial(detected, qber)) if detected > 0 else 0
+        records[(basis_name, a.name, b.name)] = CountRecord(sent, detected, errors)
 
     return MDIBlock(
         pulses=pulses,

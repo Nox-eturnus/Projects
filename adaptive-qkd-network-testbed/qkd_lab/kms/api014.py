@@ -58,14 +58,14 @@ def create_qkd014_app(
         caller = require_caller(x_sae_id)
         if caller != master_sae_id and caller != slave_SAE_ID:
             raise HTTPException(status_code=401, detail=f"caller {caller} is not authorized for status of {slave_SAE_ID}")
-        available = store.available(peer_id=slave_SAE_ID, bits=256)
+        stored_count = store.available_key_count(peer_id=slave_SAE_ID, key_size=256, initiator_sae_id=master_sae_id)
         return {
             "source_KME_ID": source_kme_id,
             "target_KME_ID": target_kme_id,
             "master_SAE_ID": master_sae_id,
             "slave_SAE_ID": slave_SAE_ID,
             "key_size": 256,
-            "stored_key_count": len(available),
+            "stored_key_count": stored_count,
             "max_key_count": 100000,
             "max_key_per_request": 128,
             "max_key_size": 1024,
@@ -87,7 +87,12 @@ def create_qkd014_app(
         if request.extension_mandatory:
             raise HTTPException(status_code=400, detail="mandatory extensions are not implemented")
         try:
-            keys = store.consume(peer_id=slave_SAE_ID, number=request.number, bits=request.size)
+            keys = store.consume(
+                peer_id=slave_SAE_ID,
+                number=request.number,
+                bits=request.size,
+                initiator_sae_id=master_sae_id,
+            )
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return _key_container(keys)

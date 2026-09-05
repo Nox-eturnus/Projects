@@ -61,3 +61,34 @@ def test_qkd020_scoped_all_confirmation_void():
     assert store.get("k_ab_1").state == KeyState.VOID
     # k_cd_1 MUST NOT be voided (multi-tenant isolation)
     assert store.get("k_cd_1").state == KeyState.AVAILABLE
+
+
+def test_qkd020_explicit_key_void_tenant_isolation():
+    store = KeyStore()
+    c = TestClient(create_qkd020_app(store))
+    payload_ab = {
+        "keys": [{"key_id": "k_tenant_a", "value": base64.b64encode(b"A" * 32).decode()}],
+        "initiator_sae_id": "Tenant_A",
+        "target_sae_ids": ["B"],
+    }
+    c.post("/kmapi/v1/ext_keys", json=payload_ab)
+
+    # Impostor tenant attempts to void k_tenant_a explicitly
+    void_impostor = {
+        "key_ids": ["k_tenant_a"],
+        "initiator_sae_id": "Tenant_B",
+        "target_sae_ids": ["B"],
+    }
+    res = c.post("/kmapi/v1/ext_keys/void", json=void_impostor)
+    assert res.status_code == 403
+    assert store.get("k_tenant_a").state == KeyState.AVAILABLE
+
+    # Legitimate tenant voids k_tenant_a
+    void_legit = {
+        "key_ids": ["k_tenant_a"],
+        "initiator_sae_id": "Tenant_A",
+        "target_sae_ids": ["B"],
+    }
+    res2 = c.post("/kmapi/v1/ext_keys/void", json=void_legit)
+    assert res2.status_code == 200
+    assert store.get("k_tenant_a").state == KeyState.VOID

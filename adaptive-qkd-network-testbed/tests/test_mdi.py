@@ -16,3 +16,20 @@ def test_mdi_large_block_finite_key_runs():
     r = estimate_mdi_finite_key(block, budget)
     assert r.secure_bits > 0
     assert not r.abort
+
+
+def test_aggregate_stochastic_mdi_simulation():
+    from qkd_lab.protocols.mdi_qkd import simulate_aggregate_mdi_block
+    cfg = load_yaml('configs/mdi.yaml')
+    alice, bob, basis, physical, budget = mdi_objects(cfg)
+    block = simulate_aggregate_mdi_block(
+        100_000_000_000,
+        alice_intensities=alice,
+        bob_intensities=bob,
+        basis=basis,
+        physical=physical,
+        seed=42,
+    )
+    r = estimate_mdi_finite_key(block, budget)
+    assert r.secure_bits > 0
+    assert not r.abort

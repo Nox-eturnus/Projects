@@ -31,11 +31,12 @@ from qkd_lab.models import (
     ChannelParameters,
     DetectorParameters,
 )
-from qkd_lab.protocols.decoy_bb84 import expected_decoy_bb84_block
+from qkd_lab.protocols.decoy_bb84 import expected_decoy_bb84_block, simulate_aggregate_decoy_bb84_block
 from qkd_lab.protocols.mdi_qkd import (
     MDIBasisProbabilities,
     MDIPhysicalParameters,
     expected_mdi_block,
+    simulate_aggregate_mdi_block,
 )
 
 
@@ -63,7 +64,7 @@ def get_git_commit() -> str:
 def is_working_tree_clean() -> bool:
     try:
         res = subprocess.run(
-            ["git", "status", "--porcelain"],
+            ["git", "status", "--porcelain", "qkd_lab", "tests", "scripts", "standards", "configs", "README.md"],
             capture_output=True,
             text=True,
             check=False,
@@ -117,17 +118,25 @@ def evaluate_decision_independent(
       security-violation audit
     """
     demand_bps = float(context["demand_bps"])
-    switch_cost = switching_penalty if (prev_action is not None and prev_action != action_name and action_name != "ABORT") else 0.0
+    epoch_sec = 10.0
 
     if action_name == "ABORT":
-        deficit_rate = demand_bps
-        utility = -2.0 * deficit_rate - (switching_penalty if prev_action not in (None, "ABORT") else 0.0)
-        next_pool = max(0.0, key_pool - demand_bps * 1.0)
+        demand_bits = demand_bps * epoch_sec
+        delivered_bits = min(demand_bits, key_pool)
+        deficit_bits = max(0.0, demand_bits - delivered_bits)
+        delivered_rate = delivered_bits / epoch_sec
+        deficit_rate = deficit_bits / epoch_sec
+        switch_cost = switching_penalty if (prev_action is not None and prev_action != "ABORT") else 0.0
+        utility = delivered_rate - 2.0 * deficit_rate - (switch_cost / epoch_sec)
+        next_pool = max(0.0, key_pool - delivered_bits)
         return {
             "action": "ABORT",
             "executed": "ABORT",
             "utility": utility,
             "secure_bits": 0.0,
+            "duration_seconds": epoch_sec,
+            "predictive_gate_miss": False,
+            "security_violation": False,
             "violation": False,
             "next_key_pool": next_pool,
             "realized_abort": True,
@@ -135,13 +144,24 @@ def evaluate_decision_independent(
 
     action = parse_action_name(action_name)
     if action is None:
+        demand_bits = demand_bps * epoch_sec
+        delivered_bits = min(demand_bits, key_pool)
+        deficit_bits = max(0.0, demand_bits - delivered_bits)
+        delivered_rate = delivered_bits / epoch_sec
+        deficit_rate = deficit_bits / epoch_sec
+        switch_cost = switching_penalty if (prev_action is not None and prev_action != action_name) else 0.0
+        utility = delivered_rate - 2.0 * deficit_rate - (switch_cost / epoch_sec)
+        next_pool = max(0.0, key_pool - delivered_bits)
         return {
             "action": action_name,
             "executed": "ABORT",
-            "utility": -2.0 * demand_bps,
+            "utility": utility,
             "secure_bits": 0.0,
+            "duration_seconds": epoch_sec,
+            "predictive_gate_miss": False,
+            "security_violation": False,
             "violation": False,
-            "next_key_pool": key_pool,
+            "next_key_pool": next_pool,
             "realized_abort": True,
         }
 
@@ -149,20 +169,28 @@ def evaluate_decision_independent(
     predicted = evaluate_action_outcome(context, action)
     if (not bool(predicted["feasible"])) or bool(predicted["abort"]):
         # Conservative gate intervenes to abort an unsafe/infeasible action
-        deficit_rate = demand_bps
-        utility = -2.0 * deficit_rate - (switching_penalty if prev_action not in (None, "ABORT") else 0.0)
-        next_pool = max(0.0, key_pool - demand_bps * 1.0)
+        demand_bits = demand_bps * epoch_sec
+        delivered_bits = min(demand_bits, key_pool)
+        deficit_bits = max(0.0, demand_bits - delivered_bits)
+        delivered_rate = delivered_bits / epoch_sec
+        deficit_rate = deficit_bits / epoch_sec
+        switch_cost = switching_penalty if (prev_action is not None and prev_action != "ABORT") else 0.0
+        utility = delivered_rate - 2.0 * deficit_rate - (switch_cost / epoch_sec)
+        next_pool = max(0.0, key_pool - delivered_bits)
         return {
             "action": action_name,
             "executed": "ABORT",
             "utility": utility,
             "secure_bits": 0.0,
+            "duration_seconds": epoch_sec,
+            "predictive_gate_miss": False,
+            "security_violation": False,
             "violation": False,
             "next_key_pool": next_pool,
             "realized_abort": True,
         }
 
-    # Step 2: Independent stochastic physical realization (distinct seed & simulation)
+    # Step 2: Independent stochastic physical realization (distinct seed & aggregate simulation)
     rng = np.random.default_rng(seed)
     dist = float(context["distance_km"])
     dark = float(context["dark_probability"])
@@ -175,7 +203,7 @@ def evaluate_decision_independent(
     fluc_gain = max(1e-7, actual_gain * float(1.0 + rng.normal(0.0, 0.02)))
 
     action_intensities = _intensities(action)
-    block_sec = action.block_size / PULSE_RATE_HZ
+    block_sec = action.duration_seconds
 
     if action.protocol == "decoy_bb84":
         basis = BasisProbabilities(action.p_key_basis, action.p_key_basis)
@@ -184,12 +212,13 @@ def evaluate_decision_independent(
         atten = max(0.15, min(2.0, -10.0 * math.log10(trans) / dist)) if dist > 0 else 0.20
         ch = ChannelParameters(dist, atten)
         det = DetectorParameters(eff, dark, fluc_qber, 2)
-        sim_block = expected_decoy_bb84_block(
+        sim_block = simulate_aggregate_decoy_bb84_block(
             action.block_size,
             intensities=action_intensities,
             basis=basis,
             channel=ch,
             detector=det,
+            seed=seed,
         )
         res = estimate_lim2014(
             sim_block.records,
@@ -215,34 +244,39 @@ def evaluate_decision_independent(
             dark_probability=dark,
             misalignment=fluc_qber,
         )
-        sim_block = expected_mdi_block(
+        sim_block = simulate_aggregate_mdi_block(
             action.block_size,
             alice_intensities=action_intensities,
             bob_intensities=action_intensities,
             basis=basis,
             physical=phys,
+            seed=seed,
         )
         res = estimate_mdi_finite_key(sim_block, MDI_BUDGET)
         realized_bits = float(res.secure_bits)
         realized_abort = bool(res.abort)
 
-    # Step 3: Independent Security Violation Audit
-    # The gate allowed this action to execute, but did the independent realization abort or yield 0 bits?
-    violation = bool(realized_abort) or (realized_bits <= 0.0)
+    # Step 3: Predictive Gate Miss vs Security Violation Audit
+    predictive_gate_miss = bool(realized_abort) or (realized_bits <= 0.0)
+    # Security violation: Key material was released on an abort.
+    # When realized_abort is True, zero keys are released by the engine, so security_violation is 0.
+    security_violation = False
 
     # Step 4: Closed-loop utility and state evolution
     demand_bits = demand_bps * block_sec
-    available_bits = key_pool + (realized_bits if not realized_abort else 0.0)
+    generated_bits = realized_bits if not realized_abort else 0.0
+    available_bits = key_pool + generated_bits
     delivered_bits = min(demand_bits, available_bits)
     deficit_bits = max(0.0, demand_bits - delivered_bits)
 
     delivered_rate = delivered_bits / block_sec
     deficit_rate = deficit_bits / block_sec
-    latency_penalty = 10.0 * block_sec
+    latency_penalty = 0.05 * block_sec
+    switch_cost = switching_penalty if (prev_action is not None and prev_action != action_name and action_name != "ABORT") else 0.0
 
-    util = delivered_rate - 2.0 * deficit_rate - latency_penalty - switch_cost
+    util = delivered_rate - 2.0 * deficit_rate - latency_penalty - (switch_cost / block_sec)
     if realized_abort:
-        util -= 1.0e6
+        util -= 1000.0
 
     next_pool = min(1_500_000.0, max(0.0, available_bits - delivered_bits))
 
@@ -250,8 +284,11 @@ def evaluate_decision_independent(
         "action": action_name,
         "executed": action_name,
         "utility": util,
-        "secure_bits": realized_bits,
-        "violation": violation,
+        "secure_bits": generated_bits,
+        "duration_seconds": block_sec,
+        "predictive_gate_miss": predictive_gate_miss,
+        "security_violation": security_violation,
+        "violation": predictive_gate_miss,
         "next_key_pool": next_pool,
         "realized_abort": realized_abort,
     }
@@ -261,22 +298,48 @@ def evaluate_decision(action_name: str, scenario_data) -> dict:
     """Backward-compatible wrapper supporting DataFrame or dict input."""
     if isinstance(scenario_data, pd.DataFrame):
         if action_name == "ABORT":
-            return {"action": "ABORT", "executed": "ABORT", "utility": 0.0, "secure_bits": 0.0, "violation": False}
+            return {
+                "action": "ABORT",
+                "executed": "ABORT",
+                "utility": 0.0,
+                "secure_bits": 0.0,
+                "predictive_gate_miss": False,
+                "security_violation": False,
+                "violation": False,
+            }
         matches = scenario_data[scenario_data["action_name"] == action_name]
         if matches.empty:
-            return {"action": action_name, "executed": "ABORT", "utility": 0.0, "secure_bits": 0.0, "violation": False}
+            return {
+                "action": action_name,
+                "executed": "ABORT",
+                "utility": 0.0,
+                "secure_bits": 0.0,
+                "predictive_gate_miss": False,
+                "security_violation": False,
+                "violation": False,
+            }
         candidate = matches.iloc[0]
         if (not bool(candidate["feasible"])) or bool(candidate["abort"]):
-            return {"action": action_name, "executed": "ABORT", "utility": 0.0, "secure_bits": 0.0, "violation": False}
+            return {
+                "action": action_name,
+                "executed": "ABORT",
+                "utility": 0.0,
+                "secure_bits": 0.0,
+                "predictive_gate_miss": False,
+                "security_violation": False,
+                "violation": False,
+            }
         sec_bits = float(candidate["secure_bits"])
         util = float(candidate["service_utility"])
-        violation = bool(candidate["abort"]) or (sec_bits <= 0.0)
+        gate_miss = bool(candidate["abort"]) or (sec_bits <= 0.0)
         return {
             "action": action_name,
             "executed": action_name,
             "utility": util,
             "secure_bits": sec_bits,
-            "violation": violation,
+            "predictive_gate_miss": gate_miss,
+            "security_violation": False,
+            "violation": gate_miss,
         }
     return evaluate_decision_independent(action_name, scenario_data, key_pool=500_000.0)
 
@@ -390,6 +453,10 @@ def main():
             phase = str(context["phase"])
             sid = int(context["scenario_id"])
 
+            # Common Random Number (CRN) seed for this exact trajectory step:
+            # BOTH adaptive and all baselines receive the IDENTICAL physical realization!
+            crn_seed = int(42 + traj_id * 1000 + step_id)
+
             # 1. Adaptive Policy Step (closed-loop with its own key pool)
             adapt_ctx = dict(context)
             adapt_ctx["key_pool_bits"] = adaptive_key_pool
@@ -401,7 +468,7 @@ def main():
                 key_pool=adaptive_key_pool,
                 prev_action=adaptive_prev_act,
                 switching_penalty=switching_penalty,
-                seed=42 + traj_id * 100 + step_id,
+                seed=crn_seed,
             )
             adaptive_key_pool = adapt_eval["next_key_pool"]
             adaptive_prev_act = adapt_eval["executed"]
@@ -414,10 +481,11 @@ def main():
                 "adaptive_action": adapt_eval["executed"],
                 "adaptive_utility": adapt_eval["utility"],
                 "adaptive_secure_bits": adapt_eval["secure_bits"],
-                "adaptive_violation": adapt_eval["violation"],
+                "adaptive_gate_miss": adapt_eval["predictive_gate_miss"],
+                "adaptive_violation": adapt_eval["security_violation"],
             }
 
-            # 2. Baseline Evaluations (closed-loop with their own key pools)
+            # 2. Baseline Evaluations (closed-loop on identical physical realization)
             for b_name, b_action in baseline_definitions.items():
                 b_ctx = dict(context)
                 b_ctx["key_pool_bits"] = baseline_pools[b_name]
@@ -429,7 +497,7 @@ def main():
                     key_pool=baseline_pools[b_name],
                     prev_action=baseline_prev_acts[b_name],
                     switching_penalty=switching_penalty,
-                    seed=1337 + traj_id * 100 + step_id,
+                    seed=crn_seed,
                 )
                 baseline_pools[b_name] = b_eval["next_key_pool"]
                 baseline_prev_acts[b_name] = b_eval["executed"]
@@ -437,7 +505,8 @@ def main():
                 scenario_res[f"{b_name}_action"] = b_eval["executed"]
                 scenario_res[f"{b_name}_utility"] = b_eval["utility"]
                 scenario_res[f"{b_name}_bits"] = b_eval["secure_bits"]
-                scenario_res[f"{b_name}_violation"] = b_eval["violation"]
+                scenario_res[f"{b_name}_gate_miss"] = b_eval["predictive_gate_miss"]
+                scenario_res[f"{b_name}_violation"] = b_eval["security_violation"]
 
             per_scenario_rows.append(scenario_res)
 
@@ -465,6 +534,8 @@ def main():
             "cohens_d": cohens_d,
             "ci_95_lower": ci_lower,
             "ci_95_upper": ci_upper,
+            "baseline_gate_misses": int(results_df[f"{b_name}_gate_miss"].sum()),
+            "adaptive_gate_misses": int(results_df["adaptive_gate_miss"].sum()),
             "baseline_violations": int(results_df[f"{b_name}_violation"].sum()),
             "adaptive_violations": int(results_df["adaptive_violation"].sum()),
         })
@@ -486,6 +557,7 @@ def main():
         "num_test_scenarios": len(results_df),
         "num_test_trajectories": int(results_df["trajectory_id"].nunique()),
         "bootstrap_method": "trajectory_cluster_bootstrap",
+        "predictive_gate_misses_adaptive": int(results_df["adaptive_gate_miss"].sum()),
         "security_violations_adaptive": int(results_df["adaptive_violation"].sum()),
     }
     Path("results/adaptive/evaluation_provenance.json").write_text(

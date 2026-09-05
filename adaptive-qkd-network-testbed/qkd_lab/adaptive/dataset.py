@@ -42,7 +42,11 @@ def evaluate_action_outcome(scenario: dict, action: QKDAction) -> dict:
     This is a deterministic expected-count finite-key evaluation. It does not
     use hidden attack strength, hidden photon numbers, or future measurements.
     """
-    feasible = action_is_feasible(action, mdi_capable=bool(scenario["mdi_capable"]))
+    feasible = action_is_feasible(
+        action,
+        mdi_capable=bool(scenario.get("mdi_capable", False)),
+        has_charlie=scenario.get("charlie_node") is not None,
+    )
     if not feasible:
         return {
             "feasible": False,

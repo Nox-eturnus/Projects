@@ -16,3 +16,21 @@ def test_large_block_can_produce_key():
     assert r.secure_bits > 0
     assert not r.abort
     assert 0 <= r.phase_error_upper < 0.5
+
+
+def test_aggregate_stochastic_bb84_simulation():
+    from qkd_lab.protocols.decoy_bb84 import simulate_aggregate_decoy_bb84_block
+    cfg = load_yaml('configs/baseline.yaml')
+    sec = load_yaml('configs/finite_key.yaml')
+    intensities, basis, channel, detector = bb84_objects(cfg)
+    block = simulate_aggregate_decoy_bb84_block(
+        10_000_000_000,
+        intensities=intensities,
+        basis=basis,
+        channel=channel,
+        detector=detector,
+        seed=42,
+    )
+    r = estimate_lim2014(block.records, intensities, eps_sec=float(sec['eps_sec']), eps_cor=float(sec['eps_cor']))
+    assert r.secure_bits > 0
+    assert not r.abort

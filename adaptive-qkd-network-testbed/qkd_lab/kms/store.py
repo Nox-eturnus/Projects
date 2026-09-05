@@ -7,6 +7,7 @@ from dataclasses import asdict
 from datetime import timedelta
 
 from qkd_lab.kms.models import KeyState, ManagedKey, utcnow
+from qkd_lab.kms.reservoir import KeyReservoir
 from qkd_lab.rng import secure_random_bytes
 
 
@@ -19,6 +20,7 @@ class KeyStore:
         ttl_seconds: float | None = None,
     ) -> None:
         self._keys: dict[str, ManagedKey] = {}
+        self._reservoirs: dict[str, KeyReservoir] = {}
         self._lock = threading.RLock()
         self._max_keys = max_keys
         self._max_bits = max_bits
@@ -173,7 +175,113 @@ class KeyStore:
             if key.state == KeyState.AVAILABLE and key.created_at < cutoff:
                 self._keys[key_id] = key.erase_secret()
 
-    def available(self, *, peer_id: str | None = None, bits: int | None = None) -> list[ManagedKey]:
+    def get_reservoir(self, peer_id: str) -> KeyReservoir:
+        with self._lock:
+            if peer_id not in self._reservoirs:
+                self._reservoirs[peer_id] = KeyReservoir(peer_id, max_bits=self._max_bits)
+            return self._reservoirs[peer_id]
+
+    def deposit_reservoir_bits(
+        self,
+        *,
+        peer_id: str,
+        bits: int,
+        protocol: str = "simulated_qkd",
+        eps_sec: float = 1e-10,
+        eps_cor: float = 1e-15,
+        initiator_sae_id: str | None = None,
+        target_sae_id: str | None = None,
+    ) -> str:
+        with self._lock:
+            res = self.get_reservoir(peer_id)
+            return res.deposit_bits(
+                bits,
+                protocol=protocol,
+                eps_sec=eps_sec,
+                eps_cor=eps_cor,
+                initiator_sae_id=initiator_sae_id,
+                target_sae_id=target_sae_id,
+            )
+
+    def available_bits(
+        self,
+        *,
+        peer_id: str | None = None,
+        initiator_sae_id: str | None = None,
+    ) -> int:
+        with self._lock:
+            self._purge_expired_keys()
+            explicit_bits = sum(
+                k.bits for k in self._keys.values()
+                if k.state == KeyState.AVAILABLE
+                and (peer_id is None or k.peer_id == peer_id)
+                and (initiator_sae_id is None or k.initiator_sae_id is None or k.initiator_sae_id == initiator_sae_id)
+            )
+            if peer_id is not None:
+                res = self._reservoirs.get(peer_id)
+                res_bits = res.available_bits(initiator_sae_id=initiator_sae_id) if res else 0
+            else:
+                res_bits = sum(r.available_bits(initiator_sae_id=initiator_sae_id) for r in self._reservoirs.values())
+            return explicit_bits + res_bits
+
+    def available_key_count(
+        self,
+        *,
+        peer_id: str,
+        key_size: int = 256,
+        initiator_sae_id: str | None = None,
+    ) -> int:
+        with self._lock:
+            explicit_count = len(self.available(peer_id=peer_id, bits=key_size, initiator_sae_id=initiator_sae_id))
+            res = self._reservoirs.get(peer_id)
+            res_bits = res.available_bits(initiator_sae_id=initiator_sae_id) if res else 0
+            return explicit_count + (res_bits // key_size)
+
+    def consume_bits(
+        self,
+        *,
+        peer_id: str,
+        bits: int,
+        initiator_sae_id: str | None = None,
+    ) -> int:
+        if bits <= 0:
+            raise ValueError("bits must be positive")
+        with self._lock:
+            avail = self.available_bits(peer_id=peer_id, initiator_sae_id=initiator_sae_id)
+            if avail < bits:
+                raise RuntimeError(f"insufficient key bits: requested {bits}, available {avail}")
+
+            res = self.get_reservoir(peer_id)
+            res_avail = res.available_bits(initiator_sae_id=initiator_sae_id)
+            take_from_res = min(res_avail, bits)
+            if take_from_res > 0:
+                res.consume_bits(take_from_res, initiator_sae_id=initiator_sae_id)
+            remaining = bits - take_from_res
+
+            if remaining > 0:
+                for key in self.available(peer_id=peer_id, initiator_sae_id=initiator_sae_id):
+                    if remaining <= 0:
+                        break
+                    self._keys[key.key_id] = key.consumed_and_erased()
+                    if key.bits > remaining:
+                        leftover = key.bits - remaining
+                        res.deposit_bits(
+                            leftover,
+                            initiator_sae_id=key.initiator_sae_id,
+                            target_sae_id=key.target_sae_id,
+                        )
+                        remaining = 0
+                    else:
+                        remaining -= key.bits
+            return bits
+
+    def available(
+        self,
+        *,
+        peer_id: str | None = None,
+        bits: int | None = None,
+        initiator_sae_id: str | None = None,
+    ) -> list[ManagedKey]:
         with self._lock:
             self._purge_expired_keys()
             out = [k for k in self._keys.values() if k.state == KeyState.AVAILABLE]
@@ -181,15 +289,32 @@ class KeyStore:
                 out = [k for k in out if k.peer_id == peer_id]
             if bits is not None:
                 out = [k for k in out if k.bits == bits]
+            if initiator_sae_id is not None:
+                out = [k for k in out if k.initiator_sae_id is None or k.initiator_sae_id == initiator_sae_id]
             return sorted(out, key=lambda k: k.created_at)
 
-    def consume(self, *, peer_id: str, number: int = 1, bits: int = 256) -> list[ManagedKey]:
+    def consume(
+        self,
+        *,
+        peer_id: str,
+        number: int = 1,
+        bits: int = 256,
+        initiator_sae_id: str | None = None,
+    ) -> list[ManagedKey]:
         if number <= 0:
             raise ValueError("number must be positive")
         with self._lock:
-            candidates = self.available(peer_id=peer_id, bits=bits)
-            if len(candidates) < number:
-                raise RuntimeError("insufficient key material")
+            candidates = self.available(peer_id=peer_id, bits=bits, initiator_sae_id=initiator_sae_id)
+            needed = number - len(candidates)
+            if needed > 0:
+                res = self.get_reservoir(peer_id)
+                if res.available_bits(initiator_sae_id=initiator_sae_id) < needed * bits:
+                    raise RuntimeError("insufficient key material")
+                for _ in range(needed):
+                    sliced = res.slice_key(bits=bits, initiator_sae_id=initiator_sae_id, target_sae_id=peer_id)
+                    self._keys[sliced.key_id] = sliced
+                    candidates.append(sliced)
+
             chosen = candidates[:number]
             for key in chosen:
                 self._keys[key.key_id] = key.consumed_and_erased()
@@ -256,6 +381,9 @@ class KeyStore:
             for key in self._keys.values():
                 counts[key.state.value] += 1
                 bits[f"{key.state.value}_bits"] += key.bits
+            reservoir_bits = sum(r.available_bits() for r in self._reservoirs.values())
+            bits["available_bits"] += reservoir_bits
+            bits["reservoir_bits"] = reservoir_bits
             return {**counts, **bits}
 
     def safe_metadata(self) -> list[dict]:

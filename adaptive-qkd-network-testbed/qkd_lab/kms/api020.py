@@ -106,6 +106,18 @@ def create_qkd020_app(store: KeyStore) -> FastAPI:
                    (k.initiator_sae_id is None or k.initiator_sae_id == container.initiator_sae_id)
             ]
         else:
+            for kid in container.key_ids:
+                try:
+                    k = store.get(kid)
+                except KeyError:
+                    raise HTTPException(status_code=400, detail=f"key {kid} not found")
+                if k.peer_id not in container.target_sae_ids:
+                    raise HTTPException(status_code=403, detail=f"key {kid} does not target specified SAE")
+                if k.initiator_sae_id is not None and k.initiator_sae_id != container.initiator_sae_id:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"key {kid} initiator {k.initiator_sae_id} does not match {container.initiator_sae_id}",
+                    )
             key_ids = container.key_ids
         try:
             voided = store.void(key_ids)

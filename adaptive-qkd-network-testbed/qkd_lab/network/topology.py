@@ -6,12 +6,10 @@ from typing import Any
 import networkx as nx
 
 
-@dataclass
 class QKDLinkState:
     u: str
     v: str
     distance_km: float
-    key_bits: int
     secure_rate_bps: float
     active: bool = True
     qber: float = 0.02
@@ -19,6 +17,73 @@ class QKDLinkState:
     charlie_node: str | None = None
     length_ac_km: float | None = None
     length_bc_km: float | None = None
+    key_store: Any | None = None
+
+    def __init__(
+        self,
+        u: str,
+        v: str,
+        distance_km: float,
+        key_bits: int,
+        secure_rate_bps: float,
+        active: bool = True,
+        qber: float = 0.02,
+        mdi_capable: bool = False,
+        charlie_node: str | None = None,
+        length_ac_km: float | None = None,
+        length_bc_km: float | None = None,
+        key_store: Any | None = None,
+    ) -> None:
+        self.u = u
+        self.v = v
+        self.distance_km = distance_km
+        self.secure_rate_bps = secure_rate_bps
+        self.active = active
+        self.qber = qber
+        self.mdi_capable = mdi_capable
+        self.charlie_node = charlie_node
+        self.length_ac_km = length_ac_km
+        self.length_bc_km = length_bc_km
+        self.key_store = key_store
+        self._key_bits = 0
+        if self.key_store is not None and key_bits > 0:
+            if hasattr(self.key_store, "deposit_reservoir_bits"):
+                self.key_store.deposit_reservoir_bits(
+                    peer_id=self.v,
+                    bits=key_bits,
+                    initiator_sae_id=self.u,
+                    target_sae_id=self.v,
+                )
+        else:
+            self._key_bits = key_bits
+        self.__post_init__()
+
+    @property
+    def key_bits(self) -> int:
+        if self.key_store is not None and hasattr(self.key_store, "available_bits"):
+            return self.key_store.available_bits(peer_id=self.v, initiator_sae_id=self.u)
+        return self._key_bits
+
+    @key_bits.setter
+    def key_bits(self, val: int) -> None:
+        if self.key_store is not None and hasattr(self.key_store, "available_bits"):
+            current = self.key_store.available_bits(peer_id=self.v, initiator_sae_id=self.u)
+            diff = val - current
+            if diff > 0:
+                self.key_store.deposit_reservoir_bits(
+                    peer_id=self.v,
+                    bits=diff,
+                    initiator_sae_id=self.u,
+                    target_sae_id=self.v,
+                )
+            elif diff < 0:
+                self.key_store.consume_bits(
+                    peer_id=self.v,
+                    bits=-diff,
+                    initiator_sae_id=self.u,
+                )
+        else:
+            self._key_bits = val
 
     def __post_init__(self) -> None:
         if self.charlie_node is not None:
