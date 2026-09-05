@@ -5,8 +5,9 @@ from qkd_lab.kms.store import KeyStore
 
 
 def test_qkd014_status_and_enc_key():
-    store=KeyStore(); store.add_key(peer_id='SAE_B', bits=256)
-    c=TestClient(create_qkd014_app(store, source_kme_id='KME_A', target_kme_id='KME_B', master_sae_id='SAE_A'))
+    store = KeyStore()
+    store.add_key(peer_id='SAE_B', bits=256, initiator_sae_id='SAE_A')
+    c = TestClient(create_qkd014_app(store, source_kme_id='KME_A', target_kme_id='KME_B', master_sae_id='SAE_A'))
     h={'X-SAE-ID':'SAE_A'}
     status=c.get('/api/v1/keys/SAE_B/status', headers=h)
     assert status.status_code == 200

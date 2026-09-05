@@ -25,6 +25,7 @@ class ManagedKey:
     eps_cor: float
     initiator_sae_id: str | None = None
     target_sae_id: str | None = None
+    source: str = "material"
 
     def __repr__(self) -> str:
         # Never leak raw key bytes or base64 material in logs, exceptions, or debugger reprs
@@ -33,6 +34,7 @@ class ManagedKey:
             f"ManagedKey(key_id={self.key_id!r}, peer_id={self.peer_id!r}, "
             f"bits={self.bits}, value_b64='<REDACTED: {length_bytes} bytes>', "
             f"state={self.state.value!r}, protocol={self.protocol!r}, "
+            f"source={self.source!r}, "
             f"initiator_sae_id={self.initiator_sae_id!r}, target_sae_id={self.target_sae_id!r})"
         )
 

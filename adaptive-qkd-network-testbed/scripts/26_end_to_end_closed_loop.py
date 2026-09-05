@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import base64
+from datetime import datetime, timezone
 import json
-import pickle
 from pathlib import Path
+import pickle
+import subprocess
 
 from qkd_lab.adaptive.actions import parse_action_name
 from qkd_lab.adaptive.dataset import _intensities, evaluate_action_outcome
@@ -20,6 +22,32 @@ from qkd_lab.network.topology import QKDLinkState, build_graph
 from qkd_lab.protocols.decoy_bb84 import simulate_aggregate_decoy_bb84_block
 
 
+def get_git_commit() -> str:
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return res.stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
+
+
+def is_working_tree_clean() -> bool:
+    try:
+        res = subprocess.run(
+            ["git", "status", "--porcelain", "qkd_lab", "tests", "scripts", "standards", "configs", "README.md"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return len(res.stdout.strip()) == 0
+    except Exception:
+        return False
+
+
 def run_closed_loop_pipeline() -> dict:
     """Execute the complete end-to-end QKD -> KMS -> Network -> Application pipeline."""
     audit_trail: dict[str, object] = {
@@ -32,7 +60,7 @@ def run_closed_loop_pipeline() -> dict:
     # -------------------------------------------------------------------------
     kms_nodes = {node: KeyStore() for node in ("A", "B", "C", "D")}
 
-    # Initial link reserves
+    # Initial link reserves backed by node KMS stores
     link_ab = QKDLinkState("A", "B", distance_km=25.0, key_bits=5000, secure_rate_bps=2000, key_store=kms_nodes["A"])
     link_bd = QKDLinkState("B", "D", distance_km=25.0, key_bits=5000, secure_rate_bps=2000, key_store=kms_nodes["B"])
     link_ac = QKDLinkState("A", "C", distance_km=40.0, key_bits=2000, secure_rate_bps=1000, key_store=kms_nodes["A"])
@@ -60,23 +88,26 @@ def run_closed_loop_pipeline() -> dict:
         "scenario_id": 9999,
         "trajectory_id": 999,
         "time_step": 0,
+        "phase": "normal",
         "distance_km": link_ab.distance_km,
         "recent_qber": recent_qber,
         "recent_gain": recent_gain,
         "observed_errors": observed_err,
         "detected_counts": detected_cnt,
         "sent_pulses": sent_pulses,
-        "dark_probability": 1e-7,
+        "dark_probability": 1.0e-7,
         "detector_efficiency": det_eff,
         "key_pool_bits": float(link_ab.key_bits),
-        "demand_bps": 5000.0,
+        "demand_bps": 12000.0,
         "mdi_capable": False,
         "charlie_node": None,
+        "length_ac_km": None,
+        "length_bc_km": None,
     }
 
     policy_path = Path("results/adaptive/policy.pkl")
     if policy_path.exists():
-        with open(policy_path, "rb") as f:
+        with policy_path.open("rb") as f:
             policy = pickle.load(f)
         recommended_action_name = policy.select(telemetry)
     else:
@@ -156,63 +187,97 @@ def run_closed_loop_pipeline() -> dict:
     }
 
     # -------------------------------------------------------------------------
-    # Stage 6: Multi-Hop QoS Routing & Secure Path Key Allocation
-    # -------------------------------------------------------------------------
-    qos_req = QKDNQoSRequest(
-        source="A",
-        target="D",
-        key_bits=512,
-        max_hops=3,
-        service_priority=1,
-        reserve_threshold_bits=1000,
-    )
-    service_res = request_end_to_end_key(graph, "A", "D", bits=512, qos=qos_req)
-    assert service_res.success, f"Multi-hop QoS routing failed: {service_res.message}"
-
-    audit_trail["stages"]["network_routing"] = {
-        "success": service_res.success,
-        "path": list(service_res.path),
-        "hops": service_res.hops,
-        "eps_total": service_res.eps_total,
-        "consumed_per_hop": service_res.key_bits_consumed_per_hop,
-    }
-
-    # -------------------------------------------------------------------------
-    # Stage 7: Application Information-Theoretic Authenticated OTP
+    # Stage 6: Multi-Hop QoS Routing & Trusted-Node Hop-by-Hop Key Delivery
     # -------------------------------------------------------------------------
     secret_message = b"CRITICAL MISSION TELEMETRY: ALL QUANTUM SUBSYSTEMS NOMINAL"
     pt_len = len(secret_message)
     pt_bits = pt_len * 8
 
-    # Node A slices exact-length OTP key and 256-bit auth key from its KMS store
-    otp_item = kms_nodes["A"].consume(peer_id="B", number=1, bits=pt_bits, initiator_sae_id="A")[0]
-    auth_item = kms_nodes["A"].consume(peer_id="B", number=1, bits=256, initiator_sae_id="A")[0]
-    otp_key = base64.b64decode(otp_item.value_b64)
-    auth_key = base64.b64decode(auth_item.value_b64)
+    # Multi-hop QoS routing and trusted relay for end-to-end OTP key
+    qos_otp = QKDNQoSRequest(
+        source="A",
+        target="D",
+        key_bits=pt_bits,
+        max_hops=3,
+        service_priority=1,
+        reserve_threshold_bits=500,
+    )
+    service_res_otp = request_end_to_end_key(graph, "A", "D", bits=pt_bits, qos=qos_otp, kms_nodes=kms_nodes)
+    assert service_res_otp.success, f"Multi-hop QoS routing for OTP key failed: {service_res_otp.message}"
 
-    cipher, tag = encrypt_authenticated_otp(secret_message, otp_key, auth_key, mode="it")
+    # Multi-hop QoS routing and trusted relay for 256-bit authentication key
+    qos_auth = QKDNQoSRequest(
+        source="A",
+        target="D",
+        key_bits=256,
+        max_hops=3,
+        service_priority=1,
+        reserve_threshold_bits=500,
+    )
+    service_res_auth = request_end_to_end_key(graph, "A", "D", bits=256, qos=qos_auth, kms_nodes=kms_nodes)
+    assert service_res_auth.success, f"Multi-hop QoS routing for Auth key failed: {service_res_auth.message}"
 
-    # Receiver verifies and decrypts
-    decrypted = decrypt_authenticated_otp(cipher, tag, otp_key, auth_key, mode="it")
-    assert decrypted == secret_message, "Decrypted message mismatch!"
+    audit_trail["stages"]["network_routing"] = {
+        "otp_success": service_res_otp.success,
+        "otp_path": list(service_res_otp.path),
+        "otp_key_id": service_res_otp.key_id,
+        "auth_success": service_res_auth.success,
+        "auth_path": list(service_res_auth.path),
+        "auth_key_id": service_res_auth.key_id,
+        "hops": service_res_otp.hops,
+        "eps_total": service_res_otp.eps_total + service_res_auth.eps_total,
+        "consumed_per_hop_total": service_res_otp.key_bits_consumed_per_hop + service_res_auth.key_bits_consumed_per_hop,
+    }
 
-    # Tamper test
+    # -------------------------------------------------------------------------
+    # Stage 7: Application Information-Theoretic Authenticated OTP
+    # -------------------------------------------------------------------------
+    # Node A retrieves end-to-end OTP and Auth keys from its local KMS (peer is "D")
+    otp_item_a = kms_nodes["A"].consume_by_ids([service_res_otp.key_id], peer_id="D", initiator_sae_id="A")[0]
+    auth_item_a = kms_nodes["A"].consume_by_ids([service_res_auth.key_id], peer_id="D", initiator_sae_id="A")[0]
+
+    # Node D retrieves end-to-end OTP and Auth keys from its local KMS (peer is "A")
+    otp_item_d = kms_nodes["D"].consume_by_ids([service_res_otp.key_id], peer_id="A", initiator_sae_id="A")[0]
+    auth_item_d = kms_nodes["D"].consume_by_ids([service_res_auth.key_id], peer_id="A", initiator_sae_id="A")[0]
+
+    # Cryptographic invariant: verify identical keys across KMS stores
+    assert otp_item_a.value_b64 == otp_item_d.value_b64, "E2E OTP key mismatch between KMS stores!"
+    assert auth_item_a.value_b64 == auth_item_d.value_b64, "E2E Auth key mismatch between KMS stores!"
+
+    otp_key_a = base64.b64decode(otp_item_a.value_b64)
+    auth_key_a = base64.b64decode(auth_item_a.value_b64)
+
+    otp_key_d = base64.b64decode(otp_item_d.value_b64)
+    auth_key_d = base64.b64decode(auth_item_d.value_b64)
+
+    # Node A encrypts the secret message
+    cipher, tag = encrypt_authenticated_otp(secret_message, otp_key_a, auth_key_a, mode="it")
+
+    # Node D decrypts and verifies using strictly its own local KMS key material
+    decrypted = decrypt_authenticated_otp(cipher, tag, otp_key_d, auth_key_d, mode="it")
+    assert decrypted == secret_message, "Decrypted message mismatch at Node D!"
+
+    # Tamper test: Node D rejects corrupted ciphertext
     tampered_cipher = bytearray(cipher)
     tampered_cipher[0] ^= 0xFF
     tamper_caught = False
     try:
-        decrypt_authenticated_otp(bytes(tampered_cipher), tag, otp_key, auth_key, mode="it")
+        decrypt_authenticated_otp(bytes(tampered_cipher), tag, otp_key_d, auth_key_d, mode="it")
     except ValueError:
         tamper_caught = True
 
-    assert tamper_caught, "Tampered ciphertext was not caught by IT authenticator!"
+    assert tamper_caught, "Tampered ciphertext was not caught by IT authenticator at Node D!"
 
     audit_trail["stages"]["application_otp"] = {
         "message_length_bytes": len(secret_message),
         "encryption_mode": "IT-Authenticated-OTP",
-        "decryption_verified": True,
+        "sender_kms": "kms_nodes['A']",
+        "receiver_kms": "kms_nodes['D']",
+        "keys_verified_identical": True,
+        "decryption_verified_at_destination": True,
         "tamper_protection_verified": True,
-        "keys_consumed": [otp_item.key_id, auth_item.key_id],
+        "keys_consumed_a": [otp_item_a.key_id, auth_item_a.key_id],
+        "keys_consumed_d": [otp_item_d.key_id, auth_item_d.key_id],
     }
 
     # -------------------------------------------------------------------------
@@ -221,6 +286,11 @@ def run_closed_loop_pipeline() -> dict:
     audit_trail["status"] = "PASSED"
     audit_trail["security_violations"] = 0
     audit_trail["predictive_gate_misses"] = 0
+    audit_trail["provenance"] = {
+        "git_commit": get_git_commit(),
+        "working_tree_clean": is_working_tree_clean(),
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
 
     out_file = Path("results/network/end_to_end_closed_loop.json")
     out_file.parent.mkdir(parents=True, exist_ok=True)

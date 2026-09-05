@@ -32,7 +32,7 @@ def candidate_actions() -> list[QKDAction]:
                 if nu >= mu:
                     continue
                 for p in (0.80, 0.90):
-                    for n in (10_000_000_000, 100_000_000_000):
+                    for n in (10_000_000_000,):  # Fixed 10.0s epoch at 1 GHz clock
                         actions.append(QKDAction(protocol, mu, nu, p, n))
     return actions
 

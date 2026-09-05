@@ -121,7 +121,7 @@ def test_non_tautological_security_violation_check():
         "demand_bps": 12000.0,
         "mdi_capable": False,
     }
-    action_str = "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=100000000000"
+    action_str = "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=10000000000"
     gate_res = evaluate_decision_independent(action_str, insecure_ctx, key_pool=500_000.0)
     # The conservative predictive gate correctly intervened and executed ABORT
     assert gate_res["executed"] == "ABORT"

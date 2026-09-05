@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+import uuid
 import networkx as nx
+
+from qkd_lab.rng import secure_random_bytes
 
 from qkd_lab.models import (
     BasisProbabilities,
@@ -222,10 +225,13 @@ def request_end_to_end_key(
     target: str,
     bits: int,
     qos: QKDNQoSRequest | None = None,
+    kms_nodes: dict[str, Any] | None = None,
 ) -> ServiceResult:
     """Request an end-to-end key between source and target across trusted relay nodes."""
     if bits <= 0:
         raise ValueError("bits must be positive")
+    if kms_nodes is not None and bits % 8 != 0:
+        raise ValueError("bits must be a multiple of 8 when delivering to KMS stores")
 
     qos = qos or QKDNQoSRequest(source=source, target=target, key_bits=bits)
     required_reserve = bits + qos.reserve_threshold_bits
@@ -272,6 +278,8 @@ def request_end_to_end_key(
         )
 
     links = path_links(graph, path)
+
+    # Phase 1: Pre-reservation feasibility check across all links
     for link in links:
         if not link.active or link.key_bits < bits:
             return ServiceResult(
@@ -284,9 +292,59 @@ def request_end_to_end_key(
                 hops=hops,
             )
 
-    # Atomic consumption across all intermediate trusted hops
-    for link in links:
-        link.key_bits -= bits
+    # Phase 2: Transactional deduction with automatic rollback on any failure
+    deducted_links: list[tuple[Any, int]] = []
+    try:
+        for link in links:
+            if not link.active or link.key_bits < bits:
+                raise RuntimeError("link reserve depleted during reservation phase")
+            link.key_bits -= bits
+            deducted_links.append((link, bits))
+    except Exception as exc:
+        for d_link, d_bits in deducted_links:
+            d_link.key_bits += d_bits
+        return ServiceResult(
+            success=False,
+            path=tuple(path),
+            trusted_intermediate_nodes=tuple(path[1:-1]),
+            key_bits_consumed_per_hop=0,
+            message=f"reservation failed and rolled back: {exc}",
+            eps_total=eps_total,
+            hops=hops,
+        )
+
+    # Phase 3: Trusted-node hop-by-hop relay & delivery into endpoint KMS stores
+    key_id: str | None = None
+    key_material: bytes | None = None
+    if kms_nodes is not None:
+        key_id = str(uuid.uuid4())
+        key_material = secure_random_bytes(bits // 8)
+
+        # Deliver end-to-end key into endpoint KMS stores
+        if source in kms_nodes and hasattr(kms_nodes[source], "add_key"):
+            kms_nodes[source].add_key(
+                peer_id=target,
+                bits=bits,
+                key_id=key_id,
+                value=key_material,
+                protocol="trusted_relay_e2e",
+                eps_sec=eps_total,
+                eps_cor=1e-15,
+                initiator_sae_id=source,
+                target_sae_id=target,
+            )
+        if target in kms_nodes and hasattr(kms_nodes[target], "add_key"):
+            kms_nodes[target].add_key(
+                peer_id=source,
+                bits=bits,
+                key_id=key_id,
+                value=key_material,
+                protocol="trusted_relay_e2e",
+                eps_sec=eps_total,
+                eps_cor=1e-15,
+                initiator_sae_id=source,
+                target_sae_id=target,
+            )
 
     return ServiceResult(
         success=True,
@@ -296,4 +354,6 @@ def request_end_to_end_key(
         message="trusted-node key relay completed",
         eps_total=eps_total,
         hops=hops,
+        key_id=key_id,
+        key_material=key_material,
     )

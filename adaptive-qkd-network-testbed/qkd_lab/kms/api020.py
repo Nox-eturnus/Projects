@@ -99,11 +99,11 @@ def create_qkd020_app(store: KeyStore) -> FastAPI:
             raise HTTPException(status_code=400, detail="supply key_ids or set all_confirmation=true")
         if container.all_confirmation:
             # Multi-tenant safety: Scope all_confirmation strictly to specified initiator/target SAE pair
-            available_keys = store.available()
+            available_keys = store.available(allow_unbound=False)
             key_ids = [
                 k.key_id for k in available_keys
                 if (k.peer_id in container.target_sae_ids) and
-                   (k.initiator_sae_id is None or k.initiator_sae_id == container.initiator_sae_id)
+                   (k.initiator_sae_id == container.initiator_sae_id)
             ]
         else:
             for kid in container.key_ids:

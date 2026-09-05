@@ -1,6 +1,6 @@
 # Adaptive QKD Policy and Trajectory Configuration
 trajectories:
-  num_trajectories: 32
+  num_trajectories: 64
   steps_per_trajectory: 8
   random_seed: 2026
   drift_sigma_qber: 0.003
@@ -27,7 +27,7 @@ baselines:
     mu: 0.55
     nu: 0.10
     p: 0.90
-    n: 100000000000
+    n: 10000000000
   - id: "fixed_mdi"
     protocol: "mdi_qkd"
     mu: 0.40

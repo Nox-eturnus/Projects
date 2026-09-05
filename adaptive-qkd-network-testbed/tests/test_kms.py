@@ -69,3 +69,54 @@ def test_keystore_reservoir_integration():
     # Consume remaining 256 bits via consume_bits
     store.consume_bits(peer_id='SAE_B', bits=256, initiator_sae_id='SAE_A')
     assert store.available_bits(peer_id='SAE_B') == 0
+
+
+def test_key_reservoir_material_mode_exact_slicing():
+    import base64
+    from qkd_lab.kms.reservoir import KeyReservoir
+
+    res = KeyReservoir(peer_id='peer_B')
+    raw_material = bytes(range(64))  # 64 bytes = 512 bits
+    res.deposit_key_material(raw_material, initiator_sae_id='SAE_A')
+    assert res.available_bits(initiator_sae_id='SAE_A') == 512
+
+    # Slice first 256 bits (32 bytes)
+    key1 = res.slice_key(bits=256, initiator_sae_id='SAE_A')
+    assert key1.source == "material"
+    assert base64.b64decode(key1.value_b64) == raw_material[:32]
+    assert res.available_bits(initiator_sae_id='SAE_A') == 256
+
+    # Slice second 256 bits (32 bytes)
+    key2 = res.slice_key(bits=256, initiator_sae_id='SAE_A')
+    assert key2.source == "material"
+    assert base64.b64decode(key2.value_b64) == raw_material[32:64]
+    assert res.available_bits(initiator_sae_id='SAE_A') == 0
+
+
+def test_key_reservoir_budget_mode_synthetic_tag():
+    import base64
+    from qkd_lab.kms.reservoir import KeyReservoir
+
+    res = KeyReservoir(peer_id='peer_B')
+    res.deposit_bits(512, initiator_sae_id='SAE_A')  # budget mode
+    key = res.slice_key(bits=256, initiator_sae_id='SAE_A')
+    assert key.source == "budget_synthetic"
+    assert len(base64.b64decode(key.value_b64)) == 32
+    assert res.available_bits(initiator_sae_id='SAE_A') == 256
+
+
+def test_strict_multi_tenant_scoping_unbound_keys():
+    store = KeyStore()
+    # Add an unbound discrete key and an unbound reservoir pool
+    store.add_key(peer_id='B', bits=256)
+    store.deposit_reservoir_bits(peer_id='B', bits=512)
+
+    # In strict mode (default allow_unbound=False), tenant-scoped queries see 0 keys
+    assert store.available_key_count(peer_id='B', initiator_sae_id='Tenant_X') == 0
+    assert store.available_bits(peer_id='B', initiator_sae_id='Tenant_X') == 0
+    assert len(store.available(peer_id='B', bits=256, initiator_sae_id='Tenant_X')) == 0
+
+    # With allow_unbound=True, unbound keys and reservoir pools can be accessed
+    assert store.available_key_count(peer_id='B', initiator_sae_id='Tenant_X', allow_unbound=True) == 3
+    assert store.available_bits(peer_id='B', initiator_sae_id='Tenant_X', allow_unbound=True) == 768
+    assert len(store.available(peer_id='B', bits=256, initiator_sae_id='Tenant_X', allow_unbound=True)) == 1

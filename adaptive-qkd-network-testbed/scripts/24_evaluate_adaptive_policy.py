@@ -354,7 +354,7 @@ def heuristic_decision(context: dict) -> str:
     if mdi and dist >= 50.0:
         return "mdi_qkd|mu=0.40|nu=0.05|p=0.80|N=10000000000"
     if qber < 0.03 and dist < 40.0:
-        return "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=100000000000"
+        return "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=10000000000"
     return "decoy_bb84|mu=0.40|nu=0.05|p=0.80|N=10000000000"
 
 
@@ -425,7 +425,7 @@ def main():
 
     baseline_definitions = {
         "fixed_bb84_conservative": "decoy_bb84|mu=0.40|nu=0.05|p=0.80|N=10000000000",
-        "fixed_bb84_aggressive": "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=100000000000",
+        "fixed_bb84_aggressive": "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=10000000000",
         "fixed_mdi": "mdi_qkd|mu=0.40|nu=0.05|p=0.80|N=10000000000",
         "training_optimal_fixed": training_optimal_action,
         "heuristic_policy": "HEURISTIC",

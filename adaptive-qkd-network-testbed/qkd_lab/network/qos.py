@@ -24,3 +24,5 @@ class ServiceResult:
     message: str
     eps_total: float = 0.0
     hops: int = 0
+    key_id: str | None = None
+    key_material: bytes | None = None

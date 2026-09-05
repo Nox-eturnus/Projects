@@ -91,16 +91,16 @@ To eliminate circular security claims, the adaptive runtime evaluation decouples
 6. **Time-Normalized Utility**: Evaluates service rate performance (bps), latency penalties, and control effort:
    $$U = \frac{\text{delivered}}{\Delta t} - 2.0 \frac{\text{deficit}}{\Delta t} - 0.05 \Delta t - \frac{C_{\rm switch}}{\Delta t}$$
 
-### Six-Baseline Comparison
-1. **Fixed BB84 Conservative**: Small block $N=10^{10}$, conservative intensities.
-2. **Fixed BB84 Aggressive**: Large block $N=10^{11}$, higher intensity.
-3. **Fixed MDI**: Fixed MDI action via central BSM relay.
+### Six-Baseline Comparison (Standardized 10.0s Decision Epoch)
+1. **Fixed BB84 Conservative**: Block $N=10^{10}$ pulses ($\Delta t = 10.0$ s), conservative intensities ($\mu=0.40, \nu=0.05, p=0.80$).
+2. **Fixed BB84 Aggressive**: Block $N=10^{10}$ pulses ($\Delta t = 10.0$ s), higher signal intensity ($\mu=0.55, \nu=0.10, p=0.90$).
+3. **Fixed MDI**: Fixed MDI action via central BSM relay ($N=10^{10}$, $\Delta t = 10.0$ s).
 4. **Training-Optimal Fixed**: Best single fixed action selected across the entire training set (evaluated across all scenarios with abort penalty).
-5. **Heuristic Expert Policy**: Rule-based decision using QBER and distance thresholds.
-6. **Always-Abort Baseline**: Safe zero-key abort.
+5. **Heuristic Expert Policy**: Rule-based decision using QBER and distance thresholds ($\Delta t = 10.0$ s).
+6. **Always-Abort Baseline**: Safe zero-key abort ($\Delta t = 10.0$ s).
 
 ### Statistical Validation
-- Evaluated across 32 dynamic trajectories with balanced attack episodes and demand bursts across training and held-out test splits.
+- Evaluated across 64 dynamic trajectories (48 train, 16 held-out test) with balanced attack episodes and demand bursts across splits.
 - **Trajectory Cluster Bootstrap**: Resamples whole trajectories with replacement ($N_{\rm boot} = 1000$) using Common Random Numbers (CRN) to properly account for temporal correlation, producing paired difference 95% confidence intervals and Cohen's $d$.
 
 ---
