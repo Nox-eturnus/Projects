@@ -19,13 +19,14 @@ jobs:
       with:
         python-version: '3.12'
 
-    - name: Install dependencies
+    - name: Install dependencies and editable package
       run: |
         python -m pip install --upgrade pip
         if [ -d "adaptive-qkd-network-testbed" ]; then
           cd adaptive-qkd-network-testbed
         fi
         pip install -r requirements.txt
+        pip install -e .
 
     - name: Run unit test suite
       run: |

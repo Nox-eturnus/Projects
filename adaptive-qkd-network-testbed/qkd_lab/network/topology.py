@@ -70,11 +70,15 @@ class QKDLinkState:
             current = self.key_store.available_bits(peer_id=self.v, initiator_sae_id=self.u)
             diff = val - current
             if diff > 0:
+                proto = "mdi_qkd" if self.mdi_capable else "decoy_bb84"
+                scope = "engineering_model" if self.mdi_capable else "theorem_composable"
                 self.key_store.deposit_reservoir_bits(
                     peer_id=self.v,
                     bits=diff,
+                    protocol=proto,
                     initiator_sae_id=self.u,
                     target_sae_id=self.v,
+                    security_scope=scope,
                 )
             elif diff < 0:
                 self.key_store.consume_bits(
@@ -85,14 +89,14 @@ class QKDLinkState:
         else:
             self._key_bits = val
 
-    def reserve_bits(self, bits: int) -> Any:
+    def reserve_bits(self, bits: int, *, allow_unbound: bool = False) -> Any:
         """Transactionally reserve key bits from this link's reservoir or budget."""
         if self.key_store is not None and hasattr(self.key_store, "reserve_bits"):
             return self.key_store.reserve_bits(
                 peer_id=self.v,
                 bits=bits,
                 initiator_sae_id=self.u,
-                allow_unbound=True,
+                allow_unbound=allow_unbound,
             )
         if self.key_bits < bits:
             raise RuntimeError(
@@ -114,6 +118,32 @@ class QKDLinkState:
                 if not res_self.committed and not res_self.rolled_back:
                     res_self.link.key_bits += res_self.b
                     res_self.rolled_back = True
+
+            @property
+            def eps_sec(res_self) -> float:
+                return 1e-10
+
+            @property
+            def eps_cor(res_self) -> float:
+                return 1e-15
+
+            @property
+            def protocols(res_self) -> list[str]:
+                return [res_self.link.protocol]
+
+            @property
+            def security_scope(res_self) -> str:
+                if "mdi" in res_self.link.protocol.lower() or res_self.link.mdi_capable:
+                    return "engineering_model"
+                return "theorem_composable"
+
+            @property
+            def is_composable(res_self) -> bool:
+                return res_self.security_scope == "theorem_composable"
+
+            @property
+            def source(res_self) -> str:
+                return "budget_synthetic"
 
             def __enter__(res_self):
                 return res_self

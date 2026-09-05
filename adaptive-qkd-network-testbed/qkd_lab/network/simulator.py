@@ -278,30 +278,6 @@ def request_end_to_end_key(
 
     links = path_links(graph, path)
 
-    # Multi-hop composable security: sum actual security epsilon across path links
-    link_epsilons: list[float] = []
-    for link in links:
-        eps = 1e-10
-        if link.key_store is not None and hasattr(link.key_store, "get_reservoir"):
-            res = link.key_store.get_reservoir(link.v)
-            if res and res._blocks:
-                eps = res._blocks[0].eps_sec
-        elif hasattr(link, "eps_sec"):
-            eps = getattr(link, "eps_sec", 1e-10)
-        link_epsilons.append(eps)
-    eps_total = sum(link_epsilons)
-
-    if eps_total > qos.max_eps_total:
-        return ServiceResult(
-            success=False,
-            path=tuple(path),
-            trusted_intermediate_nodes=tuple(path[1:-1]),
-            key_bits_consumed_per_hop=0,
-            message=f"composed security epsilon ({eps_total:.2e}) exceeds limit ({qos.max_eps_total:.2e})",
-            eps_total=eps_total,
-            hops=hops,
-        )
-
     # Phase 1: Pre-reservation feasibility check across all links
     for link in links:
         if not link.active or link.key_bits < bits:
@@ -311,11 +287,13 @@ def request_end_to_end_key(
                 trusted_intermediate_nodes=tuple(path[1:-1]),
                 key_bits_consumed_per_hop=0,
                 message="path became infeasible during reservation",
-                eps_total=eps_total,
+                eps_total=None,
                 hops=hops,
+                security_scope="theorem_composable",
+                is_composable=True,
             )
 
-    # Phase 2 & 3: Atomic multi-hop reservation and endpoint KMS delivery
+    # Phase 2 & 3: Atomic multi-hop reservation, composability check, and endpoint KMS delivery
     reservations: list[Any] = []
     source_key_added = False
     key_id: str | None = None
@@ -325,6 +303,10 @@ def request_end_to_end_key(
         key_id = str(uuid.uuid4())
         key_material = secure_random_bytes(bits // 8)
 
+    eps_total: float | None = None
+    all_composable = True
+    path_security_scope = "theorem_composable"
+
     try:
         # Step A: Reserve bits across all links in the path
         for link in links:
@@ -333,7 +315,25 @@ def request_end_to_end_key(
             res_obj = link.reserve_bits(bits)
             reservations.append(res_obj)
 
-        # Step B: Deliver end-to-end key into endpoint KMS stores
+        # Step B: Inspect actual reservation segments for composable security & scope
+        all_composable = all(getattr(r, "is_composable", True) for r in reservations)
+        all_material = all(getattr(r, "source", "budget_synthetic") == "material" for r in reservations)
+        path_source = "material" if all_material else "budget_synthetic"
+
+        if all_composable:
+            path_security_scope = "theorem_composable"
+            eps_total = sum(getattr(r, "eps_sec", 1e-10) for r in reservations)
+            eps_cor = sum(getattr(r, "eps_cor", 1e-15) for r in reservations)
+            if eps_total > qos.max_eps_total:
+                raise ValueError(
+                    f"composed security epsilon ({eps_total:.2e}) exceeds limit ({qos.max_eps_total:.2e})"
+                )
+        else:
+            path_security_scope = "engineering_model"
+            eps_total = None
+            eps_cor = 1e-15
+
+        # Step C: Deliver end-to-end key into endpoint KMS stores
         if kms_nodes is not None:
             source_kms = kms_nodes[source]
             target_kms = kms_nodes[target]
@@ -347,11 +347,12 @@ def request_end_to_end_key(
                 key_id=key_id,
                 value=key_material,
                 protocol="trusted_relay_e2e",
-                eps_sec=eps_total,
-                eps_cor=1e-15,
+                eps_sec=eps_total if eps_total is not None else 1e-10,
+                eps_cor=eps_cor,
                 initiator_sae_id=source,
                 target_sae_id=target,
-                source="material",
+                source=path_source,
+                security_scope=path_security_scope,
             )
             source_key_added = True
 
@@ -361,14 +362,15 @@ def request_end_to_end_key(
                 key_id=key_id,
                 value=key_material,
                 protocol="trusted_relay_e2e",
-                eps_sec=eps_total,
-                eps_cor=1e-15,
+                eps_sec=eps_total if eps_total is not None else 1e-10,
+                eps_cor=eps_cor,
                 initiator_sae_id=source,
                 target_sae_id=target,
-                source="material",
+                source=path_source,
+                security_scope=path_security_scope,
             )
 
-        # Step C: All operations succeeded - commit link reservations
+        # Step D: All operations succeeded - commit link reservations
         for res_obj in reservations:
             res_obj.commit()
 
@@ -395,6 +397,8 @@ def request_end_to_end_key(
             eps_total=eps_total,
             hops=hops,
             key_id=None,
+            security_scope=path_security_scope,
+            is_composable=all_composable,
         )
 
     return ServiceResult(
@@ -406,4 +410,6 @@ def request_end_to_end_key(
         eps_total=eps_total,
         hops=hops,
         key_id=key_id,
+        security_scope=path_security_scope,
+        is_composable=all_composable,
     )

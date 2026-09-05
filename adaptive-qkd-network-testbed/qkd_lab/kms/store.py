@@ -40,6 +40,7 @@ class KeyStore:
         initiator_sae_id: str | None = None,
         target_sae_id: str | None = None,
         source: str = "material",
+        security_scope: str = "theorem_composable",
     ) -> ManagedKey:
         if bits <= 0 or bits % 8 != 0:
             raise ValueError("bits must be a positive multiple of 8")
@@ -72,6 +73,7 @@ class KeyStore:
                 initiator_sae_id=initiator_sae_id,
                 target_sae_id=target_sae_id or peer_id,
                 source=source,
+                security_scope=security_scope,
             )
             self._keys[key_id] = item
         return item
@@ -107,6 +109,7 @@ class KeyStore:
                 initiator_sae_id=key.initiator_sae_id,
                 target_sae_id=key.target_sae_id or target_peer,
                 source=key.source,
+                security_scope=key.security_scope,
             )
             self._keys[imported.key_id] = imported
         return imported
@@ -198,6 +201,7 @@ class KeyStore:
         target_sae_id: str | None = None,
         key_material: bytes | bytearray | None = None,
         source: str | None = None,
+        security_scope: str = "theorem_composable",
     ) -> str:
         with self._lock:
             res = self.get_reservoir(peer_id)
@@ -210,6 +214,7 @@ class KeyStore:
                 target_sae_id=target_sae_id,
                 key_material=key_material,
                 source=source,
+                security_scope=security_scope,
             )
 
     def deposit_reservoir_key_material(
@@ -222,6 +227,7 @@ class KeyStore:
         eps_cor: float = 1e-15,
         initiator_sae_id: str | None = None,
         target_sae_id: str | None = None,
+        security_scope: str = "theorem_composable",
     ) -> str:
         with self._lock:
             res = self.get_reservoir(peer_id)
@@ -232,6 +238,7 @@ class KeyStore:
                 eps_cor=eps_cor,
                 initiator_sae_id=initiator_sae_id,
                 target_sae_id=target_sae_id,
+                security_scope=security_scope,
             )
 
     def reserve_bits(

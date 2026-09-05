@@ -92,3 +92,22 @@ def test_qkd020_explicit_key_void_tenant_isolation():
     res2 = c.post("/kmapi/v1/ext_keys/void", json=void_legit)
     assert res2.status_code == 200
     assert store.get("k_tenant_a").state == KeyState.VOID
+
+
+def test_qkd020_explicit_void_unbound_key_rejected():
+    store = KeyStore()
+    c = TestClient(create_qkd020_app(store))
+    # Unbound key (initiator_sae_id is None)
+    store.add_key(peer_id="B", bits=256, key_id="k_unbound", initiator_sae_id=None)
+    assert store.get("k_unbound").initiator_sae_id is None
+
+    # Any tenant attempting to void this unbound key must be rejected with 403
+    void_req = {
+        "key_ids": ["k_unbound"],
+        "initiator_sae_id": "Tenant_A",
+        "target_sae_ids": ["B"],
+    }
+    res = c.post("/kmapi/v1/ext_keys/void", json=void_req)
+    assert res.status_code == 403
+    assert "does not match" in res.json()["detail"]
+    assert store.get("k_unbound").state == KeyState.AVAILABLE

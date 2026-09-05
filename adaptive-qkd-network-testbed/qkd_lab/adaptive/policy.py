@@ -12,7 +12,12 @@ class EmpiricalPolicy:
     table: pd.DataFrame
     feature_columns: tuple[str, ...]
 
-    def select(self, context: dict) -> str:
+    def select(
+        self,
+        context: dict,
+        prev_action: str | None = None,
+        switching_penalty: float = 50.0,
+    ) -> str:
         validate_feature_columns(list(self.feature_columns))
         candidates = self.table[self.table["feasible"]].copy()
         if candidates.empty or not (~candidates["abort"]).any():
@@ -60,6 +65,23 @@ class EmpiricalPolicy:
         score = viable_rows.groupby("action_name", as_index=False)["service_utility"].mean()
         if score.empty:
             return "ABORT"
+
+        # Step 5: Deduct switching rate penalty if switching from prev_action
+        if prev_action is not None and prev_action != "ABORT" and switching_penalty > 0.0:
+            duration_map = {}
+            if "block_seconds" in viable_rows.columns:
+                duration_map = viable_rows.groupby("action_name")["block_seconds"].mean().to_dict()
+
+            def adjust_for_switching(row: pd.Series) -> float:
+                act = row["action_name"]
+                util = float(row["service_utility"])
+                if act != prev_action and act != "ABORT":
+                    dur = duration_map.get(act, 10.0)
+                    util -= (switching_penalty / max(dur, 0.1))
+                return util
+
+            score["service_utility"] = score.apply(adjust_for_switching, axis=1)
+
         best = score.sort_values("service_utility", ascending=False).iloc[0]
         if float(best["service_utility"]) <= -1e5:
             return "ABORT"

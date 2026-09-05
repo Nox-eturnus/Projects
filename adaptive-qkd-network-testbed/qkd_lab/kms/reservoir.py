@@ -25,6 +25,7 @@ class DistilledBlock:
     target_sae_id: str | None = None
     key_material: bytearray | bytes | None = None
     source: str = "budget"  # "material" or "budget"
+    security_scope: str = "theorem_composable"  # "theorem_composable" or "engineering_model"
 
 
 @dataclass
@@ -46,12 +47,49 @@ class ReservoirReservation:
 
     def commit(self) -> None:
         self.committed = True
+        # Cryptographic hygiene: wipe sensitive material slices once committed
+        for seg in self.segments:
+            seg.material_slice = None
 
     def rollback(self) -> None:
         if self.committed or self.rolled_back:
             return
         self.reservoir._restore_reservation(self.segments)
         self.rolled_back = True
+
+    @property
+    def eps_sec(self) -> float:
+        """Summed composable secrecy parameter across contributing blocks."""
+        return sum(seg.block.eps_sec for seg in self.segments)
+
+    @property
+    def eps_cor(self) -> float:
+        """Summed composable correctness parameter across contributing blocks."""
+        return sum(seg.block.eps_cor for seg in self.segments)
+
+    @property
+    def protocols(self) -> list[str]:
+        """List of distinct protocols contributing to this reservation."""
+        return sorted(set(seg.block.protocol for seg in self.segments))
+
+    @property
+    def security_scope(self) -> str:
+        """Overall security scope: theorem_composable only if all blocks are theorem-composable."""
+        if self.segments and all(seg.block.security_scope == "theorem_composable" for seg in self.segments):
+            return "theorem_composable"
+        return "engineering_model"
+
+    @property
+    def is_composable(self) -> bool:
+        """True only if all contributing blocks have theorem-level composability."""
+        return self.security_scope == "theorem_composable"
+
+    @property
+    def source(self) -> str:
+        """'material' if all segments were sliced from physical material blocks, else 'budget_synthetic'."""
+        if self.segments and all(seg.block.source == "material" for seg in self.segments):
+            return "material"
+        return "budget_synthetic"
 
     def __enter__(self) -> ReservoirReservation:
         return self
@@ -87,16 +125,19 @@ class KeyReservoir:
         target_sae_id: str | None = None,
         key_material: bytes | bytearray | None = None,
         source: str | None = None,
+        security_scope: str = "theorem_composable",
     ) -> str:
         if bits <= 0:
             raise ValueError("bits must be positive")
         if key_material is not None:
+            if bits % 8 != 0:
+                raise ValueError(f"bits ({bits}) must be a multiple of 8 when key_material is provided")
             if len(key_material) * 8 < bits:
                 raise ValueError(
                     f"key_material length ({len(key_material)} bytes = {len(key_material)*8} bits) "
                     f"is less than declared bits ({bits})"
                 )
-            mat: bytearray | bytes | None = bytearray(key_material[: (bits + 7) // 8])
+            mat: bytearray | bytes | None = bytearray(key_material[: bits // 8])
             block_source = source or "material"
         else:
             mat = None
@@ -120,6 +161,7 @@ class KeyReservoir:
                 target_sae_id=target_sae_id or self.peer_id,
                 key_material=mat,
                 source=block_source,
+                security_scope=security_scope,
             )
             self._blocks.append(block)
             return block_id
@@ -133,6 +175,7 @@ class KeyReservoir:
         eps_cor: float = 1e-15,
         initiator_sae_id: str | None = None,
         target_sae_id: str | None = None,
+        security_scope: str = "theorem_composable",
     ) -> str:
         return self.deposit_bits(
             len(key_material) * 8,
@@ -143,6 +186,7 @@ class KeyReservoir:
             target_sae_id=target_sae_id,
             key_material=key_material,
             source="material",
+            security_scope=security_scope,
         )
 
     def available_bits(
@@ -285,6 +329,7 @@ class KeyReservoir:
             collected_material = bytearray()
             is_material = True
             contributing_protocols: list[str] = []
+            contributing_scopes: list[str] = []
             composed_eps_sec = 0.0
             composed_eps_cor = 0.0
 
@@ -304,6 +349,7 @@ class KeyReservoir:
                 remaining_to_slice -= take
 
                 contributing_protocols.append(b.protocol)
+                contributing_scopes.append(b.security_scope)
                 composed_eps_sec += b.eps_sec
                 composed_eps_cor += b.eps_cor
 
@@ -335,6 +381,9 @@ class KeyReservoir:
             else:
                 key_protocol = "reservoir_slice"
 
+            all_composable = bool(contributing_scopes and all(s == "theorem_composable" for s in contributing_scopes))
+            key_security_scope = "theorem_composable" if all_composable else "engineering_model"
+
             key_id = key_id or str(uuid.uuid4())
             return ManagedKey(
                 key_id=key_id,
@@ -349,4 +398,5 @@ class KeyReservoir:
                 initiator_sae_id=initiator_sae_id,
                 target_sae_id=target_sae_id or self.peer_id,
                 source=source_tag,
+                security_scope=key_security_scope,
             )

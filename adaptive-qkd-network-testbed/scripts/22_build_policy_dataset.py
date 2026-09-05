@@ -38,7 +38,7 @@ def generate_dynamic_trajectories() -> list[dict]:
 
         base_qber = float(rng.uniform(0.015, 0.045))
         qber = base_qber
-        key_pool = float(rng.uniform(200_000, 1_200_000))
+        key_pool = float(rng.uniform(2_000_000, 8_000_000))
 
         # Asymmetric Charlie placement along fiber link
         charlie_frac = float(rng.uniform(0.20, 0.80))
@@ -70,7 +70,7 @@ def generate_dynamic_trajectories() -> list[dict]:
 
             # Key pool dynamic evolution: demand consumed over 10s decision epoch
             if step > 0:
-                key_pool = max(0.0, key_pool - demand * 10.0 + float(rng.uniform(0, 100_000)))
+                key_pool = max(0.0, key_pool - demand * 10.0 + float(rng.uniform(1_000_000, 6_000_000)))
 
             # Realistic observable telemetry counts
             sent_pulses = 100_000

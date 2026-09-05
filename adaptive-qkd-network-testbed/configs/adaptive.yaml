@@ -6,8 +6,8 @@ trajectories:
   drift_sigma_qber: 0.003
   attack_probability: 0.35
   burst_probability: 0.35
-  burst_demand_bps: 80000
-  normal_demand_bps: 12000
+  burst_demand_bps: 2500000
+  normal_demand_bps: 500000
   switching_penalty_utility: 50.0
 
 evaluation:

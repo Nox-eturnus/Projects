@@ -4,6 +4,7 @@ from dataclasses import asdict
 import pandas as pd
 
 from qkd_lab.adaptive.actions import QKDAction, action_is_feasible
+from qkd_lab.adaptive.utility import compute_service_utility
 from qkd_lab.estimation.confidence import conservative_telemetry_bounds
 from qkd_lab.estimation.finite_key_bb84 import estimate_lim2014
 from qkd_lab.estimation.finite_key_mdi import MDIFiniteKeyBudget, estimate_mdi_finite_key
@@ -138,16 +139,16 @@ def evaluate_action_outcome(scenario: dict, action: QKDAction) -> dict:
     delivered = min(demand_bits, available_after_generation)
     deficit = max(0.0, demand_bits - delivered)
 
-    # Time-normalized utility (Finding 14):
-    # Evaluates service rate performance (bps) and generation latency penalty
-    # so that 100s actions do not artificially earn 10x more utility than 10s actions.
-    delivered_rate_bps = delivered / block_seconds
-    deficit_rate_bps = deficit / block_seconds
-    latency_penalty = 10.0 * block_seconds
-
-    utility = delivered_rate_bps - 2.0 * deficit_rate_bps - latency_penalty
-    if abort:
-        utility -= 1.0e6
+    utility = compute_service_utility(
+        delivered_bits=delivered,
+        deficit_bits=deficit,
+        duration_seconds=block_seconds,
+        abort=abort,
+        switch_cost=0.0,
+        latency_weight=0.05,
+        deficit_weight=2.0,
+        abort_penalty=1.0e6,
+    )
 
     return {
         "feasible": True,

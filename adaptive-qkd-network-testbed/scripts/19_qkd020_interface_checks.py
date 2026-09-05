@@ -24,7 +24,6 @@ def main():
     summary = {"versions": version.json(), "transfer": transferred.json(), "ack": acked.json(), "void": voided.json()}
     Path("results/kms").mkdir(parents=True, exist_ok=True)
     Path("results/kms/qkd020_interface_checks.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    Path("results/kms/qkd020_conformance.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
     print("QKD 020 local interface checks PASSED")
 

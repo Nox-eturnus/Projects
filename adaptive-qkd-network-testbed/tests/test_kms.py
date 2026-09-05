@@ -184,3 +184,50 @@ def test_multi_block_composable_security_parameters():
     assert abs(key.eps_sec - 4.0e-10) < 1e-15
     assert abs(key.eps_cor - 3.0e-15) < 1e-16
     assert key.protocol == "composite:decoy_bb84+mdi_qkd"
+
+
+def test_reservoir_reservation_public_properties_and_commit_wiping():
+    from qkd_lab.kms.reservoir import KeyReservoir
+
+    res = KeyReservoir(peer_id='peer_B')
+    raw_material = bytes(range(64))  # 512 bits
+    res.deposit_key_material(raw_material, protocol='decoy_bb84', eps_sec=1e-10, eps_cor=1e-15, security_scope='theorem_composable')
+
+    reservation = res.reserve_bits(256)
+    assert reservation.eps_sec == 1e-10
+    assert reservation.eps_cor == 1e-15
+    assert reservation.protocols == ['decoy_bb84']
+    assert reservation.security_scope == 'theorem_composable'
+    assert reservation.is_composable is True
+    assert reservation.source == 'material'
+    assert reservation.segments[0].material_slice is not None
+
+    # Cryptographic hygiene: commit wipes material_slice
+    reservation.commit()
+    assert reservation.committed is True
+    assert reservation.segments[0].material_slice is None
+
+
+def test_reservoir_reservation_engineering_model_scope():
+    from qkd_lab.kms.reservoir import KeyReservoir
+
+    res = KeyReservoir(peer_id='peer_B')
+    res.deposit_bits(128, protocol='decoy_bb84', security_scope='theorem_composable')
+    res.deposit_bits(128, protocol='mdi_qkd', security_scope='engineering_model')
+
+    reservation = res.reserve_bits(256)
+    assert reservation.security_scope == 'engineering_model'
+    assert reservation.is_composable is False
+    assert reservation.source == 'budget_synthetic'
+    reservation.rollback()
+
+
+def test_canonical_service_utility_consistency():
+    from qkd_lab.adaptive.utility import compute_service_utility
+
+    u1 = compute_service_utility(500_000, 0, 10.0)
+    assert u1 == (50000.0 - 0.05 * 10.0)
+
+    u2 = compute_service_utility(200_000, 300_000, 10.0, abort=True)
+    expected = (20000.0 - 2.0 * 30000.0 - 0.5 - 1.0e6)
+    assert abs(u2 - expected) < 1e-6

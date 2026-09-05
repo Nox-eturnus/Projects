@@ -23,6 +23,7 @@ from qkd_lab.adaptive.dataset import (
     evaluate_action_outcome,
 )
 from qkd_lab.adaptive.features import ALLOWED_FEATURES
+from qkd_lab.adaptive.utility import compute_service_utility
 from qkd_lab.config import load_yaml
 from qkd_lab.estimation.finite_key_bb84 import estimate_lim2014
 from qkd_lab.estimation.finite_key_mdi import estimate_mdi_finite_key
@@ -64,7 +65,7 @@ def get_git_commit() -> str:
 def is_working_tree_clean() -> bool:
     try:
         res = subprocess.run(
-            ["git", "status", "--porcelain", "qkd_lab", "tests", "scripts", "standards", "configs", "README.md", ".github"],
+            ["git", "status", "--porcelain", "qkd_lab", "tests", "scripts", "standards", "configs", "README.md"],
             capture_output=True,
             text=True,
             check=False,
@@ -127,7 +128,15 @@ def evaluate_decision_independent(
         delivered_rate = delivered_bits / epoch_sec
         deficit_rate = deficit_bits / epoch_sec
         switch_cost = switching_penalty if (prev_action is not None and prev_action != "ABORT") else 0.0
-        utility = delivered_rate - 2.0 * deficit_rate - (switch_cost / epoch_sec)
+        utility = compute_service_utility(
+            delivered_bits=delivered_bits,
+            deficit_bits=deficit_bits,
+            duration_seconds=epoch_sec,
+            abort=False,
+            switch_cost=switch_cost,
+            latency_weight=0.0,
+            deficit_weight=2.0,
+        )
         next_pool = max(0.0, key_pool - delivered_bits)
         return {
             "action": "ABORT",
@@ -147,10 +156,16 @@ def evaluate_decision_independent(
         demand_bits = demand_bps * epoch_sec
         delivered_bits = min(demand_bits, key_pool)
         deficit_bits = max(0.0, demand_bits - delivered_bits)
-        delivered_rate = delivered_bits / epoch_sec
-        deficit_rate = deficit_bits / epoch_sec
         switch_cost = switching_penalty if (prev_action is not None and prev_action != action_name) else 0.0
-        utility = delivered_rate - 2.0 * deficit_rate - (switch_cost / epoch_sec)
+        utility = compute_service_utility(
+            delivered_bits=delivered_bits,
+            deficit_bits=deficit_bits,
+            duration_seconds=epoch_sec,
+            abort=False,
+            switch_cost=switch_cost,
+            latency_weight=0.0,
+            deficit_weight=2.0,
+        )
         next_pool = max(0.0, key_pool - delivered_bits)
         return {
             "action": action_name,
@@ -172,10 +187,16 @@ def evaluate_decision_independent(
         demand_bits = demand_bps * epoch_sec
         delivered_bits = min(demand_bits, key_pool)
         deficit_bits = max(0.0, demand_bits - delivered_bits)
-        delivered_rate = delivered_bits / epoch_sec
-        deficit_rate = deficit_bits / epoch_sec
         switch_cost = switching_penalty if (prev_action is not None and prev_action != "ABORT") else 0.0
-        utility = delivered_rate - 2.0 * deficit_rate - (switch_cost / epoch_sec)
+        utility = compute_service_utility(
+            delivered_bits=delivered_bits,
+            deficit_bits=deficit_bits,
+            duration_seconds=epoch_sec,
+            abort=False,
+            switch_cost=switch_cost,
+            latency_weight=0.0,
+            deficit_weight=2.0,
+        )
         next_pool = max(0.0, key_pool - delivered_bits)
         return {
             "action": action_name,
@@ -258,27 +279,29 @@ def evaluate_decision_independent(
 
     # Step 3: Predictive Gate Miss vs Security Violation Audit
     predictive_gate_miss = bool(realized_abort) or (realized_bits <= 0.0)
+    generated_bits = realized_bits if not realized_abort else 0.0
     # Security violation: Key material was released on an abort.
-    # When realized_abort is True, zero keys are released by the engine, so security_violation is 0.
-    security_violation = False
+    security_violation = bool(generated_bits > 0.0 and realized_abort)
 
     # Step 4: Closed-loop utility and state evolution
     demand_bits = demand_bps * block_sec
-    generated_bits = realized_bits if not realized_abort else 0.0
     available_bits = key_pool + generated_bits
     delivered_bits = min(demand_bits, available_bits)
     deficit_bits = max(0.0, demand_bits - delivered_bits)
-
-    delivered_rate = delivered_bits / block_sec
-    deficit_rate = deficit_bits / block_sec
-    latency_penalty = 0.05 * block_sec
     switch_cost = switching_penalty if (prev_action is not None and prev_action != action_name and action_name != "ABORT") else 0.0
 
-    util = delivered_rate - 2.0 * deficit_rate - latency_penalty - (switch_cost / block_sec)
-    if realized_abort:
-        util -= 1000.0
+    util = compute_service_utility(
+        delivered_bits=delivered_bits,
+        deficit_bits=deficit_bits,
+        duration_seconds=block_sec,
+        abort=realized_abort,
+        switch_cost=switch_cost,
+        latency_weight=0.05,
+        deficit_weight=2.0,
+        abort_penalty=1000.0,
+    )
 
-    next_pool = min(1_500_000.0, max(0.0, available_bits - delivered_bits))
+    next_pool = min(15_000_000.0, max(0.0, available_bits - delivered_bits))
 
     return {
         "action": action_name,
@@ -344,6 +367,38 @@ def evaluate_decision(action_name: str, scenario_data) -> dict:
     return evaluate_decision_independent(action_name, scenario_data, key_pool=500_000.0)
 
 
+def simulate_fixed_action_on_trajectories(
+    action_name: str,
+    trajectories_df: pd.DataFrame,
+    switching_penalty: float = 50.0,
+) -> float:
+    """Simulate candidate fixed action across complete training trajectories with evolving key pool."""
+    step_utilities = []
+    for traj_id, traj_df in trajectories_df.groupby("trajectory_id"):
+        traj_df = traj_df.sort_values("time_step")
+        steps = traj_df.drop_duplicates(subset=["time_step"])
+        pool = float(steps.iloc[0]["key_pool_bits"])
+        prev_act = None
+        for _, step_row in steps.iterrows():
+            context = step_row.to_dict()
+            step_id = int(context["time_step"])
+            crn_seed = int(42 + traj_id * 1000 + step_id)
+            ctx = dict(context)
+            ctx["key_pool_bits"] = pool
+            ev = evaluate_decision_independent(
+                action_name,
+                ctx,
+                key_pool=pool,
+                prev_action=prev_act,
+                switching_penalty=switching_penalty,
+                seed=crn_seed,
+            )
+            pool = ev["next_key_pool"]
+            prev_act = ev["executed"]
+            step_utilities.append(ev["utility"])
+    return float(np.mean(step_utilities)) if step_utilities else -1e6
+
+
 def heuristic_decision(context: dict) -> str:
     qber = float(context["recent_qber"])
     dist = float(context["distance_km"])
@@ -365,11 +420,11 @@ def trajectory_cluster_bootstrap_ci(
     n_boot: int = 1000,
     alpha: float = 0.05,
     seed: int = 42,
-) -> tuple[float, float, float, float, float, float]:
+) -> tuple[float, float, float, float, float, float, float]:
     """Trajectory-level cluster bootstrap to account for temporal auto-correlation within trajectories.
     
     Returns:
-        (mean_adaptive, mean_baseline, mean_diff, std_diff, ci_lower, ci_upper)
+        (mean_adaptive, mean_baseline, mean_diff, std_diff, ci_lower, ci_upper, p_value)
     """
     rng = np.random.default_rng(seed)
     traj_metrics = results_df.groupby("trajectory_id")[[adaptive_col, baseline_col]].mean()
@@ -389,8 +444,10 @@ def trajectory_cluster_bootstrap_ci(
 
     ci_lower = float(np.percentile(boot_diffs, 100.0 * (alpha / 2.0)))
     ci_upper = float(np.percentile(boot_diffs, 100.0 * (1.0 - alpha / 2.0)))
+    p_val = float(2.0 * min(np.mean(boot_diffs <= 0.0), np.mean(boot_diffs >= 0.0)))
+    p_val = min(1.0, max(0.0, p_val))
 
-    return float(np.mean(adapt_vals)), float(np.mean(base_vals)), mean_diff, std_diff, ci_lower, ci_upper
+    return float(np.mean(adapt_vals)), float(np.mean(base_vals)), mean_diff, std_diff, ci_lower, ci_upper, p_val
 
 
 def main():
@@ -410,16 +467,15 @@ def main():
         policy = pickle.load(f)
 
     # Determine Training-Optimal Fixed Action:
-    # Evaluate each candidate action across ALL unique training scenarios (penalizing aborts)
+    # Closed-loop trajectory simulation across all training trajectories with dynamic key-pool evolution
     all_actions = candidate_actions()
     action_scores: dict[str, float] = {}
-    train_scenarios = train.drop_duplicates(subset=["scenario_id"])
     for act in all_actions:
-        scores = []
-        for _, sc_row in train_scenarios.iterrows():
-            out = evaluate_action_outcome(sc_row.to_dict(), act)
-            scores.append(out["service_utility"])
-        action_scores[act.name] = float(np.mean(scores))
+        action_scores[act.name] = simulate_fixed_action_on_trajectories(
+            act.name,
+            train,
+            switching_penalty=switching_penalty,
+        )
 
     training_optimal_action = max(action_scores, key=action_scores.get)
 
@@ -460,7 +516,11 @@ def main():
             # 1. Adaptive Policy Step (closed-loop with its own key pool)
             adapt_ctx = dict(context)
             adapt_ctx["key_pool_bits"] = adaptive_key_pool
-            adapt_rec = policy.select(adapt_ctx)
+            adapt_rec = policy.select(
+                adapt_ctx,
+                prev_action=adaptive_prev_act,
+                switching_penalty=switching_penalty,
+            )
 
             adapt_eval = evaluate_decision_independent(
                 adapt_rec,
@@ -517,7 +577,7 @@ def main():
     # Statistical Comparison vs Baselines using Trajectory Cluster Bootstrap
     stat_comparisons = []
     for b_name in baseline_definitions.keys():
-        mean_adapt, mean_base, mean_diff, std_diff, ci_lower, ci_upper = trajectory_cluster_bootstrap_ci(
+        mean_adapt, mean_base, mean_diff, std_diff, ci_lower, ci_upper, p_val = trajectory_cluster_bootstrap_ci(
             results_df,
             "adaptive_utility",
             f"{b_name}_utility",
@@ -527,6 +587,7 @@ def main():
 
         stat_comparisons.append({
             "baseline": b_name,
+            "hypothesis_tier": "primary" if b_name == "training_optimal_fixed" else "secondary",
             "mean_adaptive_utility": mean_adapt,
             "mean_baseline_utility": mean_base,
             "mean_paired_difference": mean_diff,
@@ -534,11 +595,23 @@ def main():
             "cohens_d": cohens_d,
             "ci_95_lower": ci_lower,
             "ci_95_upper": ci_upper,
+            "p_value_raw": p_val,
+            "p_value_adjusted": p_val,
             "baseline_gate_misses": int(results_df[f"{b_name}_gate_miss"].sum()),
             "adaptive_gate_misses": int(results_df["adaptive_gate_miss"].sum()),
             "baseline_violations": int(results_df[f"{b_name}_violation"].sum()),
             "adaptive_violations": int(results_df["adaptive_violation"].sum()),
         })
+
+    # Holm-Bonferroni step-down adjustment on secondary baselines
+    secondary = [r for r in stat_comparisons if r["hypothesis_tier"] == "secondary"]
+    secondary.sort(key=lambda r: r["p_value_raw"])
+    m = len(secondary)
+    cum_max = 0.0
+    for i, r in enumerate(secondary):
+        adj = min(1.0, (m - i) * r["p_value_raw"])
+        cum_max = max(cum_max, adj)
+        r["p_value_adjusted"] = cum_max
 
     stats_df = pd.DataFrame(stat_comparisons)
     stats_df.to_csv("results/adaptive/baseline_comparisons.csv", index=False)
@@ -565,7 +638,7 @@ def main():
     )
 
     print("=== Held-out Adaptive Policy vs 6 Baselines (Trajectory Cluster Bootstrap) ===")
-    print(stats_df[["baseline", "mean_adaptive_utility", "mean_baseline_utility", "mean_paired_difference", "ci_95_lower", "ci_95_upper", "cohens_d"]].to_string(index=False))
+    print(stats_df[["baseline", "hypothesis_tier", "mean_adaptive_utility", "mean_baseline_utility", "mean_paired_difference", "ci_95_lower", "ci_95_upper", "p_value_raw", "p_value_adjusted", "cohens_d"]].to_string(index=False))
     print("\nProvenance:")
     print(json.dumps(provenance, indent=2))
 

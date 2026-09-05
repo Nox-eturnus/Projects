@@ -87,13 +87,38 @@ def test_trusted_node_e2e_key_relay_delivery():
     raw_a = base64.b64decode(key_a.value_b64)
     raw_d = base64.b64decode(key_d.value_b64)
     assert raw_a == raw_d
-    assert len(raw_a) == 32
-    assert key_a.source == "material"
-    assert key_d.source == "material"
+    assert key_a.source == "budget_synthetic"
+    assert key_d.source == "budget_synthetic"
+    assert key_a.security_scope == "theorem_composable"
     assert key_a.protocol == "trusted_relay_e2e"
     assert key_d.protocol == "trusted_relay_e2e"
     assert link_ab.key_bits == 2000 - 256
     assert link_bd.key_bits == 2000 - 256
+
+
+def test_trusted_node_e2e_key_relay_material_mode():
+    from qkd_lab.kms.store import KeyStore
+
+    kms_a = KeyStore()
+    kms_b = KeyStore()
+    kms_d = KeyStore()
+    kms_nodes = {'A': kms_a, 'D': kms_d}
+
+    # Deposit actual key material into reservoirs
+    kms_a.deposit_reservoir_key_material(peer_id='B', key_material=b"\x01" * 256, initiator_sae_id='A')
+    kms_b.deposit_reservoir_key_material(peer_id='D', key_material=b"\x02" * 256, initiator_sae_id='B')
+
+    link_ab = QKDLinkState('A', 'B', 10, key_bits=2048, secure_rate_bps=1000, key_store=kms_a)
+    link_bd = QKDLinkState('B', 'D', 10, key_bits=2048, secure_rate_bps=1000, key_store=kms_b)
+    g = build_graph([link_ab, link_bd])
+
+    res = request_end_to_end_key(g, 'A', 'D', 256, kms_nodes=kms_nodes)
+    assert res.success
+    assert res.security_scope == "theorem_composable"
+    assert res.is_composable is True
+
+    key_a = kms_a.consume_by_ids([res.key_id], peer_id='D', initiator_sae_id='A')[0]
+    assert key_a.source == "material"
 
 
 def test_destination_kms_failure_rolls_back_source_and_links():

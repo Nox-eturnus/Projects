@@ -97,7 +97,9 @@ This project provides standards-aligned research models rather than claiming com
 
 ### Trusted Node Relay Semantics & Endpoint Confidentiality
 - **Atomic Delivery**: Multi-hop end-to-end key requests (`request_end_to_end_key()`) execute as a single atomic transaction: hop reservations and source/target KMS insertions succeed completely or roll back entirely.
+- **Resource Abstraction**: Hop key consumption models an ideal trusted relay. In this research model, key bits are consumed along each link of the path to model network-wide key depletion without simulating hop-by-hop ciphertext wrapping/unwrapping.
 - **Confidentiality**: Routing metadata returned in `ServiceResult` excludes secret key bytes (`key_material` is never leaked outside KMS boundaries); applications retrieve keys strictly through authenticated local KMS interfaces (`consume_by_ids`).
+- **Composable Security Gating**: End-to-end composable security $\epsilon_{\rm total} = \sum \epsilon_i$ is reported only when all traversed links are theorem-composable (e.g. BB84 Lim-2014). If an engineering model link (e.g. MDI Curty-2014) is traversed, `is_composable=False` and `eps_total=None` are reported to prevent mixing engineering models with theorem-level composable guarantees.
 
 ---
 
@@ -108,17 +110,17 @@ To eliminate circular security claims, the adaptive runtime evaluation decouples
 1. **Observable Telemetry**: Exact counts `(sent_pulses, detected_counts, observed_errors)` form Clopper-Pearson conservative confidence bounds.
 2. **Predictive Security Gate**: Evaluates whether recommended candidate action $a_t$ is predicted to be secure and feasible. If not, safe `ABORT` is enforced.
 3. **Independent Realized Simulation**: If executed, an independent physical realization with a distinct random seed and physical channel fluctuations generates counts and fresh finite-key estimation.
-4. **Predictive Gate Miss vs. Security Violation Audit**: If an action passed the conservative gate but the independent realization failed (`abort=True` or $S_t \le 0$), a *predictive gate miss* is recorded. True *security violations* (releasing keys when an abort occurred) are strictly 0 by fundamental protocol construction.
+4. **Predictive Gate Miss vs. Security Violation Audit**: If an action passed the conservative gate but the independent realization failed (`abort=True` or $S_t \le 0$), a *predictive gate miss* is recorded. True *security violations* (`(released_key_bits > 0) and realized_abort`) are strictly 0 by fundamental protocol construction.
 5. **Closed-Loop State Evolution**: Key pool updates dynamically in bits:
    $$K_{t+1} = \min(K_{\max}, \max(0, K_t + S_t(a_t) - D_t))$$
-6. **Time-Normalized Utility**: Evaluates service rate performance (bps), latency penalties, and control effort:
+6. **Canonical Time-Normalized Utility**: Evaluates service rate performance (bps), latency penalties, and control effort:
    $$U = \frac{\text{delivered}}{\Delta t} - 2.0 \frac{\text{deficit}}{\Delta t} - 0.05 \Delta t - \frac{C_{\rm switch}}{\Delta t}$$
 
 ### Six-Baseline Comparison (Standardized 10.0s Decision Epoch)
 1. **Fixed BB84 Conservative**: Block $N=10^{10}$ pulses ($\Delta t = 10.0$ s), conservative intensities ($\mu=0.40, \nu=0.05, p=0.80$).
 2. **Fixed BB84 Aggressive**: Block $N=10^{10}$ pulses ($\Delta t = 10.0$ s), higher signal intensity ($\mu=0.55, \nu=0.10, p=0.90$).
 3. **Fixed MDI**: Fixed MDI action via central BSM relay ($N=10^{10}$, $\Delta t = 10.0$ s).
-4. **Training-Optimal Fixed**: Best single fixed action selected across the entire training set (evaluated across all scenarios with abort penalty).
+4. **Training-Optimal Fixed**: Best single fixed action selected via full closed-loop trajectory simulation across all training trajectories with dynamic key-pool evolution. Designated as the primary comparator.
 5. **Heuristic Expert Policy**: Rule-based decision using QBER and distance thresholds ($\Delta t = 10.0$ s).
 6. **Always-Abort Baseline**: Safe zero-key abort ($\Delta t = 10.0$ s).
 

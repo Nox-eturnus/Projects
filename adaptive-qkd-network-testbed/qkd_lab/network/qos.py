@@ -22,6 +22,8 @@ class ServiceResult:
     trusted_intermediate_nodes: tuple[str, ...]
     key_bits_consumed_per_hop: int
     message: str
-    eps_total: float = 0.0
+    eps_total: float | None = 0.0
     hops: int = 0
     key_id: str | None = None
+    security_scope: str = "theorem_composable"
+    is_composable: bool = True
