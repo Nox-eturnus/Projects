@@ -14,7 +14,7 @@
         "A-C",
         "C-D"
       ],
-      "initial_link_ab_bits": 5000
+      "initial_link_ab_bits": 0
     },
     "policy_recommendation": {
       "telemetry_qber": 0.015,
@@ -28,18 +28,26 @@
     },
     "physical_qkd_distillation": {
       "protocol": "decoy_bb84",
-      "pulses": 10000000000,
-      "distilled_bits": 150701893,
-      "phase_error_upper": 0.023978823059743845,
+      "pulses": 35000000,
+      "x_detected": 1418020,
+      "x_qber": 0.015000493646069871,
+      "reconciliation_algorithm": "cascade_blockwise",
+      "reconciliation_disclosed_bits": 212604,
+      "finite_key_secure_bits": 74406,
+      "privacy_amplified_bits": 74406,
+      "storable_bits": 74400,
+      "phase_error_upper": 0.07562023447867816,
       "abort": false
     },
     "kms_deposit": {
       "deposit_mode": "material",
-      "storable_bits": 150701888,
-      "new_link_ab_bits": 150706888,
-      "kms_a_available_bits": 150706888,
-      "sample_key_source": "material",
-      "sample_key_protocol": "simulated_qkd"
+      "storable_bits": 74400,
+      "new_link_ab_bits": 74400,
+      "kms_a_available_bits": 74400,
+      "inspected_source": "material",
+      "inspected_protocol": "decoy_bb84",
+      "security_scope": "theorem_composable",
+      "is_composable": true
     },
     "network_routing": {
       "otp_success": true,
@@ -48,16 +56,18 @@
         "B",
         "D"
       ],
-      "otp_key_id": "89c67a9f-18fb-43f4-a3e6-0ce92665bfcd",
+      "otp_key_id": "c51c95e6-cd08-451a-b3b0-f8f0e65750b2",
       "auth_success": true,
       "auth_path": [
         "A",
         "B",
         "D"
       ],
-      "auth_key_id": "e91712d8-9442-4e8a-a18b-9b73cf1289f1",
+      "auth_key_id": "139657aa-1f80-4aab-8ea0-d11fb62feba9",
       "hops": 2,
       "eps_total": 4e-10,
+      "security_scope": "theorem_composable",
+      "is_composable": true,
       "consumed_per_hop_total": 720
     },
     "application_otp": {
@@ -69,20 +79,20 @@
       "decryption_verified_at_destination": true,
       "tamper_protection_verified": true,
       "keys_consumed_a": [
-        "89c67a9f-18fb-43f4-a3e6-0ce92665bfcd",
-        "e91712d8-9442-4e8a-a18b-9b73cf1289f1"
+        "c51c95e6-cd08-451a-b3b0-f8f0e65750b2",
+        "139657aa-1f80-4aab-8ea0-d11fb62feba9"
       ],
       "keys_consumed_d": [
-        "89c67a9f-18fb-43f4-a3e6-0ce92665bfcd",
-        "e91712d8-9442-4e8a-a18b-9b73cf1289f1"
+        "c51c95e6-cd08-451a-b3b0-f8f0e65750b2",
+        "139657aa-1f80-4aab-8ea0-d11fb62feba9"
       ]
     }
   },
   "security_violations": 0,
   "predictive_gate_misses": 0,
   "provenance": {
-    "git_commit": "4937ef0",
+    "git_commit": "24fd877",
     "working_tree_clean": true,
-    "timestamp_utc": "2026-09-05T16:14:12.618007+00:00"
+    "timestamp_utc": "2026-09-05T17:57:35.849351+00:00"
   }
 }

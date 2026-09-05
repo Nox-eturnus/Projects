@@ -1,3 +1,3 @@
 event,success,path,trusted,hops,eps_total,key_id
-initial_request,True,A-C-D,C,2,2e-10,a74089b9-07ee-4f97-bdee-056b140ce83e
-AC_down_reroute,True,A-B-D,B,2,2e-10,d38d4b35-07ec-4714-826e-f43e8d819e96
+initial_request,True,A-C-D,C,2,2e-10,4243bda1-0f48-4f2c-9d8a-be3b0400f2e3
+AC_down_reroute,True,A-B-D,B,2,2e-10,82d17b2c-8fa2-4379-9eb3-54eae0cbb378
