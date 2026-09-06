@@ -1,10 +1,10 @@
 {
-  "timestamp_utc": "2026-09-06T05:05:23.623436+00:00",
-  "git_commit": "db80868",
-  "working_tree_clean": false,
+  "timestamp_utc": "2026-09-06T07:18:41.469337+00:00",
+  "git_commit": "4073068",
+  "working_tree_clean": true,
   "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
   "platform": "Windows-11-10.0.26200-SP0",
-  "policy_dataset_sha256": "298a0c8bf4dcc889273a9863e0d071fc158e31547fe1df627ecc9868bdb50194",
+  "policy_dataset_sha256": "9f79c2b77725a1a46ea617e22f52e0d9f76a5fac6f5ac846022206361bcbf89b",
   "features": [
     "distance_km",
     "recent_qber",
