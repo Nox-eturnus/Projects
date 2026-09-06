@@ -17,44 +17,44 @@
     "eps_cor": 1e-15
   },
   "materialization_scale_cryptographic_execution": {
-    "pulses_primary_link": 150000000,
-    "pulses_backup_link": 180000000,
+    "pulses_primary_link": 500000000,
+    "pulses_backup_link": 600000000,
     "link_ab": {
       "distance_km": 25.0,
-      "detected": 2065522,
-      "reconciliation_disclosed_bits": 309958,
-      "finite_key_secure_bits": 128505,
-      "distilled_bits": 128504,
+      "detected": 17625784,
+      "reconciliation_disclosed_bits": 2685988,
+      "finite_key_secure_bits": 1669464,
+      "distilled_bits": 1669464,
       "eps_sec": 1e-10,
       "eps_cor": 1e-15,
       "security_scope": "theorem_composable"
     },
     "link_bd": {
       "distance_km": 25.0,
-      "detected": 2065522,
-      "reconciliation_disclosed_bits": 310154,
-      "finite_key_secure_bits": 128309,
-      "distilled_bits": 128304,
+      "detected": 17625784,
+      "reconciliation_disclosed_bits": 2672188,
+      "finite_key_secure_bits": 1683264,
+      "distilled_bits": 1683264,
       "eps_sec": 1e-10,
       "eps_cor": 1e-15,
       "security_scope": "theorem_composable"
     },
     "link_ac": {
       "distance_km": 30.0,
-      "detected": 1982541,
-      "reconciliation_disclosed_bits": 302866,
-      "finite_key_secure_bits": 94334,
-      "distilled_bits": 94328,
+      "detected": 16917676,
+      "reconciliation_disclosed_bits": 2574593,
+      "finite_key_secure_bits": 1239721,
+      "distilled_bits": 1239720,
       "eps_sec": 1e-10,
       "eps_cor": 1e-15,
       "security_scope": "theorem_composable"
     },
     "link_cd": {
       "distance_km": 30.0,
-      "detected": 1982541,
-      "reconciliation_disclosed_bits": 302151,
-      "finite_key_secure_bits": 95049,
-      "distilled_bits": 95048,
+      "detected": 16917676,
+      "reconciliation_disclosed_bits": 2573783,
+      "finite_key_secure_bits": 1240531,
+      "distilled_bits": 1240528,
       "eps_sec": 1e-10,
       "eps_cor": 1e-15,
       "security_scope": "theorem_composable"
@@ -65,13 +65,13 @@
         "B",
         "D"
       ],
-      "otp_key_id": "600e1e18-6cd3-463b-b689-c2e2cc6474f1",
+      "otp_key_id": "de65e9c6-ae39-4815-9ead-33c7a67eb6d5",
       "auth_path": [
         "A",
         "B",
         "D"
       ],
-      "auth_key_id": "45fde06c-ef96-4f2d-9464-b1db1b34a060",
+      "auth_key_id": "d61cfdbf-0fda-4ebb-8f3b-da34077451a4",
       "hops": 2,
       "eps_total": 4e-10,
       "security_scope": "theorem_composable",
@@ -85,20 +85,20 @@
       "decryption_verified_at_destination": true,
       "tamper_protection_verified": true,
       "keys_consumed_a": [
-        "600e1e18-6cd3-463b-b689-c2e2cc6474f1",
-        "45fde06c-ef96-4f2d-9464-b1db1b34a060"
+        "de65e9c6-ae39-4815-9ead-33c7a67eb6d5",
+        "d61cfdbf-0fda-4ebb-8f3b-da34077451a4"
       ],
       "keys_consumed_d": [
-        "600e1e18-6cd3-463b-b689-c2e2cc6474f1",
-        "45fde06c-ef96-4f2d-9464-b1db1b34a060"
+        "de65e9c6-ae39-4815-9ead-33c7a67eb6d5",
+        "d61cfdbf-0fda-4ebb-8f3b-da34077451a4"
       ]
     }
   },
   "security_violations": 0,
   "predictive_gate_misses": 0,
   "provenance": {
-    "git_commit": "4073068",
+    "git_commit": "1711800",
     "working_tree_clean": true,
-    "timestamp_utc": "2026-09-06T07:19:04.944636+00:00"
+    "timestamp_utc": "2026-09-06T07:57:33.233811+00:00"
   }
 }
