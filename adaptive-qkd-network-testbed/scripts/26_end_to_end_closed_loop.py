@@ -60,13 +60,14 @@ def distill_physical_link(
     detector_efficiency: float,
     dark_probability: float,
     qber: float,
-    pulses: int = 35_000_000,
+    pulses: int = 100_000_000,
     seed: int = 2026,
+    basis_px: float = 0.50,
 ) -> tuple[bytes, object, int, int]:
     """Execute complete physical QKD distillation: raw generation, Cascade reconciliation, and Toeplitz PA."""
-    ch = ChannelParameters(0.0, 0.20)  # calibrated zero-loss reference for testbed reconciliation
+    ch = ChannelParameters(distance_km, 0.20)
     det = DetectorParameters(detector_efficiency, dark_probability, qber, 2)
-    basis = BasisProbabilities(0.5, 0.5)
+    basis = BasisProbabilities(basis_px, 1.0 - basis_px)
 
     block = expected_decoy_bb84_block(
         pulses,
@@ -195,36 +196,61 @@ def run_closed_loop_pipeline() -> dict:
     }
 
     # =========================================================================
-    # Track 2: Materialization-Scale Cryptographic Execution (35M Pulses/Link)
+    # Track 2: Materialization-Scale Cryptographic Execution (Genuine Distillation Across All Hops)
     # =========================================================================
-    pulses_per_link = 35_000_000
+    pulses_primary = 150_000_000
+    pulses_backup = 180_000_000
     action_intensities = _intensities(action)
 
-    # Sub-stage 2A: Physical QKD distillation for Link A-B
+    # Sub-stage 2A: Physical QKD distillation for Primary Link A-B (25.0 km)
     distilled_ab, fk_ab, detected_ab, disclosed_ab = distill_physical_link(
         distance_km=25.0,
         action_intensities=action_intensities,
         detector_efficiency=det_eff,
         dark_probability=telemetry["dark_probability"],
         qber=recent_qber,
-        pulses=pulses_per_link,
+        pulses=pulses_primary,
         seed=2026,
     )
     storable_bits_ab = len(distilled_ab) * 8
 
-    # Sub-stage 2B: Physical QKD distillation for Link B-D
+    # Sub-stage 2B: Physical QKD distillation for Primary Link B-D (25.0 km)
     distilled_bd, fk_bd, detected_bd, disclosed_bd = distill_physical_link(
         distance_km=25.0,
         action_intensities=action_intensities,
         detector_efficiency=det_eff,
         dark_probability=telemetry["dark_probability"],
         qber=recent_qber,
-        pulses=pulses_per_link,
+        pulses=pulses_primary,
         seed=3026,
     )
     storable_bits_bd = len(distilled_bd) * 8
 
-    # Sub-stage 2C: KMS Network Topology Initialization & Real Material Deposits
+    # Sub-stage 2C: Physical QKD distillation for Secondary Backup Link A-C (30.0 km)
+    distilled_ac, fk_ac, detected_ac, disclosed_ac = distill_physical_link(
+        distance_km=30.0,
+        action_intensities=action_intensities,
+        detector_efficiency=det_eff,
+        dark_probability=telemetry["dark_probability"],
+        qber=recent_qber,
+        pulses=pulses_backup,
+        seed=4026,
+    )
+    storable_bits_ac = len(distilled_ac) * 8
+
+    # Sub-stage 2D: Physical QKD distillation for Secondary Backup Link C-D (30.0 km)
+    distilled_cd, fk_cd, detected_cd, disclosed_cd = distill_physical_link(
+        distance_km=30.0,
+        action_intensities=action_intensities,
+        detector_efficiency=det_eff,
+        dark_probability=telemetry["dark_probability"],
+        qber=recent_qber,
+        pulses=pulses_backup,
+        seed=5026,
+    )
+    storable_bits_cd = len(distilled_cd) * 8
+
+    # Sub-stage 2E: KMS Network Topology Initialization & Real Material Deposits
     kms_nodes = {node: KeyStore() for node in ("A", "B", "C", "D")}
 
     # Deposit genuine privacy-amplified physical key material for Link A-B into Node A's store
@@ -253,26 +279,30 @@ def run_closed_loop_pipeline() -> dict:
     )
     link_bd = QKDLinkState("B", "D", distance_km=25.0, key_bits=storable_bits_bd, secure_rate_bps=2000, key_store=kms_nodes["B"])
 
-    # Secondary backup links (A-C and C-D) with preloaded reservoir reserves
+    # Secondary backup links (A-C and C-D) with genuine distilled physical material
     kms_nodes["A"].deposit_reservoir_key_material(
         peer_id="C",
-        key_material=secure_random_bytes(20000 // 8),
-        protocol="relay_qkd",
+        key_material=distilled_ac,
+        protocol="decoy_bb84",
+        eps_sec=fk_ac.eps_sec,
+        eps_cor=fk_ac.eps_cor,
         initiator_sae_id="A",
         target_sae_id="C",
         security_scope="theorem_composable",
     )
-    link_ac = QKDLinkState("A", "C", distance_km=40.0, key_bits=20000, secure_rate_bps=1000, key_store=kms_nodes["A"])
+    link_ac = QKDLinkState("A", "C", distance_km=30.0, key_bits=storable_bits_ac, secure_rate_bps=1000, key_store=kms_nodes["A"])
 
     kms_nodes["C"].deposit_reservoir_key_material(
         peer_id="D",
-        key_material=secure_random_bytes(20000 // 8),
-        protocol="relay_qkd",
+        key_material=distilled_cd,
+        protocol="decoy_bb84",
+        eps_sec=fk_cd.eps_sec,
+        eps_cor=fk_cd.eps_cor,
         initiator_sae_id="C",
         target_sae_id="D",
         security_scope="theorem_composable",
     )
-    link_cd = QKDLinkState("C", "D", distance_km=40.0, key_bits=20000, secure_rate_bps=1000, key_store=kms_nodes["C"])
+    link_cd = QKDLinkState("C", "D", distance_km=30.0, key_bits=storable_bits_cd, secure_rate_bps=1000, key_store=kms_nodes["C"])
 
     graph = build_graph([link_ab, link_bd, link_ac, link_cd])
 
@@ -281,8 +311,12 @@ def run_closed_loop_pipeline() -> dict:
     assert link_ab.key_bits == storable_bits_ab, "Link A-B key_bits desynchronized!"
     assert kms_nodes["B"].available_bits(peer_id="D") == storable_bits_bd, "Link B-D KMS desynchronized!"
     assert link_bd.key_bits == storable_bits_bd, "Link B-D key_bits desynchronized!"
+    assert kms_nodes["A"].available_bits(peer_id="C") == storable_bits_ac, "Link A-C KMS desynchronized!"
+    assert link_ac.key_bits == storable_bits_ac, "Link A-C key_bits desynchronized!"
+    assert kms_nodes["C"].available_bits(peer_id="D") == storable_bits_cd, "Link C-D KMS desynchronized!"
+    assert link_cd.key_bits == storable_bits_cd, "Link C-D key_bits desynchronized!"
 
-    # Non-destructive test reservation on both primary links
+    # Non-destructive test reservation on both primary and backup links
     with link_ab.reserve_bits(256) as r_ab:
         assert r_ab.source == "material"
         assert r_ab.security_scope == "theorem_composable"
@@ -294,6 +328,18 @@ def run_closed_loop_pipeline() -> dict:
         assert r_bd.security_scope == "theorem_composable"
         assert r_bd.is_composable is True
         r_bd.rollback()
+
+    with link_ac.reserve_bits(256) as r_ac:
+        assert r_ac.source == "material"
+        assert r_ac.security_scope == "theorem_composable"
+        assert r_ac.is_composable is True
+        r_ac.rollback()
+
+    with link_cd.reserve_bits(256) as r_cd:
+        assert r_cd.source == "material"
+        assert r_cd.security_scope == "theorem_composable"
+        assert r_cd.is_composable is True
+        r_cd.rollback()
 
     # Sub-stage 2D: Multi-Hop QoS Routing & Trusted-Node Hop-by-Hop Key Delivery
     secret_message = b"CRITICAL MISSION TELEMETRY: ALL QUANTUM SUBSYSTEMS NOMINAL"
@@ -369,8 +415,10 @@ def run_closed_loop_pipeline() -> dict:
     assert tamper_caught, "Tampered ciphertext was not caught by IT authenticator at Node D!"
 
     audit_trail["materialization_scale_cryptographic_execution"] = {
-        "pulses_per_link": pulses_per_link,
+        "pulses_primary_link": pulses_primary,
+        "pulses_backup_link": pulses_backup,
         "link_ab": {
+            "distance_km": 25.0,
             "detected": detected_ab,
             "reconciliation_disclosed_bits": disclosed_ab,
             "finite_key_secure_bits": fk_ab.secure_bits,
@@ -380,12 +428,33 @@ def run_closed_loop_pipeline() -> dict:
             "security_scope": "theorem_composable",
         },
         "link_bd": {
+            "distance_km": 25.0,
             "detected": detected_bd,
             "reconciliation_disclosed_bits": disclosed_bd,
             "finite_key_secure_bits": fk_bd.secure_bits,
             "distilled_bits": storable_bits_bd,
             "eps_sec": fk_bd.eps_sec,
             "eps_cor": fk_bd.eps_cor,
+            "security_scope": "theorem_composable",
+        },
+        "link_ac": {
+            "distance_km": 30.0,
+            "detected": detected_ac,
+            "reconciliation_disclosed_bits": disclosed_ac,
+            "finite_key_secure_bits": fk_ac.secure_bits,
+            "distilled_bits": storable_bits_ac,
+            "eps_sec": fk_ac.eps_sec,
+            "eps_cor": fk_ac.eps_cor,
+            "security_scope": "theorem_composable",
+        },
+        "link_cd": {
+            "distance_km": 30.0,
+            "detected": detected_cd,
+            "reconciliation_disclosed_bits": disclosed_cd,
+            "finite_key_secure_bits": fk_cd.secure_bits,
+            "distilled_bits": storable_bits_cd,
+            "eps_sec": fk_cd.eps_sec,
+            "eps_cor": fk_cd.eps_cor,
             "security_scope": "theorem_composable",
         },
         "network_routing": {

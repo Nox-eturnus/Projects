@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from qkd_lab.adaptive.actions import candidate_actions
+from qkd_lab.adaptive.actions import candidate_action_names, candidate_actions
 from qkd_lab.adaptive.dataset import build_policy_frame
 from qkd_lab.config import load_yaml
 
@@ -105,7 +105,7 @@ def generate_dynamic_trajectories() -> list[dict]:
 
 def main():
     scenarios = generate_dynamic_trajectories()
-    actions = candidate_actions()
+    actions = candidate_action_names(include_abort=True)
     frame = build_policy_frame(scenarios, actions)
     Path("data/policy").mkdir(parents=True, exist_ok=True)
     frame.to_csv("data/policy/policy_dataset.csv", index=False)

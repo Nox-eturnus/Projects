@@ -3,7 +3,7 @@ from dataclasses import asdict
 
 import pandas as pd
 
-from qkd_lab.adaptive.actions import QKDAction, action_is_feasible
+from qkd_lab.adaptive.actions import QKDAction, action_is_feasible, parse_action_name
 from qkd_lab.adaptive.utility import compute_service_utility
 from qkd_lab.estimation.confidence import conservative_telemetry_bounds
 from qkd_lab.estimation.finite_key_bb84 import estimate_lim2014
@@ -32,17 +32,50 @@ MDI_BUDGET = MDIFiniteKeyBudget(
 def _intensities(action: QKDAction) -> tuple[IntensitySetting, ...]:
     return (
         IntensitySetting("signal", action.mu_signal, 0.80),
-        IntensitySetting("decoy", action.mu_decoy, 0.15),
-        IntensitySetting("vacuum", 0.0002, 0.05),
+        IntensitySetting("decoy1", action.mu_decoy, 0.15),
+        IntensitySetting("decoy2", 0.002, 0.05),
     )
 
 
-def evaluate_action_outcome(scenario: dict, action: QKDAction) -> dict:
+def evaluate_action_outcome(scenario: dict, action: QKDAction | str | None) -> dict:
     """Evaluate a candidate from observable/calibrated scenario quantities.
 
     This is a deterministic expected-count finite-key evaluation. It does not
     use hidden attack strength, hidden photon numbers, or future measurements.
     """
+    if action is None or action == "ABORT" or getattr(action, "name", "") == "ABORT":
+        block_seconds = 10.0
+        demand_bits = float(scenario.get("demand_bps", 0.0)) * block_seconds
+        available_pool = float(scenario.get("key_pool_bits", 0.0))
+        delivered = min(demand_bits, available_pool)
+        deficit = max(0.0, demand_bits - delivered)
+        utility = compute_service_utility(
+            delivered_bits=delivered,
+            deficit_bits=deficit,
+            duration_seconds=block_seconds,
+            abort=False,
+            switch_cost=0.0,
+            latency_weight=0.0,
+            deficit_weight=2.0,
+            abort_penalty=1.0e6,
+        )
+        return {
+            "feasible": True,
+            "secure_bits": 0.0,
+            "abort": False,
+            "block_seconds": block_seconds,
+            "demand_bits": demand_bits,
+            "delivered_bits": delivered,
+            "key_deficit_bits": deficit,
+            "service_utility": utility,
+        }
+
+    if isinstance(action, str):
+        parsed = parse_action_name(action)
+        if parsed is None:
+            return evaluate_action_outcome(scenario, "ABORT")
+        action = parsed
+
     feasible = action_is_feasible(
         action,
         mdi_capable=bool(scenario.get("mdi_capable", False)),
@@ -162,10 +195,23 @@ def evaluate_action_outcome(scenario: dict, action: QKDAction) -> dict:
     }
 
 
-def build_policy_frame(scenarios: list[dict], actions: list[QKDAction]) -> pd.DataFrame:
+def build_policy_frame(scenarios: list[dict], actions: list[QKDAction | str]) -> pd.DataFrame:
     rows = []
     for scenario in scenarios:
         for action in actions:
-            outcome = evaluate_action_outcome(scenario, action)
-            rows.append({**scenario, **asdict(action), "action_name": action.name, **outcome})
+            if action == "ABORT" or getattr(action, "name", "") == "ABORT":
+                outcome = evaluate_action_outcome(scenario, "ABORT")
+                action_dict = {
+                    "protocol": "standby",
+                    "mu_signal": 0.0,
+                    "mu_decoy": 0.0,
+                    "p_key_basis": 0.0,
+                    "block_size": int(10.0 * PULSE_RATE_HZ),
+                    "action_name": "ABORT",
+                }
+                rows.append({**scenario, **action_dict, **outcome})
+            else:
+                act = parse_action_name(action) if isinstance(action, str) else action
+                outcome = evaluate_action_outcome(scenario, act)
+                rows.append({**scenario, **asdict(act), "action_name": act.name, **outcome})
     return pd.DataFrame(rows)

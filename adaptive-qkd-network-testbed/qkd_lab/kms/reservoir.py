@@ -97,6 +97,15 @@ class ReservoirReservation:
             return "material"
         return "budget_synthetic"
 
+    @property
+    def material(self) -> bytes | None:
+        """Concatenated key material bytes across all segments, or None if any segment lacks literal material."""
+        if not self.segments:
+            return None
+        if any(seg.material_slice is None for seg in self.segments):
+            return None
+        return b"".join(seg.material_slice for seg in self.segments)
+
     def __enter__(self) -> ReservoirReservation:
         return self
 

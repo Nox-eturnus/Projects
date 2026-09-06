@@ -164,6 +164,7 @@ class KeyStore:
                     initiator_sae_id=key.initiator_sae_id,
                     target_sae_id=key.target_sae_id or target_peer,
                     source=key.source,
+                    security_scope=key.security_scope,
                 )
                 self._keys[item.key_id] = item
                 imported_items.append(item)
@@ -361,13 +362,18 @@ class KeyStore:
                 ):
                     if remaining <= 0:
                         break
-                    self._keys[key.key_id] = key.consumed_and_erased()
                     if key.bits > remaining:
+                        if key.source == "material" and key.value_b64:
+                            if remaining % 8 != 0:
+                                raise ValueError(
+                                    f"Partial consumption of material-backed ManagedKey requires byte-aligned bit count (multiple of 8), got remaining={remaining}"
+                                )
+                        self._keys[key.key_id] = key.consumed_and_erased()
                         leftover = key.bits - remaining
                         leftover_mat = None
-                        if key.source == "material" and key.value_b64 and (leftover % 8 == 0):
+                        if key.source == "material" and key.value_b64:
                             raw_mat = base64.b64decode(key.value_b64)
-                            consumed_bytes = (remaining + 7) // 8
+                            consumed_bytes = remaining // 8
                             leftover_mat = raw_mat[consumed_bytes:]
                         res.deposit_bits(
                             leftover,
@@ -377,7 +383,7 @@ class KeyStore:
                             initiator_sae_id=key.initiator_sae_id,
                             target_sae_id=key.target_sae_id,
                             key_material=leftover_mat,
-                            source=key.source if leftover_mat is not None else "budget",
+                            source="material" if leftover_mat is not None else "budget",
                             security_scope=key.security_scope,
                         )
                         remaining = 0

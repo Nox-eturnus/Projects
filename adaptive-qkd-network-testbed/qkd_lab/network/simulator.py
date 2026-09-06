@@ -306,10 +306,6 @@ def request_end_to_end_key(
     key_id: str | None = None
     key_material: bytes | None = None
 
-    if kms_nodes is not None:
-        key_id = str(uuid.uuid4())
-        key_material = secure_random_bytes(bits // 8)
-
     eps_total: float | None = None
     all_composable = False
     path_security_scope = "unverified"
@@ -324,7 +320,29 @@ def request_end_to_end_key(
 
         # Step B: Inspect actual reservation segments for composable security & scope
         all_material = all(getattr(r, "source", "budget_synthetic") == "material" for r in reservations)
-        path_source = "material" if all_material else "budget_synthetic"
+        all_literal_material = all(getattr(r, "material", None) is not None for r in reservations)
+
+        if kms_nodes is not None:
+            key_id = str(uuid.uuid4())
+            if all_material and all_literal_material:
+                # Literal QKD material relay: take physical material from hop 0,
+                # simulating hop-by-hop OTP relay across intermediate trusted nodes
+                relayed_material = reservations[0].material
+                for hop_idx in range(1, len(reservations)):
+                    hop_key = reservations[hop_idx].material
+                    assert hop_key is not None and len(hop_key) == len(relayed_material)
+                    # Node i OTP-encrypts with link (i, i+1) key
+                    ciphertext = bytes(a ^ b for a, b in zip(relayed_material, hop_key))
+                    # Node i+1 decrypts with link (i, i+1) key
+                    relayed_material = bytes(c ^ b for c, b in zip(ciphertext, hop_key))
+                assert relayed_material == reservations[0].material
+                key_material = relayed_material
+                path_source = "material"
+            else:
+                key_material = secure_random_bytes(bits // 8)
+                path_source = "budget_synthetic"
+        else:
+            path_source = "material" if (all_material and all_literal_material) else "budget_synthetic"
 
         scopes = [getattr(r, "security_scope", "unverified") for r in reservations]
         min_rank = min(SCOPE_HIERARCHY.get(s, 0) for s in scopes) if scopes else 0

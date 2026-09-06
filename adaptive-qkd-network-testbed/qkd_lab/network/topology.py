@@ -33,6 +33,7 @@ class QKDLinkState:
         length_ac_km: float | None = None,
         length_bc_km: float | None = None,
         key_store: Any | None = None,
+        default_scope: str = "ideal_simulation",
     ) -> None:
         self.u = u
         self.v = v
@@ -45,6 +46,7 @@ class QKDLinkState:
         self.length_ac_km = length_ac_km
         self.length_bc_km = length_bc_km
         self.key_store = key_store
+        self.default_scope = default_scope
         self._key_bits = 0
         if self.key_store is not None and key_bits > 0:
             if hasattr(self.key_store, "deposit_reservoir_bits"):
@@ -56,7 +58,7 @@ class QKDLinkState:
                 diff = key_bits - current
                 if diff > 0:
                     proto = "mdi_qkd" if self.mdi_capable else "decoy_bb84"
-                    scope = "engineering_model" if self.mdi_capable else "theorem_composable"
+                    scope = "engineering_model" if self.mdi_capable else self.default_scope
                     self.key_store.deposit_reservoir_bits(
                         peer_id=self.v,
                         bits=diff,
@@ -86,7 +88,7 @@ class QKDLinkState:
             diff = val - current
             if diff > 0:
                 proto = "mdi_qkd" if self.mdi_capable else "decoy_bb84"
-                scope = "engineering_model" if self.mdi_capable else "theorem_composable"
+                scope = "engineering_model" if self.mdi_capable else self.default_scope
                 self.key_store.deposit_reservoir_bits(
                     peer_id=self.v,
                     bits=diff,

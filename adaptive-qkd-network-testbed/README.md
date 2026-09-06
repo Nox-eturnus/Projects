@@ -133,15 +133,15 @@ To eliminate circular security claims, the adaptive runtime evaluation decouples
 ### Six-Baseline Comparison (Standardized 10.0s Decision Epoch)
 1. **Fixed BB84 Conservative**: Block $N=10^{10}$ pulses ($\Delta t = 10.0$ s), conservative intensities ($\mu=0.40, \nu=0.05, p=0.80$).
 2. **Fixed BB84 Aggressive**: Block $N=10^{10}$ pulses ($\Delta t = 10.0$ s), higher signal intensity ($\mu=0.55, \nu=0.10, p=0.90$).
-3. **Fixed MDI**: Fixed MDI action via central BSM relay ($N=10^{10}$, $\Delta t = 10.0$ s).
+3. **Fixed MDI**: Fixed MDI action via central BSM relay ($N=10^{10}$, $\Delta t = 10.0$ s). Note: Under the evaluated channel distances ($\ge 25\text{ km}$) and symmetric star loss, two-photon coincidence detection scales as $\eta^2$. Conservative telemetry bounds ($q_{\rm est} \approx 4.6\%$) cause finite-key estimation to yield negative secret bits across all heldout scenarios. As intended, the conservative predictive gate intercepts these attempts and safely executes standby (`ABORT`) on 100% of steps, matching `abort_baseline`.
 4. **Training-Optimal Fixed**: Best single fixed action selected via full closed-loop trajectory simulation across all training trajectories with dynamic key-pool evolution. Designated as the primary comparator.
 5. **Heuristic Expert Policy**: Rule-based decision using QBER and distance thresholds ($\Delta t = 10.0$ s).
 6. **Always-Abort Baseline**: Safe zero-key abort ($\Delta t = 10.0$ s).
 
 ### Statistical Methodology & Multiple Testing Adjustment
-- Evaluated across 96 dynamic trajectories (72 train, 24 held-out test) with balanced attack episodes and demand bursts across splits.
-- **Paired Trajectory-Level Sign-Flip Randomization Test**: Exact exchangeable permutation test (10,000 permutations) on paired trajectory differences $D_i = U_{{\rm adaptive}, i} - U_{{\rm baseline}, i}$.
-- **Bounded Numerical Resolution**: Exact permutation formula $(1 + \sum \mathbb{I}(|T_b| \ge |T_{\rm obs}|)) / (B + 1)$; reports bounded resolution $p < 0.0001$ rather than exact $0.0$.
+- Evaluated across 96 dynamic trajectories (72 train, 24 held-out test) where attack episodes and demand bursts are generated via independent Bernoulli sampling ($p = 0.35$).
+- **Paired Trajectory-Level Sign-Flip Randomization Test**: Monte Carlo paired sign-flip randomization test (10,000 permutations) on paired trajectory differences $D_i = U_{{\rm adaptive}, i} - U_{{\rm baseline}, i}$ across the $2^{24}$ possible sign assignments.
+- **Bounded Numerical Resolution**: Unbiased permutation formula $(1 + \sum \mathbb{I}(|T_b| \ge |T_{\rm obs}|)) / (B + 1)$; reports bounded resolution $p < 0.0001$ rather than misleading exact $0.0$.
 - **Holm-Bonferroni Correction**: Step-down Family-Wise Error Rate (FWER) control across the 5 secondary baseline comparisons, keeping the primary hypothesis (`training_optimal_fixed`) unadjusted.
 - **Whole-Trajectory Cluster Bootstrap**: 1,000 resamples of whole trajectories using Common Random Numbers (CRN) to construct 95% paired difference confidence intervals and Cohen's $d$.
 

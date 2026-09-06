@@ -303,3 +303,123 @@ def test_material_slicing_byte_misalignment_enforcement():
     assert r.bits == 128
     assert len(r.segments[0].material_slice) == 16
     r.rollback()
+
+
+def test_import_keys_batch_preserves_security_scope():
+    """Verify that import_keys_batch preserves upstream security_scope provenance."""
+    from qkd_lab.kms.models import KeyState, ManagedKey, utcnow
+    from qkd_lab.kms.store import KeyStore
+
+    store = KeyStore()
+    k1 = ManagedKey(
+        key_id="k1",
+        peer_id="B",
+        bits=256,
+        value_b64="AAAA",
+        state=KeyState.AVAILABLE,
+        created_at=utcnow(),
+        protocol="decoy_bb84",
+        eps_sec=1e-10,
+        eps_cor=1e-15,
+        security_scope="theorem_composable",
+    )
+    k2 = ManagedKey(
+        key_id="k2",
+        peer_id="B",
+        bits=256,
+        value_b64="BBBB",
+        state=KeyState.AVAILABLE,
+        created_at=utcnow(),
+        protocol="mdi_qkd",
+        eps_sec=1e-8,
+        eps_cor=1e-15,
+        security_scope="engineering_model",
+    )
+
+    imported = store.import_keys_batch([k1, k2], peer_id="B")
+    assert imported[0].security_scope == "theorem_composable"
+    assert imported[1].security_scope == "engineering_model"
+    assert store.get("k1").security_scope == "theorem_composable"
+    assert store.get("k2").security_scope == "engineering_model"
+
+
+def test_consume_bits_prohibits_non_byte_aligned_material_consumption():
+    """Verify that consume_bits prohibits non-byte-aligned partial consumption on material keys."""
+    import base64
+    from qkd_lab.kms.store import KeyStore
+
+    store = KeyStore()
+    # Add a 256-bit material key
+    store.add_key(
+        peer_id="B",
+        bits=256,
+        value=b"\x55" * 32,
+        source="material",
+        security_scope="theorem_composable",
+    )
+
+    # Consuming 125 bits (not multiple of 8) must raise ValueError
+    with pytest.raises(ValueError, match="byte-aligned"):
+        store.consume_bits(peer_id="B", bits=125)
+
+    # Consuming 128 bits (multiple of 8) succeeds and preserves material on leftover 128 bits
+    consumed = store.consume_bits(peer_id="B", bits=128)
+    assert consumed == 128
+    assert store.available_bits(peer_id="B") == 128
+    res = store.get_reservoir("B")
+    assert res._blocks[0].source == "material"
+    assert res._blocks[0].key_material == b"\x55" * 16
+    assert res._blocks[0].security_scope == "theorem_composable"
+
+
+def test_qkd_link_state_counter_update_defaults_to_ideal_simulation():
+    """Verify that generic reserve increases on QKDLinkState default to ideal_simulation, not theorem_composable."""
+    from qkd_lab.kms.store import KeyStore
+    from qkd_lab.network.topology import QKDLinkState
+
+    store = KeyStore()
+    link = QKDLinkState("A", "B", distance_km=25.0, key_bits=0, secure_rate_bps=1000, key_store=store)
+
+    # Increasing key_bits deposits budget into store's reservoir
+    link.key_bits += 5000
+    assert link.key_bits == 5000
+    res = store.get_reservoir("B")
+    assert res._blocks[0].security_scope == "ideal_simulation"
+    assert res._blocks[0].security_scope != "theorem_composable"
+
+
+def test_multihop_end_to_end_key_relays_literal_material():
+    """Verify that request_end_to_end_key relays literal QKD material across trusted intermediate nodes."""
+    from qkd_lab.kms.store import KeyStore
+    from qkd_lab.network.qos import QKDNQoSRequest
+    from qkd_lab.network.simulator import request_end_to_end_key
+    from qkd_lab.network.topology import QKDLinkState, build_graph
+
+    kms = {n: KeyStore() for n in ("A", "B", "D")}
+
+    mat_ab = b"\x11" * 32  # 256 bits of material for Hop A-B
+    mat_bd = b"\x22" * 32  # 256 bits of material for Hop B-D
+
+    kms["A"].deposit_reservoir_key_material(peer_id="B", key_material=mat_ab, initiator_sae_id="A", security_scope="theorem_composable")
+    link_ab = QKDLinkState("A", "B", distance_km=25.0, key_bits=256, secure_rate_bps=1000, key_store=kms["A"])
+
+    kms["B"].deposit_reservoir_key_material(peer_id="D", key_material=mat_bd, initiator_sae_id="B", security_scope="theorem_composable")
+    link_bd = QKDLinkState("B", "D", distance_km=25.0, key_bits=256, secure_rate_bps=1000, key_store=kms["B"])
+
+    graph = build_graph([link_ab, link_bd])
+    qos = QKDNQoSRequest(source="A", target="D", key_bits=256, max_hops=2)
+
+    res = request_end_to_end_key(graph, "A", "D", bits=256, qos=qos, kms_nodes=kms)
+    assert res.success
+    assert res.security_scope == "theorem_composable"
+    assert res.is_composable is True
+
+    # Both endpoints received the exact literal material from Hop 0 (mat_ab)
+    key_a = kms["A"].get(res.key_id)
+    key_d = kms["D"].get(res.key_id)
+    assert key_a.source == "material"
+    assert key_d.source == "material"
+    import base64
+    assert base64.b64decode(key_a.value_b64) == mat_ab
+    assert base64.b64decode(key_d.value_b64) == mat_ab
+

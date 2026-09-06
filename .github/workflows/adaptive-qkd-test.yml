@@ -25,7 +25,11 @@ jobs:
         if [ -d "adaptive-qkd-network-testbed" ]; then
           cd adaptive-qkd-network-testbed
         fi
-        pip install -r requirements.txt
+        if [ -f "requirements-lock.txt" ]; then
+          pip install -r requirements-lock.txt
+        else
+          pip install -r requirements.txt
+        fi
         pip install -e .
 
     - name: Run unit test suite
