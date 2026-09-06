@@ -1,0 +1,31 @@
+profiles:
+  mild_depolarizing:
+    depolarizing_1q: 0.001
+    depolarizing_2q: 0.008
+    amplitude_damping: 0.0
+    phase_damping: 0.0
+    readout: 0.01
+  mixed_training_a:
+    depolarizing_1q: 0.0015
+    depolarizing_2q: 0.012
+    amplitude_damping: 0.002
+    phase_damping: 0.002
+    readout: 0.015
+  mixed_training_b:
+    depolarizing_1q: 0.0025
+    depolarizing_2q: 0.020
+    amplitude_damping: 0.004
+    phase_damping: 0.005
+    readout: 0.020
+  unseen_phase_heavy:
+    depolarizing_1q: 0.001
+    depolarizing_2q: 0.010
+    amplitude_damping: 0.001
+    phase_damping: 0.015
+    readout: 0.012
+  unseen_readout_heavy:
+    depolarizing_1q: 0.001
+    depolarizing_2q: 0.010
+    amplitude_damping: 0.001
+    phase_damping: 0.001
+    readout: 0.060

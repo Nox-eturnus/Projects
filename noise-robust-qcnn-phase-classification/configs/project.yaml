@@ -1,0 +1,21 @@
+seed: 12345
+n_qubits: 8
+samples_per_class: 40
+transition_points: 61
+train_fraction: 0.70
+validation_fraction: 0.15
+
+qcnn:
+  architecture: light_shared_line
+  maxiter_ideal: 120
+
+noise_training:
+  iterations: 60
+  batch_size: 12
+  shots: 256
+  spsa_a: 0.18
+  spsa_c: 0.10
+
+robustness:
+  failure_balanced_accuracy: 0.75
+  depolarizing_2q_grid: [0.0, 0.005, 0.01, 0.02, 0.04, 0.08]

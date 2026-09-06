@@ -14,6 +14,7 @@ The projects reflect both exploratory research and practical implementations bui
 ## Projects Included
 - [**Adaptive QKD Network Testbed**](./adaptive-qkd-network-testbed): End-to-end quantum-secure network testbed with adaptive QKD, finite-key security analysis, standards-compliant KMS, and multi-node routing.
 - [**Adaptive Surface-Code Decoder**](./adaptive-surface-code-decoder): Surface-code QEC benchmarking framework with adaptive decoder selection, latency analysis, and reliability evaluation.
+- [**Noise-Robust QCNN Phase Classification**](./noise-robust-qcnn-phase-classification): Quantum-native QCNN benchmark testbed for many-body ground-state classification, noise-aware training, transition-region generalization, and IBM Quantum hardware validation.
 - [**Q_ALU**](./Q_ALU): Quantum Arithmetic Logic Unit implementation.
 - [**Quantum Multi-Target Search**](./Quantum-Multi-Target-Search-using-Grover-Algorithm): Quantum search algorithm using Grover's algorithm for multiple targets.
 - [**Web Scrapper**](./Web_Scrapper): Web scraping utility.

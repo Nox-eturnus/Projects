@@ -1,0 +1,50 @@
+[
+  {
+    "family": "tfim",
+    "architecture": "light_shared_line",
+    "training_seconds": 27.428987000001143,
+    "thermodynamic_reference_critical": 1.0,
+    "qcnn_p05_crossing": 0.55,
+    "qcnn_crossing_bracketed": true,
+    "qcnn_steepest_change": 0.655,
+    "physical_diagnostic_steepest_change": 0.7,
+    "finite_size_warning": "N=8 finite systems need not transition exactly at the thermodynamic critical value.",
+    "accuracy": 0.5384615384615384,
+    "balanced_accuracy": 0.5357142857142857,
+    "f1": 0.5714285714285714,
+    "roc_auc": 0.4285714285714286,
+    "log_loss": 0.6931471805340629
+  },
+  {
+    "family": "xxz",
+    "architecture": "light_shared_line",
+    "training_seconds": 29.411938299999747,
+    "thermodynamic_reference_critical": 1.0,
+    "qcnn_p05_crossing": 0.55,
+    "qcnn_crossing_bracketed": true,
+    "qcnn_steepest_change": 0.985,
+    "physical_diagnostic_steepest_change": 1.45,
+    "finite_size_warning": "N=8 finite systems need not transition exactly at the thermodynamic critical value.",
+    "accuracy": 0.46153846153846156,
+    "balanced_accuracy": 0.45238095238095233,
+    "f1": 0.5333333333333333,
+    "roc_auc": 0.33333333333333337,
+    "log_loss": 0.6931471805600685
+  },
+  {
+    "family": "cluster",
+    "architecture": "light_shared_line",
+    "training_seconds": 19.78378479999992,
+    "thermodynamic_reference_critical": 1.0,
+    "qcnn_p05_crossing": 0.55,
+    "qcnn_crossing_bracketed": true,
+    "qcnn_steepest_change": 0.835,
+    "physical_diagnostic_steepest_change": 0.61,
+    "finite_size_warning": "N=8 finite systems need not transition exactly at the thermodynamic critical value.",
+    "accuracy": 0.5384615384615384,
+    "balanced_accuracy": 0.5119047619047619,
+    "f1": 0.6666666666666666,
+    "roc_auc": 0.16666666666666663,
+    "log_loss": 0.6931471805614684
+  }
+]

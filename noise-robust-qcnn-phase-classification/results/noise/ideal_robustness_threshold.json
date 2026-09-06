@@ -1,0 +1,6 @@
+{
+  "failure_definition": "first tested 2q depolarizing probability with balanced_accuracy < 0.75",
+  "balanced_accuracy_floor": 0.75,
+  "first_tested_failure_probability": 0.0,
+  "grid_is_coarse": true
+}

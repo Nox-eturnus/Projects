@@ -1,0 +1,261 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pandas as pd
+
+
+def _table(path: str, columns: list[str] | None = None) -> str:
+    p = Path(path)
+
+    if not p.exists():
+        return "_Not generated in this run._"
+
+    frame = pd.read_csv(p)
+
+    if columns is not None:
+        columns = [c for c in columns if c in frame.columns]
+        frame = frame[columns]
+
+    return frame.to_markdown(index=False)
+
+
+def _json(path: str):
+    p = Path(path)
+
+    if not p.exists():
+        return None
+
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def _json_block(value) -> str:
+    return "```json\n" + json.dumps(value, indent=2) + "\n```"
+
+
+def main():
+    hardware_gap = _json(
+        "results/hardware/sim_to_hardware_gap.json"
+    )
+
+    if hardware_gap is not None:
+        hardware_status = (
+            "Real-QPU hardware-transfer outputs are present."
+        )
+    else:
+        hardware_status = (
+            "Real-QPU hardware-transfer outputs are not present; "
+            "run Phases 15-18 before making a "
+            "hardware-transfer-complete claim."
+        )
+
+    sections = []
+
+    sections.append(
+        "# Noise-Robust QCNN for Quantum Phase and State Classification "
+        "— Research Report\n"
+    )
+
+    sections.append(
+        """
+## Claim boundary
+
+This repository studies whether a QCNN provides a useful **inductive bias, parameter-efficiency profile, and noise-robustness envelope** for quantum-native state classification. It does **not** claim generic quantum advantage over classical machine learning.
+
+Classical baselines are labelled by information access. In particular, the MPS prototype receives the full simulated statevector, whereas SVM/MLP/CNN baselines receive local observable maps. Those results must not be collapsed into an information-access-blind leaderboard.
+"""
+    )
+
+    sections.append(
+        "\n## Multi-family phase classification and transition generalization\n\n"
+    )
+
+    sections.append(
+        _table(
+            "results/generalization/transition_summary.csv",
+            [
+                "family",
+                "architecture",
+                "accuracy",
+                "balanced_accuracy",
+                "qcnn_p05_crossing",
+                "qcnn_crossing_bracketed",
+                "qcnn_steepest_change",
+                "physical_diagnostic_steepest_change",
+                "thermodynamic_reference_critical",
+            ],
+        )
+    )
+
+    sections.append(
+        """
+
+For finite systems, the learned or diagnostic crossover need not equal the thermodynamic-limit critical point. The transition sweep is therefore a **generalization/crossover diagnostic**, not a finite-size proof of an exact critical point.
+
+## Architecture trade-offs
+
+"""
+    )
+
+    sections.append(
+        _table(
+            "results/architectures/architecture_sweep.csv",
+            [
+                "family",
+                "architecture",
+                "parameters",
+                "depth",
+                "two_qubit_operations",
+                "accuracy",
+                "balanced_accuracy",
+                "training_seconds",
+            ],
+        )
+    )
+
+    sections.append(
+        "\n\n## Quantum baseline\n\n"
+    )
+
+    sections.append(
+        _table(
+            "results/baselines/vqc_baseline.csv"
+        )
+    )
+
+    sections.append(
+        "\n\n## Classical baselines\n\n"
+    )
+
+    sections.append(
+        _table(
+            "results/baselines/classical_baselines.csv"
+        )
+    )
+
+    sections.append(
+        "\n\n## Sample-efficiency / training-data regime\n\n"
+    )
+
+    sections.append(
+        _table(
+            "results/statistics/sample_efficiency_summary.csv"
+        )
+    )
+
+    sections.append(
+        "\n\n## Noise robustness of ideal-trained QCNN\n\n"
+    )
+
+    sections.append(
+        _table(
+            "results/noise/ideal_trained_robustness.csv"
+        )
+    )
+
+    sections.append(
+        "\n\nRobustness threshold definition and result:\n\n"
+    )
+
+    threshold = _json(
+        "results/noise/ideal_robustness_threshold.json"
+    )
+
+    sections.append(
+        _json_block(threshold)
+    )
+
+    sections.append(
+        "\n\n## Noise-aware training and unseen-noise transfer\n\n"
+    )
+
+    sections.append(
+        _table(
+            "results/noise/unseen_noise_transfer.csv"
+        )
+    )
+
+    sections.append("\n\n")
+
+    threshold_comparison = _json(
+        "results/noise/noise_aware_threshold_comparison.json"
+    )
+
+    sections.append(
+        _json_block(threshold_comparison)
+    )
+
+    sections.append(
+        "\n\n## Repeated-seed statistics\n\n"
+    )
+
+    sections.append(
+        _table(
+            "results/statistics/repeated_seed_summary.csv"
+        )
+    )
+
+    sections.append(
+        "\n\n## Device-derived simulation transfer\n\n"
+    )
+
+    sections.append(
+        _table(
+            "results/hardware/device_noise_transfer.csv"
+        )
+    )
+
+    sections.append(
+        "\n\n## Real-QPU simulation-to-hardware gap\n\n"
+    )
+
+    sections.append(
+        "**Status:** " + hardware_status + "\n\n"
+    )
+
+    if hardware_gap is None:
+        sections.append(
+            _json_block({})
+        )
+    else:
+        sections.append(
+            _json_block(hardware_gap)
+        )
+
+    sections.append(
+        """
+
+## Required interpretation
+
+1. Report accuracy together with parameter count, circuit depth, two-qubit-operation count, training time, and circuit-evaluation burden.
+2. Do not infer quantum advantage from a QCNN win against a baseline with a different information-access regime.
+3. Separate synthetic classifier-noise experiments from device-derived/full state-preparation experiments.
+4. Treat the N=4 hardware branch as proof of hardware transfer, not as evidence that arbitrary exact many-body state preparation is scalable.
+5. Report negative results. If a larger/deeper QCNN degrades faster under noise, that is a central engineering result rather than a failed experiment.
+"""
+    )
+
+    report = "".join(sections)
+
+    out = Path("results/report")
+    out.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    report_path = out / "research_report.md"
+
+    report_path.write_text(
+        report,
+        encoding="utf-8",
+    )
+
+    print(report)
+    print()
+    print("Research report generation PASSED")
+    print(f"Report written to: {report_path}")
+
+
+if __name__ == "__main__":
+    main()

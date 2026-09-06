@@ -1,0 +1,4 @@
+family,model,access_regime,training_seconds,parameters,depth,two_qubit_operations,output_qubit,accuracy,balanced_accuracy,f1,roc_auc,log_loss
+tfim,hardware_efficient_vqc,direct_quantum_state,5.058194999999614,32,13,14,7,0.46153846153846156,0.5,0.0,1.0,0.4364691832238392
+xxz,hardware_efficient_vqc,direct_quantum_state,4.938153799999782,32,13,14,7,1.0,1.0,1.0,1.0,0.5884692571767745
+cluster,hardware_efficient_vqc,direct_quantum_state,4.9088040000006,32,13,14,7,1.0,1.0,1.0,1.0,0.4979415479016482

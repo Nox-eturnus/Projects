@@ -1,0 +1,6 @@
+{
+  "balanced_accuracy_floor": 0.75,
+  "ideal_first_tested_failure_probability": 0.0,
+  "noise_aware_first_tested_failure_probability": 0.0,
+  "interpretation": "A higher first-tested failure probability indicates a wider operational robustness envelope on this predefined coarse sweep."
+}

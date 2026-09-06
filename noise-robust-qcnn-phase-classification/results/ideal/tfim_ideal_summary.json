@@ -1,0 +1,15 @@
+{
+  "family": "tfim",
+  "architecture": "light_shared_line",
+  "training_seconds": 24.62443549999989,
+  "n_qubits": 8,
+  "parameters": 18,
+  "depth": 47,
+  "two_qubit_operations": 47,
+  "output_qubit": 7,
+  "accuracy": 0.5384615384615384,
+  "balanced_accuracy": 0.5357142857142857,
+  "f1": 0.5714285714285714,
+  "roc_auc": 0.4285714285714286,
+  "log_loss": 0.6931471805340629
+}

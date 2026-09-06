@@ -1,0 +1,1 @@
+"""Noise-robust QCNN research package."""

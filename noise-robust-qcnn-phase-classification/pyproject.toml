@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noise-robust-qcnn-phase-classification"
+version = "0.1.0"
+description = "Research testbed for QCNN quantum phase classification, noise robustness, and hardware transfer."
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.setuptools.packages.find]
+include = ["qcnn_lab*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

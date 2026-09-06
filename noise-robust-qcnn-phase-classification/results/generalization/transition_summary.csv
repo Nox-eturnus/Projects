@@ -1,0 +1,4 @@
+family,architecture,training_seconds,thermodynamic_reference_critical,qcnn_p05_crossing,qcnn_crossing_bracketed,qcnn_steepest_change,physical_diagnostic_steepest_change,finite_size_warning,accuracy,balanced_accuracy,f1,roc_auc,log_loss
+tfim,light_shared_line,27.428987000001143,1.0,0.55,True,0.655,0.7,N=8 finite systems need not transition exactly at the thermodynamic critical value.,0.5384615384615384,0.5357142857142857,0.5714285714285714,0.4285714285714286,0.6931471805340629
+xxz,light_shared_line,29.411938299999747,1.0,0.55,True,0.985,1.45,N=8 finite systems need not transition exactly at the thermodynamic critical value.,0.46153846153846156,0.45238095238095233,0.5333333333333333,0.33333333333333337,0.6931471805600685
+cluster,light_shared_line,19.78378479999992,1.0,0.55,True,0.835,0.61,N=8 finite systems need not transition exactly at the thermodynamic critical value.,0.5384615384615384,0.5119047619047619,0.6666666666666666,0.16666666666666663,0.6931471805614684

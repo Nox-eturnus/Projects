@@ -1,0 +1,25 @@
+{
+  "ideal": {
+    "accuracy": 0.75,
+    "balanced_accuracy": 0.75,
+    "f1": 0.8,
+    "roc_auc": 0.5,
+    "log_loss": 0.6931471805599521
+  },
+  "hardware_raw": {
+    "accuracy": 0.75,
+    "balanced_accuracy": 0.75,
+    "f1": 0.6666666666666666,
+    "roc_auc": 1.0,
+    "log_loss": 0.6083329561361517
+  },
+  "hardware_mitigated": {
+    "accuracy": 0.25,
+    "balanced_accuracy": 0.25,
+    "f1": 0.0,
+    "roc_auc": 0.1875,
+    "log_loss": 0.7185529919680231
+  },
+  "mean_abs_probability_gap_raw": 0.057500000000003805,
+  "mean_abs_probability_gap_mitigated": 0.020584399562942814
+}

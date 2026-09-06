@@ -1,0 +1,13 @@
+family,model,access_regime,complexity_name,model_complexity,training_seconds,accuracy,balanced_accuracy,f1,roc_auc,log_loss
+tfim,svm_rbf,local_observable_map,support_vectors,11,0.0109770999988541,1.0,1.0,1.0,1.0,0.04532237738261145
+tfim,mlp,local_observable_map,trainable_parameters,4737,0.010859100000743638,0.9230769230769231,0.9166666666666667,0.9333333333333333,1.0,0.5039133825340198
+tfim,classical_cnn_1d,local_observable_map,trainable_parameters,1057,1.679755600000135,1.0,1.0,1.0,1.0,1.0539408937399431e-05
+tfim,mps_prototype_chi8,full_simulated_statevector,max_bond_dimension,8,0.007040800001050229,1.0,1.0,1.0,1.0,0.2903038499515498
+xxz,svm_rbf,local_observable_map,support_vectors,17,0.0021772000000055414,1.0,1.0,1.0,1.0,0.03062269866175682
+xxz,mlp,local_observable_map,trainable_parameters,4737,0.02188899999964633,0.8461538461538461,0.8571428571428572,0.8333333333333334,1.0,0.6161997843120671
+xxz,classical_cnn_1d,local_observable_map,trainable_parameters,1057,0.5821151999989524,1.0,1.0,1.0,1.0,9.991519436570349e-05
+xxz,mps_prototype_chi8,full_simulated_statevector,max_bond_dimension,8,0.00178319999940868,1.0,1.0,1.0,1.0,0.6392892062538688
+cluster,svm_rbf,local_observable_map,support_vectors,15,0.002620799999931478,1.0,1.0,1.0,1.0,0.07237984149320519
+cluster,mlp,local_observable_map,trainable_parameters,4737,0.024474399999235175,1.0,1.0,1.0,1.0,0.28026694920944906
+cluster,classical_cnn_1d,local_observable_map,trainable_parameters,1057,0.20724450000125216,1.0,1.0,1.0,1.0,8.167341632446374e-05
+cluster,mps_prototype_chi8,full_simulated_statevector,max_bond_dimension,8,0.0015091000004758826,1.0,1.0,1.0,1.0,0.3808952391681352

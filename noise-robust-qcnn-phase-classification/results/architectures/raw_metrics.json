@@ -1,0 +1,130 @@
+[
+  {
+    "n_qubits": 4,
+    "parameters": 12,
+    "depth": 29,
+    "two_qubit_operations": 18,
+    "output_qubit": 3,
+    "name": "light_shared_line"
+  },
+  {
+    "n_qubits": 4,
+    "parameters": 12,
+    "depth": 30,
+    "two_qubit_operations": 21,
+    "output_qubit": 3,
+    "name": "light_shared_ring"
+  },
+  {
+    "n_qubits": 4,
+    "parameters": 18,
+    "depth": 22,
+    "two_qubit_operations": 14,
+    "output_qubit": 3,
+    "name": "expressive_shared_line"
+  },
+  {
+    "n_qubits": 4,
+    "parameters": 21,
+    "depth": 29,
+    "two_qubit_operations": 18,
+    "output_qubit": 3,
+    "name": "light_unshared_line"
+  },
+  {
+    "n_qubits": 8,
+    "parameters": 18,
+    "depth": 47,
+    "two_qubit_operations": 47,
+    "output_qubit": 7,
+    "name": "light_shared_line"
+  },
+  {
+    "n_qubits": 8,
+    "parameters": 18,
+    "depth": 49,
+    "two_qubit_operations": 53,
+    "output_qubit": 7,
+    "name": "light_shared_ring"
+  },
+  {
+    "n_qubits": 8,
+    "parameters": 27,
+    "depth": 35,
+    "two_qubit_operations": 36,
+    "output_qubit": 7,
+    "name": "expressive_shared_line"
+  },
+  {
+    "n_qubits": 8,
+    "parameters": 54,
+    "depth": 47,
+    "two_qubit_operations": 47,
+    "output_qubit": 7,
+    "name": "light_unshared_line"
+  },
+  {
+    "n_qubits": 16,
+    "parameters": 24,
+    "depth": 65,
+    "two_qubit_operations": 108,
+    "output_qubit": 15,
+    "name": "light_shared_line"
+  },
+  {
+    "n_qubits": 16,
+    "parameters": 24,
+    "depth": 68,
+    "two_qubit_operations": 117,
+    "output_qubit": 15,
+    "name": "light_shared_ring"
+  },
+  {
+    "n_qubits": 16,
+    "parameters": 36,
+    "depth": 48,
+    "two_qubit_operations": 82,
+    "output_qubit": 15,
+    "name": "expressive_shared_line"
+  },
+  {
+    "n_qubits": 16,
+    "parameters": 123,
+    "depth": 65,
+    "two_qubit_operations": 108,
+    "output_qubit": 15,
+    "name": "light_unshared_line"
+  },
+  {
+    "n_qubits": 32,
+    "parameters": 30,
+    "depth": 84,
+    "two_qubit_operations": 233,
+    "output_qubit": 31,
+    "name": "light_shared_line"
+  },
+  {
+    "n_qubits": 32,
+    "parameters": 30,
+    "depth": 87,
+    "two_qubit_operations": 245,
+    "output_qubit": 31,
+    "name": "light_shared_ring"
+  },
+  {
+    "n_qubits": 32,
+    "parameters": 45,
+    "depth": 61,
+    "two_qubit_operations": 176,
+    "output_qubit": 31,
+    "name": "expressive_shared_line"
+  },
+  {
+    "n_qubits": 32,
+    "parameters": 264,
+    "depth": 84,
+    "two_qubit_operations": 233,
+    "output_qubit": 31,
+    "name": "light_unshared_line"
+  }
+]

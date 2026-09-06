@@ -1,0 +1,9 @@
+{
+  "n_qubits": 4,
+  "training_seconds": 6.537209099999018,
+  "accuracy": 0.8,
+  "balanced_accuracy": 0.8,
+  "f1": 0.8333333333333334,
+  "roc_auc": 0.6,
+  "log_loss": 0.6931471805599477
+}
