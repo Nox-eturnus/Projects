@@ -12,6 +12,14 @@ class KeyState(str, Enum):
     VOID = "void"
 
 
+SCOPE_HIERARCHY: dict[str, int] = {
+    "unverified": 0,
+    "ideal_simulation": 1,
+    "engineering_model": 2,
+    "theorem_composable": 3,
+}
+
+
 @dataclass(frozen=True)
 class ManagedKey:
     key_id: str
@@ -26,7 +34,7 @@ class ManagedKey:
     initiator_sae_id: str | None = None
     target_sae_id: str | None = None
     source: str = "material"
-    security_scope: str = "theorem_composable"
+    security_scope: str = "unverified"
 
     def __repr__(self) -> str:
         # Never leak raw key bytes or base64 material in logs, exceptions, or debugger reprs

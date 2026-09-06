@@ -14,6 +14,7 @@ from qkd_lab.models import (
     DetectorParameters,
     IntensitySetting,
 )
+from qkd_lab.kms.models import SCOPE_HIERARCHY
 from qkd_lab.network.qos import QKDNQoSRequest, ServiceResult
 from qkd_lab.network.routing import find_secure_path, path_links
 from qkd_lab.protocols.decoy_bb84 import expected_decoy_bb84_block
@@ -247,8 +248,10 @@ def request_end_to_end_key(
                 trusted_intermediate_nodes=tuple(),
                 key_bits_consumed_per_hop=0,
                 message="no secure path with sufficient key reserve",
-                eps_total=0.0,
+                eps_total=None,
                 hops=0,
+                security_scope="unverified",
+                is_composable=False,
             )
 
     hops = len(path) - 1
@@ -259,8 +262,10 @@ def request_end_to_end_key(
             trusted_intermediate_nodes=tuple(path[1:-1]),
             key_bits_consumed_per_hop=0,
             message=f"path length ({hops} hops) exceeds max_hops ({qos.max_hops})",
-            eps_total=0.0,
+            eps_total=None,
             hops=hops,
+            security_scope="unverified",
+            is_composable=False,
         )
 
     # Fail immediately if endpoint KMS stores are missing from kms_nodes mapping
@@ -272,8 +277,10 @@ def request_end_to_end_key(
                 trusted_intermediate_nodes=tuple(path[1:-1]),
                 key_bits_consumed_per_hop=0,
                 message=f"endpoint KMS missing from kms_nodes: source={source in kms_nodes}, target={target in kms_nodes}",
-                eps_total=0.0,
+                eps_total=None,
                 hops=hops,
+                security_scope="unverified",
+                is_composable=False,
             )
 
     links = path_links(graph, path)
@@ -289,8 +296,8 @@ def request_end_to_end_key(
                 message="path became infeasible during reservation",
                 eps_total=None,
                 hops=hops,
-                security_scope="theorem_composable",
-                is_composable=True,
+                security_scope="unverified",
+                is_composable=False,
             )
 
     # Phase 2 & 3: Atomic multi-hop reservation, composability check, and endpoint KMS delivery
@@ -304,8 +311,8 @@ def request_end_to_end_key(
         key_material = secure_random_bytes(bits // 8)
 
     eps_total: float | None = None
-    all_composable = True
-    path_security_scope = "theorem_composable"
+    all_composable = False
+    path_security_scope = "unverified"
 
     try:
         # Step A: Reserve bits across all links in the path
@@ -316,20 +323,23 @@ def request_end_to_end_key(
             reservations.append(res_obj)
 
         # Step B: Inspect actual reservation segments for composable security & scope
-        all_composable = all(getattr(r, "is_composable", True) for r in reservations)
         all_material = all(getattr(r, "source", "budget_synthetic") == "material" for r in reservations)
         path_source = "material" if all_material else "budget_synthetic"
 
+        scopes = [getattr(r, "security_scope", "unverified") for r in reservations]
+        min_rank = min(SCOPE_HIERARCHY.get(s, 0) for s in scopes) if scopes else 0
+        rank_to_scope = {v: k for k, v in SCOPE_HIERARCHY.items()}
+        path_security_scope = rank_to_scope.get(min_rank, "unverified")
+        all_composable = (path_security_scope == "theorem_composable")
+
         if all_composable:
-            path_security_scope = "theorem_composable"
-            eps_total = sum(getattr(r, "eps_sec", 1e-10) for r in reservations)
-            eps_cor = sum(getattr(r, "eps_cor", 1e-15) for r in reservations)
+            eps_total = sum(getattr(r, "eps_sec", 1e-10) or 1e-10 for r in reservations)
+            eps_cor = sum(getattr(r, "eps_cor", 1e-15) or 1e-15 for r in reservations)
             if eps_total > qos.max_eps_total:
                 raise ValueError(
                     f"composed security epsilon ({eps_total:.2e}) exceeds limit ({qos.max_eps_total:.2e})"
                 )
         else:
-            path_security_scope = "engineering_model"
             eps_total = None
             eps_cor = 1e-15
 
@@ -394,7 +404,7 @@ def request_end_to_end_key(
             trusted_intermediate_nodes=tuple(path[1:-1]),
             key_bits_consumed_per_hop=0,
             message=f"reservation failed and rolled back: {exc}",
-            eps_total=eps_total,
+            eps_total=None,
             hops=hops,
             key_id=None,
             security_scope=path_security_scope,

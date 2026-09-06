@@ -22,6 +22,7 @@ from qkd_lab.adaptive.dataset import (
     _intensities,
     evaluate_action_outcome,
 )
+from qkd_lab.adaptive.execution import execute_action_through_gate
 from qkd_lab.adaptive.features import ALLOWED_FEATURES
 from qkd_lab.adaptive.utility import compute_service_utility
 from qkd_lab.config import load_yaml
@@ -99,222 +100,18 @@ def evaluate_decision_independent(
     switching_penalty: float = 50.0,
     seed: int = 42,
 ) -> dict:
-    """Evaluate an action through an independent predictive gate and realized simulation.
-    
-    Causal architecture:
-      pre-decision telemetry counts
-      ↓
-      policy recommendation
-      ↓
-      conservative predictive security gate
-      ↓
-      chosen action / ABORT
-      ↓
-      independent realized physical block simulation (with fresh seed & channel perturbation)
-      ↓
-      fresh finite-key estimation
-      ↓
-      realized secure bits / ABORT
-      ↓
-      security-violation audit
-    """
-    demand_bps = float(context["demand_bps"])
-    epoch_sec = 10.0
-
-    if action_name == "ABORT":
-        demand_bits = demand_bps * epoch_sec
-        delivered_bits = min(demand_bits, key_pool)
-        deficit_bits = max(0.0, demand_bits - delivered_bits)
-        delivered_rate = delivered_bits / epoch_sec
-        deficit_rate = deficit_bits / epoch_sec
-        switch_cost = switching_penalty if (prev_action is not None and prev_action != "ABORT") else 0.0
-        utility = compute_service_utility(
-            delivered_bits=delivered_bits,
-            deficit_bits=deficit_bits,
-            duration_seconds=epoch_sec,
-            abort=False,
-            switch_cost=switch_cost,
-            latency_weight=0.0,
-            deficit_weight=2.0,
-        )
-        next_pool = max(0.0, key_pool - delivered_bits)
-        return {
-            "action": "ABORT",
-            "executed": "ABORT",
-            "utility": utility,
-            "secure_bits": 0.0,
-            "duration_seconds": epoch_sec,
-            "predictive_gate_miss": False,
-            "security_violation": False,
-            "violation": False,
-            "next_key_pool": next_pool,
-            "realized_abort": True,
-        }
-
-    action = parse_action_name(action_name)
-    if action is None:
-        demand_bits = demand_bps * epoch_sec
-        delivered_bits = min(demand_bits, key_pool)
-        deficit_bits = max(0.0, demand_bits - delivered_bits)
-        switch_cost = switching_penalty if (prev_action is not None and prev_action != action_name) else 0.0
-        utility = compute_service_utility(
-            delivered_bits=delivered_bits,
-            deficit_bits=deficit_bits,
-            duration_seconds=epoch_sec,
-            abort=False,
-            switch_cost=switch_cost,
-            latency_weight=0.0,
-            deficit_weight=2.0,
-        )
-        next_pool = max(0.0, key_pool - delivered_bits)
-        return {
-            "action": action_name,
-            "executed": "ABORT",
-            "utility": utility,
-            "secure_bits": 0.0,
-            "duration_seconds": epoch_sec,
-            "predictive_gate_miss": False,
-            "security_violation": False,
-            "violation": False,
-            "next_key_pool": next_pool,
-            "realized_abort": True,
-        }
-
-    # Step 1: Pre-execution conservative predictive gate (uses observable telemetry bounds)
-    predicted = evaluate_action_outcome(context, action)
-    if (not bool(predicted["feasible"])) or bool(predicted["abort"]):
-        # Conservative gate intervenes to abort an unsafe/infeasible action
-        demand_bits = demand_bps * epoch_sec
-        delivered_bits = min(demand_bits, key_pool)
-        deficit_bits = max(0.0, demand_bits - delivered_bits)
-        switch_cost = switching_penalty if (prev_action is not None and prev_action != "ABORT") else 0.0
-        utility = compute_service_utility(
-            delivered_bits=delivered_bits,
-            deficit_bits=deficit_bits,
-            duration_seconds=epoch_sec,
-            abort=False,
-            switch_cost=switch_cost,
-            latency_weight=0.0,
-            deficit_weight=2.0,
-        )
-        next_pool = max(0.0, key_pool - delivered_bits)
-        return {
-            "action": action_name,
-            "executed": "ABORT",
-            "utility": utility,
-            "secure_bits": 0.0,
-            "duration_seconds": epoch_sec,
-            "predictive_gate_miss": False,
-            "security_violation": False,
-            "violation": False,
-            "next_key_pool": next_pool,
-            "realized_abort": True,
-        }
-
-    # Step 2: Independent stochastic physical realization (distinct seed & aggregate simulation)
-    rng = np.random.default_rng(seed)
-    dist = float(context["distance_km"])
-    dark = float(context["dark_probability"])
-    eff = float(context["detector_efficiency"])
-    actual_qber = float(context["recent_qber"])
-    actual_gain = float(context.get("recent_gain", 0.01))
-
-    # Realized stochastic fluctuation on channel conditions
-    fluc_qber = max(0.005, min(0.15, actual_qber + float(rng.normal(0.0, 0.001))))
-    fluc_gain = max(1e-7, actual_gain * float(1.0 + rng.normal(0.0, 0.02)))
-
-    action_intensities = _intensities(action)
-    block_sec = action.duration_seconds
-
-    if action.protocol == "decoy_bb84":
-        basis = BasisProbabilities(action.p_key_basis, action.p_key_basis)
-        net_opt = max(1e-9, fluc_gain - 2.0 * dark)
-        trans = max(1e-8, min(1.0, net_opt / max(eff * action.mu_signal, 1e-6)))
-        atten = max(0.15, min(2.0, -10.0 * math.log10(trans) / dist)) if dist > 0 else 0.20
-        ch = ChannelParameters(dist, atten)
-        det = DetectorParameters(eff, dark, fluc_qber, 2)
-        sim_block = simulate_aggregate_decoy_bb84_block(
-            action.block_size,
-            intensities=action_intensities,
-            basis=basis,
-            channel=ch,
-            detector=det,
-            seed=seed,
-        )
-        res = estimate_lim2014(
-            sim_block.records,
-            action_intensities,
-            eps_sec=EPS_SEC,
-            eps_cor=EPS_COR,
-            f_ec=1.16,
-        )
-        realized_bits = float(res.secure_bits)
-        realized_abort = bool(res.abort)
-    else:
-        basis = MDIBasisProbabilities(action.p_key_basis, action.p_key_basis)
-        lac = float(context.get("length_ac_km", dist / 2.0))
-        lbc = float(context.get("length_bc_km", dist / 2.0))
-        net_opt = max(1e-9, fluc_gain - 2.0 * dark)
-        trans = max(1e-8, min(1.0, net_opt / max(eff * action.mu_signal, 1e-6)))
-        atten = max(0.15, min(2.0, -10.0 * math.log10(trans) / dist)) if dist > 0 else 0.20
-        phys = MDIPhysicalParameters(
-            alice_to_charlie_km=lac,
-            bob_to_charlie_km=lbc,
-            attenuation_db_per_km=atten,
-            detector_efficiency=eff,
-            dark_probability=dark,
-            misalignment=fluc_qber,
-        )
-        sim_block = simulate_aggregate_mdi_block(
-            action.block_size,
-            alice_intensities=action_intensities,
-            bob_intensities=action_intensities,
-            basis=basis,
-            physical=phys,
-            seed=seed,
-        )
-        res = estimate_mdi_finite_key(sim_block, MDI_BUDGET)
-        realized_bits = float(res.secure_bits)
-        realized_abort = bool(res.abort)
-
-    # Step 3: Predictive Gate Miss vs Security Violation Audit
-    predictive_gate_miss = bool(realized_abort) or (realized_bits <= 0.0)
-    generated_bits = realized_bits if not realized_abort else 0.0
-    # Security violation: Key material was released on an abort.
-    security_violation = bool(generated_bits > 0.0 and realized_abort)
-
-    # Step 4: Closed-loop utility and state evolution
-    demand_bits = demand_bps * block_sec
-    available_bits = key_pool + generated_bits
-    delivered_bits = min(demand_bits, available_bits)
-    deficit_bits = max(0.0, demand_bits - delivered_bits)
-    switch_cost = switching_penalty if (prev_action is not None and prev_action != action_name and action_name != "ABORT") else 0.0
-
-    util = compute_service_utility(
-        delivered_bits=delivered_bits,
-        deficit_bits=deficit_bits,
-        duration_seconds=block_sec,
-        abort=realized_abort,
-        switch_cost=switch_cost,
+    """Evaluate an action through the unified execute_action_through_gate engine."""
+    return execute_action_through_gate(
+        action_name,
+        context,
+        key_pool=key_pool,
+        prev_action=prev_action,
+        switching_penalty=switching_penalty,
+        seed=seed,
         latency_weight=0.05,
         deficit_weight=2.0,
         abort_penalty=1000.0,
     )
-
-    next_pool = min(15_000_000.0, max(0.0, available_bits - delivered_bits))
-
-    return {
-        "action": action_name,
-        "executed": action_name,
-        "utility": util,
-        "secure_bits": generated_bits,
-        "duration_seconds": block_sec,
-        "predictive_gate_miss": predictive_gate_miss,
-        "security_violation": security_violation,
-        "violation": predictive_gate_miss,
-        "next_key_pool": next_pool,
-        "realized_abort": realized_abort,
-    }
 
 
 def evaluate_decision(action_name: str, scenario_data) -> dict:
@@ -413,6 +210,41 @@ def heuristic_decision(context: dict) -> str:
     return "decoy_bb84|mu=0.40|nu=0.05|p=0.80|N=10000000000"
 
 
+def trajectory_paired_sign_flip_test(
+    diffs: np.ndarray,
+    n_permutations: int = 10_000,
+    seed: int = 42,
+) -> tuple[float, str]:
+    """Paired trajectory-level sign-flip randomization test (10,000 permutations).
+
+    Null hypothesis H0: Paired trajectory differences D_i are symmetric around 0.
+    Returns:
+        (p_value_numeric, p_value_display)
+    """
+    n = len(diffs)
+    if n == 0:
+        return 1.0, "1.0000"
+    t_obs = abs(float(np.mean(diffs)))
+    if t_obs == 0.0:
+        return 1.0, "1.0000"
+
+    rng = np.random.default_rng(seed)
+    # Generate random signs {-1, +1} of shape (n_permutations, n)
+    signs = rng.choice(np.array([-1.0, 1.0]), size=(n_permutations, n), replace=True)
+    perm_t = np.abs(np.mean(signs * diffs, axis=1))
+
+    # Standard unbiased permutation test formula: (1 + count(T >= T_obs)) / (B + 1)
+    count_extreme = int(np.sum(perm_t >= t_obs))
+    p_val = float((1 + count_extreme) / (n_permutations + 1))
+
+    if p_val <= 0.0001:
+        p_str = "< 0.0001"
+    else:
+        p_str = f"{p_val:.4f}"
+
+    return p_val, p_str
+
+
 def trajectory_cluster_bootstrap_ci(
     results_df: pd.DataFrame,
     adaptive_col: str,
@@ -420,11 +252,11 @@ def trajectory_cluster_bootstrap_ci(
     n_boot: int = 1000,
     alpha: float = 0.05,
     seed: int = 42,
-) -> tuple[float, float, float, float, float, float, float]:
-    """Trajectory-level cluster bootstrap to account for temporal auto-correlation within trajectories.
+) -> tuple[float, float, float, float, float, float, float, str]:
+    """Trajectory-level cluster bootstrap for CIs and paired sign-flip test for p-values.
     
     Returns:
-        (mean_adaptive, mean_baseline, mean_diff, std_diff, ci_lower, ci_upper, p_value)
+        (mean_adaptive, mean_baseline, mean_diff, std_diff, ci_lower, ci_upper, p_val_numeric, p_val_display)
     """
     rng = np.random.default_rng(seed)
     traj_metrics = results_df.groupby("trajectory_id")[[adaptive_col, baseline_col]].mean()
@@ -444,10 +276,11 @@ def trajectory_cluster_bootstrap_ci(
 
     ci_lower = float(np.percentile(boot_diffs, 100.0 * (alpha / 2.0)))
     ci_upper = float(np.percentile(boot_diffs, 100.0 * (1.0 - alpha / 2.0)))
-    p_val = float(2.0 * min(np.mean(boot_diffs <= 0.0), np.mean(boot_diffs >= 0.0)))
-    p_val = min(1.0, max(0.0, p_val))
 
-    return float(np.mean(adapt_vals)), float(np.mean(base_vals)), mean_diff, std_diff, ci_lower, ci_upper, p_val
+    # Paired trajectory-level sign-flip test (10,000 permutations)
+    p_val, p_str = trajectory_paired_sign_flip_test(diffs, n_permutations=10_000, seed=seed)
+
+    return float(np.mean(adapt_vals)), float(np.mean(base_vals)), mean_diff, std_diff, ci_lower, ci_upper, p_val, p_str
 
 
 def main():
@@ -574,10 +407,10 @@ def main():
     Path("results/adaptive").mkdir(parents=True, exist_ok=True)
     results_df.to_csv("results/adaptive/heldout_summary.csv", index=False)
 
-    # Statistical Comparison vs Baselines using Trajectory Cluster Bootstrap
+    # Statistical Comparison vs Baselines using Trajectory Cluster Bootstrap & Paired Sign-Flip Permutation Test
     stat_comparisons = []
     for b_name in baseline_definitions.keys():
-        mean_adapt, mean_base, mean_diff, std_diff, ci_lower, ci_upper, p_val = trajectory_cluster_bootstrap_ci(
+        mean_adapt, mean_base, mean_diff, std_diff, ci_lower, ci_upper, p_val, p_str = trajectory_cluster_bootstrap_ci(
             results_df,
             "adaptive_utility",
             f"{b_name}_utility",
@@ -596,14 +429,16 @@ def main():
             "ci_95_lower": ci_lower,
             "ci_95_upper": ci_upper,
             "p_value_raw": p_val,
+            "p_value_display": p_str,
             "p_value_adjusted": p_val,
+            "p_value_adjusted_display": p_str,
             "baseline_gate_misses": int(results_df[f"{b_name}_gate_miss"].sum()),
             "adaptive_gate_misses": int(results_df["adaptive_gate_miss"].sum()),
             "baseline_violations": int(results_df[f"{b_name}_violation"].sum()),
             "adaptive_violations": int(results_df["adaptive_violation"].sum()),
         })
 
-    # Holm-Bonferroni step-down adjustment on secondary baselines
+    # Holm-Bonferroni step-down adjustment on the 5 secondary baselines
     secondary = [r for r in stat_comparisons if r["hypothesis_tier"] == "secondary"]
     secondary.sort(key=lambda r: r["p_value_raw"])
     m = len(secondary)
@@ -612,6 +447,7 @@ def main():
         adj = min(1.0, (m - i) * r["p_value_raw"])
         cum_max = max(cum_max, adj)
         r["p_value_adjusted"] = cum_max
+        r["p_value_adjusted_display"] = "< 0.0001" if cum_max <= 0.0001 else f"{cum_max:.4f}"
 
     stats_df = pd.DataFrame(stat_comparisons)
     stats_df.to_csv("results/adaptive/baseline_comparisons.csv", index=False)
@@ -630,6 +466,8 @@ def main():
         "num_test_scenarios": len(results_df),
         "num_test_trajectories": int(results_df["trajectory_id"].nunique()),
         "bootstrap_method": "trajectory_cluster_bootstrap",
+        "p_value_method": "paired_trajectory_sign_flip_permutation_10000",
+        "multiple_testing_adjustment": "holm_bonferroni_secondary_baselines",
         "predictive_gate_misses_adaptive": int(results_df["adaptive_gate_miss"].sum()),
         "security_violations_adaptive": int(results_df["adaptive_violation"].sum()),
     }
@@ -637,8 +475,8 @@ def main():
         json.dumps(provenance, indent=2), encoding="utf-8"
     )
 
-    print("=== Held-out Adaptive Policy vs 6 Baselines (Trajectory Cluster Bootstrap) ===")
-    print(stats_df[["baseline", "hypothesis_tier", "mean_adaptive_utility", "mean_baseline_utility", "mean_paired_difference", "ci_95_lower", "ci_95_upper", "p_value_raw", "p_value_adjusted", "cohens_d"]].to_string(index=False))
+    print("=== Held-out Adaptive Policy vs 6 Baselines (Cluster Bootstrap CI + 10k Sign-Flip Test) ===")
+    print(stats_df[["baseline", "hypothesis_tier", "mean_adaptive_utility", "mean_baseline_utility", "mean_paired_difference", "ci_95_lower", "ci_95_upper", "p_value_display", "p_value_adjusted_display", "cohens_d"]].to_string(index=False))
     print("\nProvenance:")
     print(json.dumps(provenance, indent=2))
 

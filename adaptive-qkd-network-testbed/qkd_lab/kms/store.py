@@ -7,7 +7,7 @@ from dataclasses import asdict
 from datetime import timedelta
 from typing import Any
 
-from qkd_lab.kms.models import KeyState, ManagedKey, utcnow
+from qkd_lab.kms.models import KeyState, ManagedKey, SCOPE_HIERARCHY, utcnow
 from qkd_lab.kms.reservoir import KeyReservoir, ReservoirReservation
 from qkd_lab.rng import secure_random_bytes
 
@@ -40,7 +40,7 @@ class KeyStore:
         initiator_sae_id: str | None = None,
         target_sae_id: str | None = None,
         source: str = "material",
-        security_scope: str = "theorem_composable",
+        security_scope: str = "unverified",
     ) -> ManagedKey:
         if bits <= 0 or bits % 8 != 0:
             raise ValueError("bits must be a positive multiple of 8")
@@ -201,7 +201,7 @@ class KeyStore:
         target_sae_id: str | None = None,
         key_material: bytes | bytearray | None = None,
         source: str | None = None,
-        security_scope: str = "theorem_composable",
+        security_scope: str = "unverified",
     ) -> str:
         with self._lock:
             res = self.get_reservoir(peer_id)
@@ -227,7 +227,7 @@ class KeyStore:
         eps_cor: float = 1e-15,
         initiator_sae_id: str | None = None,
         target_sae_id: str | None = None,
-        security_scope: str = "theorem_composable",
+        security_scope: str = "unverified",
     ) -> str:
         with self._lock:
             res = self.get_reservoir(peer_id)
@@ -364,10 +364,21 @@ class KeyStore:
                     self._keys[key.key_id] = key.consumed_and_erased()
                     if key.bits > remaining:
                         leftover = key.bits - remaining
+                        leftover_mat = None
+                        if key.source == "material" and key.value_b64 and (leftover % 8 == 0):
+                            raw_mat = base64.b64decode(key.value_b64)
+                            consumed_bytes = (remaining + 7) // 8
+                            leftover_mat = raw_mat[consumed_bytes:]
                         res.deposit_bits(
                             leftover,
+                            protocol=key.protocol,
+                            eps_sec=key.eps_sec,
+                            eps_cor=key.eps_cor,
                             initiator_sae_id=key.initiator_sae_id,
                             target_sae_id=key.target_sae_id,
+                            key_material=leftover_mat,
+                            source=key.source if leftover_mat is not None else "budget",
+                            security_scope=key.security_scope,
                         )
                         remaining = 0
                     else:

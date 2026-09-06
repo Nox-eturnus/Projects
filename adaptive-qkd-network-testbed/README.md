@@ -95,6 +95,14 @@ This project provides standards-aligned research models rather than claiming com
 | **ITU-T Y.3806 / Y.3823** | QoS Assurance & Allocation | Research QoS abstractions modeling hop counts, per-resource epsilon composition, and link reserve protection. |
 | **ITU-T X.1711 (03/2026)** | Protocol Framework | Framework of quantum key distribution (QKD) protocols in QKD networks. |
 
+### Fail-Closed Security Scope Hierarchy
+The testbed enforces a strictly ordered, fail-closed security scope hierarchy:
+$$\text{unverified} < \text{ideal\_simulation} < \text{engineering\_model} < \text{theorem\_composable}$$
+
+- **Fail-Closed Defaults**: Links and reservoir blocks default to `unverified`.
+- **Composite Monotonicity**: Any multi-block reservation or multi-hop path resolves to the minimum rank among its contributors.
+- **Strict Composability Guard**: `is_composable=True` only if the resolved scope is `theorem_composable`. For all other scopes (`engineering_model`, `ideal_simulation`, `unverified`), `is_composable=False` and `eps_total=None` are reported to prevent treating heuristic parameters as mathematical composability bounds.
+
 ### Trusted Node Relay Semantics & Endpoint Confidentiality
 - **Atomic Delivery**: Multi-hop end-to-end key requests (`request_end_to_end_key()`) execute as a single atomic transaction: hop reservations and source/target KMS insertions succeed completely or roll back entirely.
 - **Resource Abstraction**: Hop key consumption models an ideal trusted relay. In this research model, key bits are consumed along each link of the path to model network-wide key depletion without simulating hop-by-hop ciphertext wrapping/unwrapping.
@@ -104,6 +112,12 @@ This project provides standards-aligned research models rather than claiming com
 ---
 
 ## 5. Adaptive Runtime Evaluation & Baselines
+
+### Switching-Aware Empirical Contextual Policy
+The adaptive controller is architected as a **switching-aware empirical contextual policy**:
+- **Context Manifold**: Matches observable, non-anticipating telemetry features against calibrated scenario manifolds using scale-normalized Mahalanobis-like Euclidean distance.
+- **Switching Penalty Awareness**: Directly penalizes setup delays and laser retuning overhead when transitioning between distinct active protocols ($C_{\rm switch} / \Delta t$).
+- **Fail-Safe Gate**: Candidate decisions pass through an independent, conservative predictive security gate before physical realization.
 
 ### Independent Runtime Verification Architecture
 To eliminate circular security claims, the adaptive runtime evaluation decouples the decision model from physical realization:
@@ -124,9 +138,12 @@ To eliminate circular security claims, the adaptive runtime evaluation decouples
 5. **Heuristic Expert Policy**: Rule-based decision using QBER and distance thresholds ($\Delta t = 10.0$ s).
 6. **Always-Abort Baseline**: Safe zero-key abort ($\Delta t = 10.0$ s).
 
-### Statistical Validation
+### Statistical Methodology & Multiple Testing Adjustment
 - Evaluated across 96 dynamic trajectories (72 train, 24 held-out test) with balanced attack episodes and demand bursts across splits.
-- **Trajectory Cluster Bootstrap**: Resamples whole trajectories with replacement ($N_{\rm boot} = 1000$) using Common Random Numbers (CRN) to properly account for temporal correlation, producing paired difference 95% confidence intervals and Cohen's $d$.
+- **Paired Trajectory-Level Sign-Flip Randomization Test**: Exact exchangeable permutation test (10,000 permutations) on paired trajectory differences $D_i = U_{{\rm adaptive}, i} - U_{{\rm baseline}, i}$.
+- **Bounded Numerical Resolution**: Exact permutation formula $(1 + \sum \mathbb{I}(|T_b| \ge |T_{\rm obs}|)) / (B + 1)$; reports bounded resolution $p < 0.0001$ rather than exact $0.0$.
+- **Holm-Bonferroni Correction**: Step-down Family-Wise Error Rate (FWER) control across the 5 secondary baseline comparisons, keeping the primary hypothesis (`training_optimal_fixed`) unadjusted.
+- **Whole-Trajectory Cluster Bootstrap**: 1,000 resamples of whole trajectories using Common Random Numbers (CRN) to construct 95% paired difference confidence intervals and Cohen's $d$.
 
 ---
 
@@ -184,15 +201,15 @@ python scripts\20_secure_application_demo.py
 # 5. Network Simulation & Routing
 python scripts\21_network_simulation.py
 
-# 6. Adaptive Machine-Learning Controller & Evaluation
+# 6. Adaptive Contextual Controller & Evaluation
 python scripts\22_build_policy_dataset.py
 python scripts\23_fit_adaptive_policy.py
 python scripts\24_evaluate_adaptive_policy.py
 
-# 7. Unified End-to-End Closed-Loop Pipeline
+# 7. Unified End-to-End Closed-Loop Pipeline (Two-Track Decoupled Architecture)
 python scripts\26_end_to_end_closed_loop.py
 
-# 7. Interactive Dashboard
+# 8. Interactive Dashboard
 python scripts\25_run_dashboard.py
 ```
 

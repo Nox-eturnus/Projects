@@ -8,7 +8,7 @@ from datetime import datetime
 
 from typing import Any
 
-from qkd_lab.kms.models import KeyState, ManagedKey, utcnow
+from qkd_lab.kms.models import KeyState, ManagedKey, SCOPE_HIERARCHY, utcnow
 from qkd_lab.rng import secure_random_bytes
 
 
@@ -25,7 +25,7 @@ class DistilledBlock:
     target_sae_id: str | None = None
     key_material: bytearray | bytes | None = None
     source: str = "budget"  # "material" or "budget"
-    security_scope: str = "theorem_composable"  # "theorem_composable" or "engineering_model"
+    security_scope: str = "unverified"  # Fail-closed default: "unverified" < "ideal_simulation" < "engineering_model" < "theorem_composable"
 
 
 @dataclass
@@ -58,13 +58,17 @@ class ReservoirReservation:
         self.rolled_back = True
 
     @property
-    def eps_sec(self) -> float:
-        """Summed composable secrecy parameter across contributing blocks."""
+    def eps_sec(self) -> float | None:
+        """Summed composable secrecy parameter across contributing blocks, or None if not composable."""
+        if not self.is_composable:
+            return None
         return sum(seg.block.eps_sec for seg in self.segments)
 
     @property
-    def eps_cor(self) -> float:
-        """Summed composable correctness parameter across contributing blocks."""
+    def eps_cor(self) -> float | None:
+        """Summed composable correctness parameter across contributing blocks, or None if not composable."""
+        if not self.is_composable:
+            return None
         return sum(seg.block.eps_cor for seg in self.segments)
 
     @property
@@ -74,10 +78,12 @@ class ReservoirReservation:
 
     @property
     def security_scope(self) -> str:
-        """Overall security scope: theorem_composable only if all blocks are theorem-composable."""
-        if self.segments and all(seg.block.security_scope == "theorem_composable" for seg in self.segments):
-            return "theorem_composable"
-        return "engineering_model"
+        """Overall security scope: minimum rank across contributing blocks in SCOPE_HIERARCHY."""
+        if not self.segments:
+            return "unverified"
+        min_rank = min(SCOPE_HIERARCHY.get(seg.block.security_scope, 0) for seg in self.segments)
+        rank_to_scope = {v: k for k, v in SCOPE_HIERARCHY.items()}
+        return rank_to_scope.get(min_rank, "unverified")
 
     @property
     def is_composable(self) -> bool:
@@ -125,7 +131,7 @@ class KeyReservoir:
         target_sae_id: str | None = None,
         key_material: bytes | bytearray | None = None,
         source: str | None = None,
-        security_scope: str = "theorem_composable",
+        security_scope: str = "unverified",
     ) -> str:
         if bits <= 0:
             raise ValueError("bits must be positive")
@@ -175,7 +181,7 @@ class KeyReservoir:
         eps_cor: float = 1e-15,
         initiator_sae_id: str | None = None,
         target_sae_id: str | None = None,
-        security_scope: str = "theorem_composable",
+        security_scope: str = "unverified",
     ) -> str:
         return self.deposit_bits(
             len(key_material) * 8,
@@ -261,6 +267,28 @@ class KeyReservoir:
             avail = self.available_bits(initiator_sae_id=initiator_sae_id, allow_unbound=allow_unbound)
             if avail < bits:
                 raise RuntimeError(f"insufficient reservoir bits: requested {bits}, available {avail}")
+
+            # Enforce byte-alignment if reserving from any material-backed block
+            if bits % 8 != 0:
+                bits_needed = bits
+                for b in self._blocks:
+                    if initiator_sae_id is not None:
+                        if allow_unbound:
+                            if b.initiator_sae_id is not None and b.initiator_sae_id != initiator_sae_id:
+                                continue
+                        else:
+                            if b.initiator_sae_id != initiator_sae_id:
+                                continue
+                    if b.remaining_bits <= 0:
+                        continue
+                    if b.key_material is not None:
+                        raise ValueError(
+                            f"bits ({bits}) must be a multiple of 8 when reserving from key material blocks"
+                        )
+                    bits_needed -= b.remaining_bits
+                    if bits_needed <= 0:
+                        break
+
             remaining_to_reserve = bits
             segments: list[BlockReservation] = []
             for b in self._blocks:
@@ -277,7 +305,7 @@ class KeyReservoir:
                 b.remaining_bits -= take
                 mat_slice: bytes | None = None
                 if b.key_material is not None:
-                    take_bytes = (take + 7) // 8
+                    take_bytes = take // 8
                     mat_slice = bytes(b.key_material[:take_bytes])
                     b.key_material = b.key_material[take_bytes:]
                 segments.append(
@@ -381,8 +409,9 @@ class KeyReservoir:
             else:
                 key_protocol = "reservoir_slice"
 
-            all_composable = bool(contributing_scopes and all(s == "theorem_composable" for s in contributing_scopes))
-            key_security_scope = "theorem_composable" if all_composable else "engineering_model"
+            min_rank = min(SCOPE_HIERARCHY.get(s, 0) for s in contributing_scopes) if contributing_scopes else 0
+            rank_to_scope = {v: k for k, v in SCOPE_HIERARCHY.items()}
+            key_security_scope = rank_to_scope.get(min_rank, "unverified")
 
             key_id = key_id or str(uuid.uuid4())
             return ManagedKey(

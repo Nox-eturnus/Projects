@@ -89,7 +89,10 @@ def test_trusted_node_e2e_key_relay_delivery():
     assert raw_a == raw_d
     assert key_a.source == "budget_synthetic"
     assert key_d.source == "budget_synthetic"
-    assert key_a.security_scope == "theorem_composable"
+    # Plain unbacked links without KeyStore fail-closed to unverified scope
+    assert key_a.security_scope == "unverified"
+    assert res.security_scope == "unverified"
+    assert res.is_composable is False
     assert key_a.protocol == "trusted_relay_e2e"
     assert key_d.protocol == "trusted_relay_e2e"
     assert link_ab.key_bits == 2000 - 256
@@ -104,9 +107,9 @@ def test_trusted_node_e2e_key_relay_material_mode():
     kms_d = KeyStore()
     kms_nodes = {'A': kms_a, 'D': kms_d}
 
-    # Deposit actual key material into reservoirs
-    kms_a.deposit_reservoir_key_material(peer_id='B', key_material=b"\x01" * 256, initiator_sae_id='A')
-    kms_b.deposit_reservoir_key_material(peer_id='D', key_material=b"\x02" * 256, initiator_sae_id='B')
+    # Deposit actual key material into reservoirs with verified composable scope
+    kms_a.deposit_reservoir_key_material(peer_id='B', key_material=b"\x01" * 256, initiator_sae_id='A', security_scope="theorem_composable")
+    kms_b.deposit_reservoir_key_material(peer_id='D', key_material=b"\x02" * 256, initiator_sae_id='B', security_scope="theorem_composable")
 
     link_ab = QKDLinkState('A', 'B', 10, key_bits=2048, secure_rate_bps=1000, key_store=kms_a)
     link_bd = QKDLinkState('B', 'D', 10, key_bits=2048, secure_rate_bps=1000, key_store=kms_b)

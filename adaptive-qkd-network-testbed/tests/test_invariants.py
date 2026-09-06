@@ -172,3 +172,134 @@ def test_it_otp_authentication_and_tamper_detection():
     tampered[2] ^= 0x01
     with pytest.raises(ValueError, match="tampered"):
         decrypt_authenticated_otp(bytes(tampered), tag, enc_key, auth_key, mode="it")
+
+
+def test_kms_rejects_material_release_on_abort():
+    """Fault-injection: Ensure aborted realization never deposits or releases key material."""
+    from qkd_lab.adaptive.execution import execute_action_through_gate
+
+    # Injected hostile scenario that triggers abort
+    hostile_ctx = {
+        "distance_km": 80.0,
+        "recent_qber": 0.15,
+        "recent_gain": 0.0001,
+        "dark_probability": 1e-5,
+        "detector_efficiency": 0.2,
+        "key_pool_bits": 0.0,
+        "demand_bps": 10000.0,
+        "mdi_capable": False,
+    }
+    action = "decoy_bb84|mu=0.55|nu=0.10|p=0.90|N=10000000000"
+    res = execute_action_through_gate(action, hostile_ctx, key_pool=0.0)
+
+    assert res["executed"] == "ABORT"
+    assert res["secure_bits"] == 0.0
+    assert res["realized_abort"] is True
+    assert res["security_violation"] is False
+
+    # KeyStore must reject depositing 0 bits or material from aborted realization
+    store = KeyStore()
+    with pytest.raises(ValueError, match="bits must be positive"):
+        store.deposit_reservoir_bits(peer_id="B", bits=int(res["secure_bits"]))
+
+
+def test_unbacked_mdi_link_scope_hierarchy():
+    """Verify that unbacked MDI links resolve to engineering_model scope and are not composable."""
+    from qkd_lab.network.topology import QKDLinkState
+
+    link_mdi = QKDLinkState(
+        u="A",
+        v="B",
+        distance_km=50.0,
+        key_bits=1000,
+        secure_rate_bps=500,
+        mdi_capable=True,
+        charlie_node="C",
+    )
+    assert link_mdi.protocol == "mdi_qkd"
+    res = link_mdi.reserve_bits(256)
+    assert res.security_scope == "engineering_model"
+    assert res.is_composable is False
+    assert res.eps_sec is None
+    assert res.eps_cor is None
+    res.rollback()
+
+
+def test_plain_unbacked_link_scope_hierarchy():
+    """Verify that plain unbacked links fail-closed to unverified scope and are not composable."""
+    from qkd_lab.network.topology import QKDLinkState
+
+    link_plain = QKDLinkState(
+        u="A",
+        v="B",
+        distance_km=25.0,
+        key_bits=1000,
+        secure_rate_bps=500,
+        mdi_capable=False,
+    )
+    assert link_plain.protocol == "decoy_bb84"
+    res = link_plain.reserve_bits(256)
+    assert res.security_scope == "unverified"
+    assert res.is_composable is False
+    assert res.eps_sec is None
+    assert res.eps_cor is None
+    res.rollback()
+
+
+def test_security_scope_hierarchy_composite_resolution():
+    """Verify that composite reservations resolve to the minimum rank in SCOPE_HIERARCHY."""
+    from qkd_lab.kms.reservoir import KeyReservoir
+
+    # Case 1: theorem_composable + engineering_model -> engineering_model
+    res1 = KeyReservoir(peer_id="B")
+    res1.deposit_bits(128, security_scope="theorem_composable", eps_sec=1e-10)
+    res1.deposit_bits(128, security_scope="engineering_model", eps_sec=2e-10)
+    reservation1 = res1.reserve_bits(256)
+    assert reservation1.security_scope == "engineering_model"
+    assert reservation1.is_composable is False
+    assert reservation1.eps_sec is None
+    reservation1.rollback()
+
+    # Case 2: theorem_composable + engineering_model + unverified -> unverified
+    res2 = KeyReservoir(peer_id="B")
+    res2.deposit_bits(128, security_scope="theorem_composable")
+    res2.deposit_bits(128, security_scope="engineering_model")
+    res2.deposit_bits(128, security_scope="unverified")
+    reservation2 = res2.reserve_bits(384)
+    assert reservation2.security_scope == "unverified"
+    assert reservation2.is_composable is False
+    assert reservation2.eps_sec is None
+    reservation2.rollback()
+
+
+def test_key_store_relay_double_deposit_prevention():
+    """Ensure QKDLinkState.__init__ diff deposit prevents double-counting existing reservoir bits."""
+    from qkd_lab.network.topology import QKDLinkState
+
+    store = KeyStore()
+    # Pre-deposit 1000 bits into store
+    store.deposit_reservoir_bits(peer_id="B", bits=1000, initiator_sae_id="A")
+    assert store.available_bits(peer_id="B", initiator_sae_id="A") == 1000
+
+    # Initializing QKDLinkState with key_bits=1000 must NOT deposit an additional 1000 bits
+    link = QKDLinkState("A", "B", distance_km=25.0, key_bits=1000, secure_rate_bps=500, key_store=store)
+    assert link.key_bits == 1000
+    assert store.available_bits(peer_id="B", initiator_sae_id="A") == 1000
+
+
+def test_material_slicing_byte_misalignment_enforcement():
+    """Enforce that reserve_bits rejects non-multiples of 8 when reserving from material blocks."""
+    from qkd_lab.kms.reservoir import KeyReservoir
+
+    res = KeyReservoir(peer_id="B")
+    res.deposit_key_material(b"\xaa" * 32)  # 256 bits of material
+
+    # Reserving non-multiple of 8 must raise ValueError to prevent fractional byte misalignment
+    with pytest.raises(ValueError, match="multiple of 8"):
+        res.reserve_bits(125)
+
+    # Multiples of 8 must succeed cleanly
+    r = res.reserve_bits(128)
+    assert r.bits == 128
+    assert len(r.segments[0].material_slice) == 16
+    r.rollback()

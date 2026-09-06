@@ -37,6 +37,13 @@ def candidate_actions() -> list[QKDAction]:
     return actions
 
 
+def candidate_action_names(include_abort: bool = True) -> list[str]:
+    names = [a.name for a in candidate_actions()]
+    if include_abort:
+        names.append("ABORT")
+    return names
+
+
 def action_is_feasible(action: QKDAction, *, mdi_capable: bool = True, has_charlie: bool = True) -> bool:
     if action.protocol == "mdi_qkd":
         if not mdi_capable or not has_charlie:

@@ -67,7 +67,7 @@ class EmpiricalPolicy:
             return "ABORT"
 
         # Step 5: Deduct switching rate penalty if switching from prev_action
-        if prev_action is not None and prev_action != "ABORT" and switching_penalty > 0.0:
+        if prev_action is not None and switching_penalty > 0.0:
             duration_map = {}
             if "block_seconds" in viable_rows.columns:
                 duration_map = viable_rows.groupby("action_name")["block_seconds"].mean().to_dict()

@@ -48,15 +48,30 @@ class QKDLinkState:
         self._key_bits = 0
         if self.key_store is not None and key_bits > 0:
             if hasattr(self.key_store, "deposit_reservoir_bits"):
-                self.key_store.deposit_reservoir_bits(
-                    peer_id=self.v,
-                    bits=key_bits,
-                    initiator_sae_id=self.u,
-                    target_sae_id=self.v,
+                current = (
+                    self.key_store.available_bits(peer_id=self.v, initiator_sae_id=self.u)
+                    if hasattr(self.key_store, "available_bits")
+                    else 0
                 )
+                diff = key_bits - current
+                if diff > 0:
+                    proto = "mdi_qkd" if self.mdi_capable else "decoy_bb84"
+                    scope = "engineering_model" if self.mdi_capable else "theorem_composable"
+                    self.key_store.deposit_reservoir_bits(
+                        peer_id=self.v,
+                        bits=diff,
+                        protocol=proto,
+                        initiator_sae_id=self.u,
+                        target_sae_id=self.v,
+                        security_scope=scope,
+                    )
         else:
             self._key_bits = key_bits
         self.__post_init__()
+
+    @property
+    def protocol(self) -> str:
+        return "mdi_qkd" if self.mdi_capable else "decoy_bb84"
 
     @property
     def key_bits(self) -> int:
@@ -120,12 +135,12 @@ class QKDLinkState:
                     res_self.rolled_back = True
 
             @property
-            def eps_sec(res_self) -> float:
-                return 1e-10
+            def eps_sec(res_self) -> float | None:
+                return 1e-10 if res_self.is_composable else None
 
             @property
-            def eps_cor(res_self) -> float:
-                return 1e-15
+            def eps_cor(res_self) -> float | None:
+                return 1e-15 if res_self.is_composable else None
 
             @property
             def protocols(res_self) -> list[str]:
@@ -135,7 +150,7 @@ class QKDLinkState:
             def security_scope(res_self) -> str:
                 if "mdi" in res_self.link.protocol.lower() or res_self.link.mdi_capable:
                     return "engineering_model"
-                return "theorem_composable"
+                return "unverified"
 
             @property
             def is_composable(res_self) -> bool:

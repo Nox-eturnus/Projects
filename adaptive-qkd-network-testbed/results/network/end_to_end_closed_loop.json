@@ -1,69 +1,54 @@
 {
   "status": "PASSED",
-  "stages": {
-    "topology_init": {
-      "nodes": [
-        "A",
-        "B",
-        "C",
-        "D"
-      ],
-      "links": [
-        "A-B",
-        "B-D",
-        "A-C",
-        "C-D"
-      ],
-      "initial_link_ab_bits": 0
-    },
-    "policy_recommendation": {
-      "telemetry_qber": 0.015,
-      "telemetry_distance_km": 25.0,
-      "recommended_action": "decoy_bb84|mu=0.40|nu=0.05|p=0.80|N=10000000000"
-    },
-    "predictive_gate": {
-      "feasible": true,
-      "predicted_abort": false,
-      "predicted_secure_bits": 118250961.0
-    },
-    "physical_qkd_distillation": {
-      "protocol": "decoy_bb84",
-      "pulses": 35000000,
-      "x_detected": 1418020,
-      "x_qber": 0.015000493646069871,
-      "reconciliation_algorithm": "cascade_blockwise",
+  "full_scale_controller_execution": {
+    "policy_recommendation": "decoy_bb84|mu=0.40|nu=0.05|p=0.80|N=10000000000",
+    "protocol": "decoy_bb84",
+    "pulse_count": 10000000000,
+    "epoch_seconds": 10.0,
+    "telemetry_qber": 0.015,
+    "telemetry_distance_km": 25.0,
+    "predictive_gate_feasible": true,
+    "predictive_gate_predicted_abort": false,
+    "predicted_secure_bits": 118250961.0,
+    "predicted_secure_rate_bps": 11825096.1,
+    "predicted_service_utility": 11999.5,
+    "composable_security_scope": "theorem_composable",
+    "eps_sec": 1e-10,
+    "eps_cor": 1e-15
+  },
+  "materialization_scale_cryptographic_execution": {
+    "pulses_per_link": 35000000,
+    "link_ab": {
+      "detected": 1418020,
       "reconciliation_disclosed_bits": 212604,
       "finite_key_secure_bits": 74406,
-      "privacy_amplified_bits": 74406,
-      "storable_bits": 74400,
-      "phase_error_upper": 0.07562023447867816,
-      "abort": false
+      "distilled_bits": 74400,
+      "eps_sec": 1e-10,
+      "eps_cor": 1e-15,
+      "security_scope": "theorem_composable"
     },
-    "kms_deposit": {
-      "deposit_mode": "material",
-      "storable_bits": 74400,
-      "new_link_ab_bits": 74400,
-      "kms_a_available_bits": 74400,
-      "inspected_source": "material",
-      "inspected_protocol": "decoy_bb84",
-      "security_scope": "theorem_composable",
-      "is_composable": true
+    "link_bd": {
+      "detected": 1418020,
+      "reconciliation_disclosed_bits": 213978,
+      "finite_key_secure_bits": 73032,
+      "distilled_bits": 73032,
+      "eps_sec": 1e-10,
+      "eps_cor": 1e-15,
+      "security_scope": "theorem_composable"
     },
     "network_routing": {
-      "otp_success": true,
       "otp_path": [
         "A",
         "B",
         "D"
       ],
-      "otp_key_id": "c51c95e6-cd08-451a-b3b0-f8f0e65750b2",
-      "auth_success": true,
+      "otp_key_id": "5f1b5b4c-84d8-4974-82b9-ac5f4833750b",
       "auth_path": [
         "A",
         "B",
         "D"
       ],
-      "auth_key_id": "139657aa-1f80-4aab-8ea0-d11fb62feba9",
+      "auth_key_id": "b5c4f9a6-2d09-4725-a5c4-3588471a52be",
       "hops": 2,
       "eps_total": 4e-10,
       "security_scope": "theorem_composable",
@@ -73,26 +58,24 @@
     "application_otp": {
       "message_length_bytes": 58,
       "encryption_mode": "IT-Authenticated-OTP",
-      "sender_kms": "kms_nodes['A']",
-      "receiver_kms": "kms_nodes['D']",
       "keys_verified_identical": true,
       "decryption_verified_at_destination": true,
       "tamper_protection_verified": true,
       "keys_consumed_a": [
-        "c51c95e6-cd08-451a-b3b0-f8f0e65750b2",
-        "139657aa-1f80-4aab-8ea0-d11fb62feba9"
+        "5f1b5b4c-84d8-4974-82b9-ac5f4833750b",
+        "b5c4f9a6-2d09-4725-a5c4-3588471a52be"
       ],
       "keys_consumed_d": [
-        "c51c95e6-cd08-451a-b3b0-f8f0e65750b2",
-        "139657aa-1f80-4aab-8ea0-d11fb62feba9"
+        "5f1b5b4c-84d8-4974-82b9-ac5f4833750b",
+        "b5c4f9a6-2d09-4725-a5c4-3588471a52be"
       ]
     }
   },
   "security_violations": 0,
   "predictive_gate_misses": 0,
   "provenance": {
-    "git_commit": "24fd877",
-    "working_tree_clean": true,
-    "timestamp_utc": "2026-09-05T17:57:35.849351+00:00"
+    "git_commit": "db80868",
+    "working_tree_clean": false,
+    "timestamp_utc": "2026-09-06T05:05:49.137405+00:00"
   }
 }
