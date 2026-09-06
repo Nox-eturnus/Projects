@@ -67,7 +67,7 @@ def distill_physical_link(
     """Execute complete physical QKD distillation: raw generation, Cascade reconciliation, and Toeplitz PA."""
     ch = ChannelParameters(distance_km, 0.20)
     det = DetectorParameters(detector_efficiency, dark_probability, qber, 2)
-    basis = BasisProbabilities(basis_px, 1.0 - basis_px)
+    basis = BasisProbabilities(p_x_alice=basis_px, p_x_bob=basis_px)
 
     block = expected_decoy_bb84_block(
         pulses,
@@ -117,10 +117,15 @@ def distill_physical_link(
 def run_closed_loop_pipeline() -> dict:
     """Execute the complete end-to-end QKD -> KMS -> Network -> Application pipeline.
 
-    Decoupled into two explicitly labeled execution tracks:
-      1. full_scale_controller_execution: policy selects N=10^10 pulses, validated through predictive gate.
-      2. materialization_scale_cryptographic_execution: 35M pulses, actual distilled material for A-B and B-D,
-         Cascade, Toeplitz PA, OTP encryption/decryption.
+    Two execution tracks:
+      1. Full-scale controller execution:
+         policy decision at N=10^10 pulses through the predictive security gate.
+
+      2. Materialization-scale cryptographic execution:
+         physical decoy-BB84 simulation, reconciliation, verification,
+         privacy amplification and literal key-material storage across
+         A-B, B-D, A-C and C-D, followed by trusted-node relay and
+         authenticated OTP application delivery.
     """
     audit_trail: dict[str, object] = {
         "status": "in_progress",
@@ -198,8 +203,8 @@ def run_closed_loop_pipeline() -> dict:
     # =========================================================================
     # Track 2: Materialization-Scale Cryptographic Execution (Genuine Distillation Across All Hops)
     # =========================================================================
-    pulses_primary = 150_000_000
-    pulses_backup = 180_000_000
+    pulses_primary = 500_000_000
+    pulses_backup = 600_000_000
     action_intensities = _intensities(action)
 
     # Sub-stage 2A: Physical QKD distillation for Primary Link A-B (25.0 km)
@@ -211,6 +216,7 @@ def run_closed_loop_pipeline() -> dict:
         qber=recent_qber,
         pulses=pulses_primary,
         seed=2026,
+        basis_px=action.p_key_basis,
     )
     storable_bits_ab = len(distilled_ab) * 8
 
@@ -223,6 +229,7 @@ def run_closed_loop_pipeline() -> dict:
         qber=recent_qber,
         pulses=pulses_primary,
         seed=3026,
+        basis_px=action.p_key_basis,
     )
     storable_bits_bd = len(distilled_bd) * 8
 
@@ -235,6 +242,7 @@ def run_closed_loop_pipeline() -> dict:
         qber=recent_qber,
         pulses=pulses_backup,
         seed=4026,
+        basis_px=action.p_key_basis,
     )
     storable_bits_ac = len(distilled_ac) * 8
 
@@ -247,6 +255,7 @@ def run_closed_loop_pipeline() -> dict:
         qber=recent_qber,
         pulses=pulses_backup,
         seed=5026,
+        basis_px=action.p_key_basis,
     )
     storable_bits_cd = len(distilled_cd) * 8
 
@@ -341,7 +350,7 @@ def run_closed_loop_pipeline() -> dict:
         assert r_cd.is_composable is True
         r_cd.rollback()
 
-    # Sub-stage 2D: Multi-Hop QoS Routing & Trusted-Node Hop-by-Hop Key Delivery
+    # Sub-stage 2F: Multi-Hop QoS Routing & Trusted-Node Hop-by-Hop Key Delivery
     secret_message = b"CRITICAL MISSION TELEMETRY: ALL QUANTUM SUBSYSTEMS NOMINAL"
     pt_len = len(secret_message)
     pt_bits = pt_len * 8
@@ -374,7 +383,7 @@ def run_closed_loop_pipeline() -> dict:
 
     eps_sum = (service_res_otp.eps_total or 0.0) + (service_res_auth.eps_total or 0.0)
 
-    # Sub-stage 2E: Application Information-Theoretic Authenticated OTP
+    # Sub-stage 2G: Application Information-Theoretic Authenticated OTP
     otp_item_a = kms_nodes["A"].consume_by_ids([service_res_otp.key_id], peer_id="D", initiator_sae_id="A")[0]
     auth_item_a = kms_nodes["A"].consume_by_ids([service_res_auth.key_id], peer_id="D", initiator_sae_id="A")[0]
 

@@ -39,15 +39,18 @@ class KeyStore:
         value: bytes | None = None,
         initiator_sae_id: str | None = None,
         target_sae_id: str | None = None,
-        source: str = "material",
+        source: str | None = None,
         security_scope: str = "unverified",
     ) -> ManagedKey:
         if bits <= 0 or bits % 8 != 0:
             raise ValueError("bits must be a positive multiple of 8")
         key_id = key_id or str(uuid.uuid4())
+        supplied_value = value is not None
         value = value if value is not None else secure_random_bytes(bits // 8)
         if len(value) * 8 != bits:
             raise ValueError("value length does not match bits")
+        if source is None:
+            source = "material" if supplied_value else "budget_synthetic"
 
         with self._lock:
             if self._max_keys is not None and len(self._keys) >= self._max_keys:
@@ -349,11 +352,11 @@ class KeyStore:
 
             res = self.get_reservoir(peer_id)
             res_avail = res.available_bits(initiator_sae_id=initiator_sae_id, allow_unbound=allow_unbound)
-            take_from_res = min(res_avail, bits)
-            if take_from_res > 0:
-                res.consume_bits(take_from_res, initiator_sae_id=initiator_sae_id, allow_unbound=allow_unbound)
-            remaining = bits - take_from_res
+            reservoir_take = min(res_avail, bits)
+            remaining = bits - reservoir_take
 
+            # Phase 1: PREPARE — validation and plan formation without mutation
+            explicit_plan: list[tuple[ManagedKey, int]] = []
             if remaining > 0:
                 for key in self.available(
                     peer_id=peer_id,
@@ -362,20 +365,41 @@ class KeyStore:
                 ):
                     if remaining <= 0:
                         break
-                    if key.bits > remaining:
-                        if key.source == "material" and key.value_b64:
-                            if remaining % 8 != 0:
-                                raise ValueError(
-                                    f"Partial consumption of material-backed ManagedKey requires byte-aligned bit count (multiple of 8), got remaining={remaining}"
-                                )
+                    take = min(key.bits, remaining)
+                    if key.source == "material" and key.value_b64 and take < key.bits:
+                        if take % 8 != 0:
+                            raise ValueError(
+                                f"Partial consumption of material-backed ManagedKey requires byte-aligned bit count (multiple of 8), got take={take}"
+                            )
+                    explicit_plan.append((key, take))
+                    remaining -= take
+
+                if remaining != 0:
+                    raise RuntimeError(f"insufficient key bits: needed additional {remaining} bits")
+
+            # Phase 2: APPLY — transactional reservoir reservation and key updates
+            reservation = (
+                res.reserve_bits(reservoir_take, initiator_sae_id=initiator_sae_id, allow_unbound=allow_unbound)
+                if reservoir_take > 0
+                else None
+            )
+
+            keys_snapshot = {k.key_id: k for k, _ in explicit_plan}
+            deposited_blocks: list[str] = []
+
+            try:
+                for key, take in explicit_plan:
+                    if take == key.bits:
                         self._keys[key.key_id] = key.consumed_and_erased()
-                        leftover = key.bits - remaining
+                    else:
+                        self._keys[key.key_id] = key.consumed_and_erased()
+                        leftover = key.bits - take
                         leftover_mat = None
                         if key.source == "material" and key.value_b64:
                             raw_mat = base64.b64decode(key.value_b64)
-                            consumed_bytes = remaining // 8
+                            consumed_bytes = take // 8
                             leftover_mat = raw_mat[consumed_bytes:]
-                        res.deposit_bits(
+                        block_id = res.deposit_bits(
                             leftover,
                             protocol=key.protocol,
                             eps_sec=key.eps_sec,
@@ -386,9 +410,18 @@ class KeyStore:
                             source="material" if leftover_mat is not None else "budget",
                             security_scope=key.security_scope,
                         )
-                        remaining = 0
-                    else:
-                        remaining -= key.bits
+                        deposited_blocks.append(block_id)
+
+                if reservation is not None:
+                    reservation.commit()
+            except Exception:
+                if reservation is not None:
+                    reservation.rollback()
+                self._keys.update(keys_snapshot)
+                if deposited_blocks:
+                    res._blocks = [b for b in res._blocks if b.block_id not in deposited_blocks]
+                raise
+
             return bits
 
     def available(
@@ -533,3 +566,8 @@ class KeyStore:
                 d["created_at"] = key.created_at.isoformat()
                 rows.append(d)
             return rows
+
+    def remove_key(self, key_id: str) -> None:
+        """Remove a key from the store (e.g. during transactional rollback)."""
+        with self._lock:
+            self._keys.pop(key_id, None)

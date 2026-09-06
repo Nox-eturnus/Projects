@@ -303,6 +303,7 @@ def request_end_to_end_key(
     # Phase 2 & 3: Atomic multi-hop reservation, composability check, and endpoint KMS delivery
     reservations: list[Any] = []
     source_key_added = False
+    target_key_added = False
     key_id: str | None = None
     key_material: bytes | None = None
 
@@ -397,6 +398,7 @@ def request_end_to_end_key(
                 source=path_source,
                 security_scope=path_security_scope,
             )
+            target_key_added = True
 
         # Step D: All operations succeeded - commit link reservations
         for res_obj in reservations:
@@ -404,7 +406,15 @@ def request_end_to_end_key(
 
     except Exception as exc:
         # Atomic Rollback on any failure:
-        # 1. If source KMS registered key, clean it up
+        # 1. If target KMS registered key, clean it up
+        if target_key_added and kms_nodes is not None and target in kms_nodes:
+            target_kms = kms_nodes[target]
+            if hasattr(target_kms, "remove_key"):
+                target_kms.remove_key(key_id)
+            elif hasattr(target_kms, "_keys"):
+                target_kms._keys.pop(key_id, None)
+
+        # 2. If source KMS registered key, clean it up
         if source_key_added and kms_nodes is not None and source in kms_nodes:
             source_kms = kms_nodes[source]
             if hasattr(source_kms, "remove_key"):
@@ -412,7 +422,7 @@ def request_end_to_end_key(
             elif hasattr(source_kms, "_keys"):
                 source_kms._keys.pop(key_id, None)
 
-        # 2. Roll back all link reservations (exact material and blocks restored)
+        # 3. Roll back all link reservations (exact material and blocks restored)
         for res_obj in reservations:
             res_obj.rollback()
 

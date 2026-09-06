@@ -223,6 +223,53 @@ class KeyReservoir:
                 total += b.remaining_bits
             return total
 
+    def _plan_segments(
+        self,
+        bits: int,
+        *,
+        initiator_sae_id: str | None = None,
+        allow_unbound: bool = False,
+    ) -> list[tuple[DistilledBlock, int]]:
+        """Compute non-mutating allocation plan across eligible blocks with per-block byte-alignment validation."""
+        if bits <= 0:
+            raise ValueError("bits must be positive")
+        avail = self.available_bits(initiator_sae_id=initiator_sae_id, allow_unbound=allow_unbound)
+        if avail < bits:
+            raise RuntimeError(f"insufficient reservoir bits: requested {bits}, available {avail}")
+
+        remaining = bits
+        plan: list[tuple[DistilledBlock, int]] = []
+
+        for b in self._blocks:
+            if initiator_sae_id is not None:
+                if allow_unbound:
+                    if b.initiator_sae_id is not None and b.initiator_sae_id != initiator_sae_id:
+                        continue
+                else:
+                    if b.initiator_sae_id != initiator_sae_id:
+                        continue
+            if b.remaining_bits <= 0:
+                continue
+
+            take = min(b.remaining_bits, remaining)
+
+            # Per-block byte-alignment rule: if block has key material, take must be multiple of 8
+            if b.key_material is not None and take % 8 != 0:
+                raise ValueError(
+                    f"material-backed reservoir segments must be byte-aligned: "
+                    f"block {b.block_id} would contribute {take} bits (not a multiple of 8)"
+                )
+
+            plan.append((b, take))
+            remaining -= take
+            if remaining == 0:
+                break
+
+        if remaining != 0:
+            raise RuntimeError(f"insufficient reservoir bits: needed additional {remaining} bits")
+
+        return plan
+
     def consume_bits(
         self,
         bits: int,
@@ -230,32 +277,13 @@ class KeyReservoir:
         initiator_sae_id: str | None = None,
         allow_unbound: bool = False,
     ) -> int:
-        if bits <= 0:
-            raise ValueError("bits must be positive")
         with self._lock:
-            avail = self.available_bits(initiator_sae_id=initiator_sae_id, allow_unbound=allow_unbound)
-            if avail < bits:
-                raise RuntimeError(f"insufficient reservoir bits: requested {bits}, available {avail}")
-            remaining_to_consume = bits
-            for b in self._blocks:
-                if initiator_sae_id is not None:
-                    if allow_unbound:
-                        if b.initiator_sae_id is not None and b.initiator_sae_id != initiator_sae_id:
-                            continue
-                    else:
-                        if b.initiator_sae_id != initiator_sae_id:
-                            continue
-                if b.remaining_bits <= 0:
-                    continue
-                take = min(b.remaining_bits, remaining_to_consume)
-                b.remaining_bits -= take
-                if b.key_material is not None:
-                    take_bytes = (take + 7) // 8
-                    b.key_material = b.key_material[take_bytes:]
-                remaining_to_consume -= take
-                if remaining_to_consume == 0:
-                    break
-            self._blocks = [b for b in self._blocks if b.remaining_bits > 0]
+            reservation = self.reserve_bits(
+                bits,
+                initiator_sae_id=initiator_sae_id,
+                allow_unbound=allow_unbound,
+            )
+            reservation.commit()
             return bits
 
     def reserve_bits(
@@ -270,47 +298,14 @@ class KeyReservoir:
         Returns a ReservoirReservation that can be committed or rolled back.
         If rolled back, the exact blocks and key material slices are restored.
         """
-        if bits <= 0:
-            raise ValueError("bits must be positive")
         with self._lock:
-            avail = self.available_bits(initiator_sae_id=initiator_sae_id, allow_unbound=allow_unbound)
-            if avail < bits:
-                raise RuntimeError(f"insufficient reservoir bits: requested {bits}, available {avail}")
-
-            # Enforce byte-alignment if reserving from any material-backed block
-            if bits % 8 != 0:
-                bits_needed = bits
-                for b in self._blocks:
-                    if initiator_sae_id is not None:
-                        if allow_unbound:
-                            if b.initiator_sae_id is not None and b.initiator_sae_id != initiator_sae_id:
-                                continue
-                        else:
-                            if b.initiator_sae_id != initiator_sae_id:
-                                continue
-                    if b.remaining_bits <= 0:
-                        continue
-                    if b.key_material is not None:
-                        raise ValueError(
-                            f"bits ({bits}) must be a multiple of 8 when reserving from key material blocks"
-                        )
-                    bits_needed -= b.remaining_bits
-                    if bits_needed <= 0:
-                        break
-
-            remaining_to_reserve = bits
+            plan = self._plan_segments(
+                bits,
+                initiator_sae_id=initiator_sae_id,
+                allow_unbound=allow_unbound,
+            )
             segments: list[BlockReservation] = []
-            for b in self._blocks:
-                if initiator_sae_id is not None:
-                    if allow_unbound:
-                        if b.initiator_sae_id is not None and b.initiator_sae_id != initiator_sae_id:
-                            continue
-                    else:
-                        if b.initiator_sae_id != initiator_sae_id:
-                            continue
-                if b.remaining_bits <= 0:
-                    continue
-                take = min(b.remaining_bits, remaining_to_reserve)
+            for b, take in plan:
                 b.remaining_bits -= take
                 mat_slice: bytes | None = None
                 if b.key_material is not None:
@@ -324,9 +319,6 @@ class KeyReservoir:
                         material_slice=mat_slice,
                     )
                 )
-                remaining_to_reserve -= take
-                if remaining_to_reserve == 0:
-                    break
 
             self._blocks = [b for b in self._blocks if b.remaining_bits > 0]
             return ReservoirReservation(self, bits, segments)
@@ -358,83 +350,51 @@ class KeyReservoir:
         if bits <= 0 or bits % 8 != 0:
             raise ValueError("bits must be a positive multiple of 8")
         with self._lock:
-            avail = self.available_bits(initiator_sae_id=initiator_sae_id, allow_unbound=allow_unbound)
-            if avail < bits:
-                raise RuntimeError(f"insufficient reservoir bits to slice {bits}-bit key")
-
-            remaining_to_slice = bits
-            collected_material = bytearray()
-            is_material = True
-            contributing_protocols: list[str] = []
-            contributing_scopes: list[str] = []
-            composed_eps_sec = 0.0
-            composed_eps_cor = 0.0
-
-            for b in self._blocks:
-                if initiator_sae_id is not None:
-                    if allow_unbound:
-                        if b.initiator_sae_id is not None and b.initiator_sae_id != initiator_sae_id:
-                            continue
-                    else:
-                        if b.initiator_sae_id != initiator_sae_id:
-                            continue
-                if b.remaining_bits <= 0:
-                    continue
-
-                take = min(b.remaining_bits, remaining_to_slice)
-                b.remaining_bits -= take
-                remaining_to_slice -= take
-
-                contributing_protocols.append(b.protocol)
-                contributing_scopes.append(b.security_scope)
-                composed_eps_sec += b.eps_sec
-                composed_eps_cor += b.eps_cor
-
-                if b.key_material is not None and b.source == "material":
-                    take_bytes = take // 8
-                    collected_material.extend(b.key_material[:take_bytes])
-                    b.key_material = b.key_material[take_bytes:]
-                else:
-                    is_material = False
-
-                if remaining_to_slice == 0:
-                    break
-
-            self._blocks = [b for b in self._blocks if b.remaining_bits > 0]
-
-            bytes_needed = bits // 8
-            if is_material and len(collected_material) == bytes_needed:
-                key_bytes = bytes(collected_material)
-                source_tag = "material"
-            else:
-                key_bytes = secure_random_bytes(bytes_needed)
-                source_tag = "budget_synthetic"
-
-            unique_protocols = sorted(set(contributing_protocols))
-            if len(unique_protocols) == 1:
-                key_protocol = unique_protocols[0]
-            elif len(unique_protocols) > 1:
-                key_protocol = f"composite:{'+'.join(unique_protocols)}"
-            else:
-                key_protocol = "reservoir_slice"
-
-            min_rank = min(SCOPE_HIERARCHY.get(s, 0) for s in contributing_scopes) if contributing_scopes else 0
-            rank_to_scope = {v: k for k, v in SCOPE_HIERARCHY.items()}
-            key_security_scope = rank_to_scope.get(min_rank, "unverified")
-
-            key_id = key_id or str(uuid.uuid4())
-            return ManagedKey(
-                key_id=key_id,
-                peer_id=self.peer_id,
-                bits=bits,
-                value_b64=base64.b64encode(key_bytes).decode("ascii"),
-                state=KeyState.AVAILABLE,
-                created_at=utcnow(),
-                protocol=key_protocol,
-                eps_sec=composed_eps_sec if composed_eps_sec > 0 else 1e-10,
-                eps_cor=composed_eps_cor if composed_eps_cor > 0 else 1e-15,
+            reservation = self.reserve_bits(
+                bits,
                 initiator_sae_id=initiator_sae_id,
-                target_sae_id=target_sae_id or self.peer_id,
-                source=source_tag,
-                security_scope=key_security_scope,
+                allow_unbound=allow_unbound,
             )
+            try:
+                is_material = reservation.source == "material" and reservation.material is not None
+                bytes_needed = bits // 8
+                if is_material and len(reservation.material) == bytes_needed:  # type: ignore[arg-type]
+                    key_bytes = reservation.material
+                    source_tag = "material"
+                else:
+                    key_bytes = secure_random_bytes(bytes_needed)
+                    source_tag = "budget_synthetic"
+
+                contributing_protocols = [seg.block.protocol for seg in reservation.segments]
+                unique_protocols = sorted(set(contributing_protocols))
+                if len(unique_protocols) == 1:
+                    key_protocol = unique_protocols[0]
+                elif len(unique_protocols) > 1:
+                    key_protocol = f"composite:{'+'.join(unique_protocols)}"
+                else:
+                    key_protocol = "reservoir_slice"
+
+                composed_eps_sec = sum(seg.block.eps_sec for seg in reservation.segments)
+                composed_eps_cor = sum(seg.block.eps_cor for seg in reservation.segments)
+
+                key_id = key_id or str(uuid.uuid4())
+                key = ManagedKey(
+                    key_id=key_id,
+                    peer_id=self.peer_id,
+                    bits=bits,
+                    value_b64=base64.b64encode(key_bytes).decode("ascii"),
+                    state=KeyState.AVAILABLE,
+                    created_at=utcnow(),
+                    protocol=key_protocol,
+                    eps_sec=composed_eps_sec if composed_eps_sec > 0 else 1e-10,
+                    eps_cor=composed_eps_cor if composed_eps_cor > 0 else 1e-15,
+                    initiator_sae_id=initiator_sae_id,
+                    target_sae_id=target_sae_id or self.peer_id,
+                    source=source_tag,
+                    security_scope=reservation.security_scope,
+                )
+                reservation.commit()
+                return key
+            except Exception:
+                reservation.rollback()
+                raise

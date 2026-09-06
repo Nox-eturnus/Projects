@@ -423,3 +423,258 @@ def test_multihop_end_to_end_key_relays_literal_material():
     assert base64.b64decode(key_a.value_b64) == mat_ab
     assert base64.b64decode(key_d.value_b64) == mat_ab
 
+
+def test_consume_bits_marks_full_explicit_key_consumed():
+    """Verify that consume_bits marks full explicit keys as CONSUMED and erases secret."""
+    store = KeyStore()
+    k = store.add_key(peer_id="B", bits=256, value=b"\x12" * 32, source="material")
+    assert k.state == KeyState.AVAILABLE
+    consumed = store.consume_bits(peer_id="B", bits=256)
+    assert consumed == 256
+    updated = store.get(k.key_id)
+    assert updated.state == KeyState.CONSUMED
+    assert updated.value_b64 == ""
+    assert store.available_bits(peer_id="B") == 0
+
+
+def test_consumed_explicit_key_cannot_be_reused():
+    """Verify that consumed explicit key cannot be consumed again or counted toward available bits."""
+    store = KeyStore()
+    k = store.add_key(peer_id="B", bits=256, value=b"\x34" * 32, source="material")
+    store.consume_bits(peer_id="B", bits=256)
+    with pytest.raises(RuntimeError, match="insufficient key bits"):
+        store.consume_bits(peer_id="B", bits=256)
+
+
+def test_consume_bits_failure_is_atomic_across_reservoir_and_explicit_keys():
+    """Verify that failure during explicit key validation leaves reservoir and explicit keys completely unchanged."""
+    store = KeyStore()
+    store.deposit_reservoir_bits(peer_id="B", bits=100)
+    k = store.add_key(peer_id="B", bits=256, value=b"\x56" * 32, source="material")
+
+    # Request 100 + 125 = 225 bits. 125 from material key is not byte-aligned -> should fail.
+    with pytest.raises(ValueError, match="byte-aligned"):
+        store.consume_bits(peer_id="B", bits=225)
+
+    assert store.get_reservoir("B").available_bits() == 100
+    assert store.get(k.key_id).state == KeyState.AVAILABLE
+    assert store.available_bits(peer_id="B") == 356
+
+
+def test_reservoir_consume_material_requires_segment_byte_alignment():
+    """Verify that material-only consume with non-byte-aligned bits fails with zero mutation."""
+    from qkd_lab.kms.reservoir import KeyReservoir
+    res = KeyReservoir("B")
+    initial_mat = b"\x78" * 32
+    res.deposit_key_material(key_material=initial_mat)
+    before_bits = res.available_bits()
+    before_mat = bytes(res._blocks[0].key_material)
+
+    with pytest.raises(ValueError, match="byte-aligned"):
+        res.consume_bits(125)
+
+    assert res.available_bits() == before_bits
+    assert bytes(res._blocks[0].key_material) == before_mat
+
+
+def test_reservoir_reserve_mixed_budget_material_alignment_is_atomic():
+    """Verify 3 budget + 256 material, reserve 128 rejects non-byte-aligned material take without mutation."""
+    from qkd_lab.kms.reservoir import KeyReservoir
+    res = KeyReservoir("B")
+    res.deposit_bits(3)
+    initial_mat = b"\x9a" * 32
+    res.deposit_key_material(key_material=initial_mat)
+    before_bits = res.available_bits()
+    material_block = res._blocks[1]
+    before_mat = bytes(material_block.key_material)
+
+    with pytest.raises(ValueError, match="byte-aligned"):
+        res.reserve_bits(128)
+
+    assert res.available_bits() == before_bits
+    assert bytes(material_block.key_material) == before_mat
+
+
+def test_reservoir_slice_mixed_budget_material_alignment_is_atomic():
+    """Verify 3 budget + 256 material, slice 128 rejects without mutation."""
+    from qkd_lab.kms.reservoir import KeyReservoir
+    res = KeyReservoir("B")
+    res.deposit_bits(3)
+    initial_mat = b"\xbc" * 32
+    res.deposit_key_material(key_material=initial_mat)
+    before_bits = res.available_bits()
+    material_block = res._blocks[1]
+    before_mat = bytes(material_block.key_material)
+
+    with pytest.raises(ValueError, match="byte-aligned"):
+        res.slice_key(bits=128)
+
+    assert res.available_bits() == before_bits
+    assert bytes(material_block.key_material) == before_mat
+
+
+def test_reservoir_valid_mixed_byte_aligned_segments_succeed():
+    """Verify 8 budget + 256 material, reserve 128 succeeds and correctly allocates 8 budget + 120 material."""
+    from qkd_lab.kms.reservoir import KeyReservoir
+    res = KeyReservoir("B")
+    res.deposit_bits(8)
+    initial_mat = b"\xde" * 32
+    res.deposit_key_material(key_material=initial_mat)
+
+    reservation = res.reserve_bits(128)
+    assert reservation.bits == 128
+    assert len(reservation.segments) == 2
+    assert reservation.segments[0].bits == 8
+    assert reservation.segments[1].bits == 120
+    assert reservation.segments[1].material_slice == initial_mat[:15]
+    reservation.commit()
+    assert res.available_bits() == 136
+
+
+def test_reservoir_rollback_restores_exact_material():
+    """Verify reservation rollback restores exact bytes and exact bit counts."""
+    from qkd_lab.kms.reservoir import KeyReservoir
+    res = KeyReservoir("B")
+    initial_mat = b"\xab\xcd\xef\x01" * 8
+    res.deposit_key_material(key_material=initial_mat)
+    before_bits = res.available_bits()
+    material_block = res._blocks[0]
+    before_mat = bytes(material_block.key_material)
+
+    reservation = res.reserve_bits(64)
+    assert res.available_bits() == before_bits - 64
+    assert bytes(material_block.key_material) == before_mat[8:]
+
+    reservation.rollback()
+    assert res.available_bits() == before_bits
+    assert bytes(material_block.key_material) == before_mat
+
+
+def test_generated_add_key_is_budget_synthetic():
+    """Verify that add_key() without caller-supplied value defaults to budget_synthetic."""
+    store = KeyStore()
+    k = store.add_key(peer_id="B", bits=256)
+    assert k.source == "budget_synthetic"
+
+
+def test_supplied_add_key_bytes_default_to_material():
+    """Verify that add_key() with caller-supplied value defaults to material."""
+    store = KeyStore()
+    k = store.add_key(peer_id="B", bits=256, value=b"\xaa" * 32)
+    assert k.source == "material"
+
+
+def test_e2e_target_insert_failure_rolls_back_source_and_links():
+    """Verify that failure during target KMS insertion rolls back source key and restores link material."""
+    from unittest.mock import MagicMock
+    from qkd_lab.network.qos import QKDNQoSRequest
+    from qkd_lab.network.simulator import request_end_to_end_key
+    from qkd_lab.network.topology import QKDLinkState, build_graph
+
+    store_a = KeyStore()
+    store_d = KeyStore()
+    mat_ab = b"\x44" * 32
+    mat_bd = b"\x55" * 32
+
+    store_a.deposit_reservoir_key_material(peer_id="B", key_material=mat_ab, initiator_sae_id="A", security_scope="theorem_composable")
+    link_ab = QKDLinkState("A", "B", distance_km=25.0, key_bits=256, secure_rate_bps=1000, key_store=store_a)
+
+    store_b = KeyStore()
+    store_b.deposit_reservoir_key_material(peer_id="D", key_material=mat_bd, initiator_sae_id="B", security_scope="theorem_composable")
+    link_bd = QKDLinkState("B", "D", distance_km=25.0, key_bits=256, secure_rate_bps=1000, key_store=store_b)
+
+    graph = build_graph([link_ab, link_bd])
+    qos = QKDNQoSRequest(source="A", target="D", key_bits=256, max_hops=2)
+
+    store_d.add_key = MagicMock(side_effect=RuntimeError("simulated target insert failure"))
+
+    kms = {"A": store_a, "B": store_b, "D": store_d}
+    res = request_end_to_end_key(graph, "A", "D", bits=256, qos=qos, kms_nodes=kms)
+    assert not res.success
+    assert len(store_a.available(peer_id="D")) == 0
+    assert store_a.get_reservoir("B").available_bits() == 256
+    assert bytes(store_a.get_reservoir("B")._blocks[0].key_material) == mat_ab
+    assert store_b.get_reservoir("D").available_bits() == 256
+    assert bytes(store_b.get_reservoir("D")._blocks[0].key_material) == mat_bd
+
+
+def test_e2e_precommit_failure_rolls_back_endpoints_and_links(monkeypatch):
+    """Verify that failure right before reservation commit rolls back both endpoints and all links."""
+    from qkd_lab.kms.reservoir import ReservoirReservation
+    from qkd_lab.network.qos import QKDNQoSRequest
+    from qkd_lab.network.simulator import request_end_to_end_key
+    from qkd_lab.network.topology import QKDLinkState, build_graph
+
+    store_a = KeyStore()
+    store_b = KeyStore()
+    store_d = KeyStore()
+    mat_ab = b"\x66" * 32
+    mat_bd = b"\x77" * 32
+
+    store_a.deposit_reservoir_key_material(peer_id="B", key_material=mat_ab, initiator_sae_id="A", security_scope="theorem_composable")
+    link_ab = QKDLinkState("A", "B", distance_km=25.0, key_bits=256, secure_rate_bps=1000, key_store=store_a)
+
+    store_b.deposit_reservoir_key_material(peer_id="D", key_material=mat_bd, initiator_sae_id="B", security_scope="theorem_composable")
+    link_bd = QKDLinkState("B", "D", distance_km=25.0, key_bits=256, secure_rate_bps=1000, key_store=store_b)
+
+    graph = build_graph([link_ab, link_bd])
+    qos = QKDNQoSRequest(source="A", target="D", key_bits=256, max_hops=2)
+
+    original_commit = ReservoirReservation.commit
+    def fail_commit(self):
+        raise RuntimeError("simulated pre-commit crash")
+    monkeypatch.setattr(ReservoirReservation, "commit", fail_commit)
+
+    kms = {"A": store_a, "B": store_b, "D": store_d}
+    res = request_end_to_end_key(graph, "A", "D", bits=256, qos=qos, kms_nodes=kms)
+    assert not res.success
+    assert len(store_a.available(peer_id="D")) == 0
+    assert len(store_d.available(peer_id="A")) == 0
+
+    monkeypatch.setattr(ReservoirReservation, "commit", original_commit)
+    assert store_a.get_reservoir("B").available_bits() == 256
+    assert bytes(store_a.get_reservoir("B")._blocks[0].key_material) == mat_ab
+    assert store_b.get_reservoir("D").available_bits() == 256
+    assert bytes(store_b.get_reservoir("D")._blocks[0].key_material) == mat_bd
+
+
+def test_phase26_materialization_uses_selected_basis_probability(monkeypatch):
+    """Verify that distill_physical_link constructs BasisProbabilities with equal Alice and Bob X probabilities (p, p)."""
+    import importlib
+    sc26 = importlib.import_module("scripts.26_end_to_end_closed_loop")
+    from qkd_lab.models import BasisProbabilities, IntensitySetting
+
+    captured_basis: list[BasisProbabilities] = []
+    original_expected = sc26.expected_decoy_bb84_block
+
+    def mock_expected(pulses, intensities, basis, channel, detector):
+        captured_basis.append(basis)
+        return original_expected(10_000, intensities, basis, channel, detector)
+
+    monkeypatch.setattr(sc26, "expected_decoy_bb84_block", mock_expected)
+
+    intensities = (
+        IntensitySetting("signal", 0.40, 0.70),
+        IntensitySetting("decoy", 0.10, 0.20),
+        IntensitySetting("vacuum", 0.00, 0.10),
+    )
+    try:
+        sc26.distill_physical_link(
+            distance_km=25.0,
+            action_intensities=intensities,
+            detector_efficiency=0.55,
+            dark_probability=1e-6,
+            qber=0.015,
+            pulses=10_000,
+            seed=2026,
+            basis_px=0.80,
+        )
+    except Exception:
+        pass
+
+    assert len(captured_basis) >= 1
+    b = captured_basis[0]
+    assert b.p_x_alice == 0.80
+    assert b.p_x_bob == 0.80
+    assert b.p_x_bob != 0.20
+

@@ -33,7 +33,7 @@ class ManagedKey:
     eps_cor: float
     initiator_sae_id: str | None = None
     target_sae_id: str | None = None
-    source: str = "material"
+    source: str = "budget_synthetic"
     security_scope: str = "unverified"
 
     def __repr__(self) -> str:

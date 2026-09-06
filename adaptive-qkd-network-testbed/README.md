@@ -3,7 +3,7 @@
 A research-oriented software testbed for decoy-state BB84, measurement-device-independent QKD (MDI-QKD), composable finite-key security analysis, classical post-processing, standards-aligned key management, multi-hop routing, and closed-loop adaptive protocol selection.
 
 > [!NOTE]
-> **Research & Emulation Scope**: This repository is a scientific simulation and emulation testbed. It implements exact finite-key theorems and network/KMS protocols over simulated quantum physical channels; it does not claim that raw physical laptop traffic is transmitted across a deployed optical quantum fiber.
+> **Research & Emulation Scope**: This repository is a scientific simulation and emulation testbed. Implements theorem-backed Lim-2014 finite-key analysis for decoy-state BB84, alongside engineering-level MDI-QKD estimation, over simulated quantum physical channels; it does not claim that raw physical laptop traffic is transmitted across a deployed optical quantum fiber.
 
 ---
 
@@ -89,7 +89,7 @@ This project provides standards-aligned research models rather than claiming com
 | Standard | Role | Implementation Scope in Testbed |
 |---|---|---|
 | **ETSI GS QKD 014 V1.1.1** | Application Key Delivery | Implements `/status`, `/enc_keys`, `/dec_keys`. Atomic caller and initiator validation prevents mutation-before-authorization bugs. Key material in store copies is sanitized upon consumption. |
-| **ETSI GS QKD 020 V1.1.1** | Interoperable KMS-to-KMS | Implements `/kmapi/versions` with capabilities array, transactional `/ext_keys` batch import, structured `/ack` handling, and scoped `/void`. Preserves key `source` provenance across imports. |
+| **ETSI GS QKD 020 V1.1.1** | Interoperable KMS-to-KMS | Implements `/kmapi/versions` with capabilities array, transactional `/ext_keys` batch import, structured `/ack` handling, and scoped `/void`. Preserves `source` and `security_scope` provenance across transactional batch imports. |
 | **ITU-T Y.3802 / Y.3803** | QKDN Architecture & KMS | Functional architecture separating quantum layer, key management layer, and application interface. |
 | **ITU-T Y.3804** | Control & Management | Dynamic path rerouting, link outage recovery, and atomic multi-hop reservation. |
 | **ITU-T Y.3806 / Y.3823** | QoS Assurance & Allocation | Research QoS abstractions modeling hop counts, per-resource epsilon composition, and link reserve protection. |
@@ -99,13 +99,13 @@ This project provides standards-aligned research models rather than claiming com
 The testbed enforces a strictly ordered, fail-closed security scope hierarchy:
 $$\text{unverified} < \text{ideal\_simulation} < \text{engineering\_model} < \text{theorem\_composable}$$
 
-- **Fail-Closed Defaults**: Links and reservoir blocks default to `unverified`.
+- **Fail-Closed Defaults**: Raw security metadata and reservoir deposits fail closed to `unverified`. Generic simulated `QKDLinkState` replenishment is explicitly tagged `ideal_simulation`; only theorem-backed material-generation paths may use `theorem_composable`.
 - **Composite Monotonicity**: Any multi-block reservation or multi-hop path resolves to the minimum rank among its contributors.
 - **Strict Composability Guard**: `is_composable=True` only if the resolved scope is `theorem_composable`. For all other scopes (`engineering_model`, `ideal_simulation`, `unverified`), `is_composable=False` and `eps_total=None` are reported to prevent treating heuristic parameters as mathematical composability bounds.
 
 ### Trusted Node Relay Semantics & Endpoint Confidentiality
 - **Atomic Delivery**: Multi-hop end-to-end key requests (`request_end_to_end_key()`) execute as a single atomic transaction: hop reservations and source/target KMS insertions succeed completely or roll back entirely.
-- **Resource Abstraction**: Hop key consumption models an ideal trusted relay. In this research model, key bits are consumed along each link of the path to model network-wide key depletion without simulating hop-by-hop ciphertext wrapping/unwrapping.
+- **Trusted Relay Simulation:** When literal QKD material is available on every hop, the testbed simulates trusted-node OTP relay semantics using the reserved hop material. Network reservations remain atomic, and only the source and target application KMS stores receive the resulting end-to-end key.
 - **Confidentiality**: Routing metadata returned in `ServiceResult` excludes secret key bytes (`key_material` is never leaked outside KMS boundaries); applications retrieve keys strictly through authenticated local KMS interfaces (`consume_by_ids`).
 - **Composable Security Gating**: End-to-end composable security $\epsilon_{\rm total} = \sum \epsilon_i$ is reported only when all traversed links are theorem-composable (e.g. BB84 Lim-2014). If an engineering model link (e.g. MDI Curty-2014) is traversed, `is_composable=False` and `eps_total=None` are reported to prevent mixing engineering models with theorem-level composable guarantees.
 
@@ -155,9 +155,10 @@ To eliminate circular security claims, the adaptive runtime evaluation decouples
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 
-# Install requirements and editable package
-pip install -r requirements.txt
+# Install reproducible dependencies from lockfile and install package in editable mode
+pip install -r requirements-lock.txt
 pip install -e .
+# Note: requirements.txt contains the less strictly pinned development dependency list.
 ```
 
 ### Running the Test Suite
