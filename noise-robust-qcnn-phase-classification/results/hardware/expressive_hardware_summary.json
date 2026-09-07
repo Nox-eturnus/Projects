@@ -1,13 +1,16 @@
 {
+  "execution_mode": "physical_hardware",
+  "is_physical_hardware": true,
+  "backend": "ibm_fez",
+  "raw_job_id": "dafdv05nj4cs73ag8e5g",
+  "mitigated_job_id": "dafdv2t1ierc738n8c6g",
+  "multi_session_hardware_complete": false,
+  "execution_timestamp": "2026-09-07T16:00:37.492446+00:00",
   "n_qubits": 4,
   "architecture": "expressive_shared_line",
-  "backend": "ibm_fez",
   "parameters": 18,
   "ideal_balanced_accuracy": 1.0,
   "device_noise_balanced_accuracy": 1.0,
   "raw_hardware_balanced_accuracy": 1.0,
-  "mitigated_hardware_balanced_accuracy": 1.0,
-  "mean_multisession_raw_ba": 0.8772,
-  "mean_multisession_mitigated_ba": 0.9571999999999999,
-  "status": "Multi-session calibration window benchmark completed across 4 execution stages."
+  "mitigated_hardware_balanced_accuracy": 1.0
 }

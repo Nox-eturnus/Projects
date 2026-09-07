@@ -1,0 +1,20 @@
+{
+  "execution_mode": "surrogate_simulation",
+  "is_physical_hardware": false,
+  "backend": "analytical_surrogate_ibm_brisbane",
+  "surrogate_target_profile": "ibm_brisbane",
+  "median_2q_error": 0.012,
+  "median_readout_error": 0.025,
+  "median_t1_us": 280.0,
+  "median_t2_us": 140.0,
+  "multi_session_hardware_complete": false,
+  "notes": "Analytical surrogate study modeling hardware degradation. No live QPU jobs were dispatched.",
+  "execution_timestamp": "2026-09-07T15:54:58.730049+00:00",
+  "n_qubits": 4,
+  "architecture": "expressive_shared_line",
+  "parameters": 18,
+  "ideal_balanced_accuracy": 1.0,
+  "device_noise_balanced_accuracy": 1.0,
+  "raw_hardware_balanced_accuracy": 1.0,
+  "mitigated_hardware_balanced_accuracy": 1.0
+}

@@ -151,3 +151,35 @@ def get_perturbed_ground_state(
     else:
         raise ValueError(f"unknown family {family}")
     return ground_state(H)
+
+
+def get_perturbed_state_and_gap(
+    family: str,
+    n_qubits: int,
+    parameter: float,
+    strength: float,
+    *,
+    seed: int = 12345,
+) -> tuple[float, np.ndarray, float]:
+    """Compute ground energy, ground statevector, and spectral gap (E_1 - E_0) for a perturbed Hamiltonian."""
+    if family == "tfim":
+        H = perturbed_tfim_hamiltonian(n_qubits, h=parameter, delta=strength, seed=seed)
+    elif family == "cluster":
+        H = perturbed_cluster_hamiltonian(n_qubits, h=parameter, delta=strength, seed=seed)
+    elif family == "xxz":
+        H = perturbed_xxz_hamiltonian(n_qubits, delta_param=parameter, pert_strength=strength, seed=seed)
+    else:
+        raise ValueError(f"unknown family {family}")
+
+    vals, vecs = sparse.linalg.eigsh(H, k=2, which="SA")
+    order = np.argsort(vals)
+    vals = np.real(vals[order])
+    vecs = vecs[:, order]
+    e0 = float(vals[0])
+    gap = float(vals[1] - vals[0])
+    psi0 = np.asarray(vecs[:, 0], dtype=complex)
+    norm = np.linalg.norm(psi0)
+    if norm > 0:
+        psi0 = psi0 / norm
+    return e0, psi0, gap
+

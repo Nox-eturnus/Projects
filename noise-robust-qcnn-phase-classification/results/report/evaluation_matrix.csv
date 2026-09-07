@@ -1,8 +1,8 @@
-Evaluation,TFIM BA,XXZ BA,Cluster BA
-IID (Ideal),"0.977 ± 0.026 [0.955, 1.000]","1.000 ± 0.000 [1.000, 1.000]","0.850 ± 0.070 [0.800, 0.900]"
-Critical-region OOD,"0.751 ± 0.246 [0.538, 0.964]","1.000 ± 0.000 [1.000, 1.000]","0.850 ± 0.070 [0.800, 0.900]"
-Hamiltonian OOD (δ=0.10),0.955 (δ=0.10),0.864 (δ=0.10),0.818 (δ=0.10)
-1024-shot Readout,0.955 ± 0.000,0.898 ± 0.039,0.891 ± 0.034
-Thermal (T=0.10),0.500,0.944,1.000
-Circuit noise (p_2=0.02),0.965 ± 0.018,0.970 ± 0.021,0.820 ± 0.035
-IBM Hardware (N=4 Expressive),1.000 (Mitigated) / 1.000 (Raw),N/A (N=4 proof on TFIM),N/A (N=4 proof on TFIM)
+Evaluation,TFIM BA,XXZ BA,Cluster BA,Provenance Source,Runs
+IID (Ideal),"0.977 ± 0.026 [0.955, 1.000]",N/A — experiment not executed,N/A — experiment not executed,results/statistical_generalization/aggregate.csv,4
+Critical-region OOD,"0.751 ± 0.246 [0.538, 0.964]",N/A — experiment not executed,N/A — experiment not executed,results/statistical_generalization/aggregate.csv,4
+Hamiltonian OOD (δ=0.10),0.955 (δ=0.10),0.864 (δ=0.10),0.818 (δ=0.10),results/hamiltonian_ood/summary.csv,20
+1024-shot Readout,0.955 ± 0.000,0.898 ± 0.039,0.891 ± 0.034,results/finite_shots/shot_scaling_metrics.csv,20 seeds
+Thermal (T=0.10),0.500,0.944,1.000,results/thermal_and_prep/thermal_scaling.csv,16 points
+Simulated Circuit Noise,0.909 (Aer noise model),N/A — experiment not executed,N/A — experiment not executed,results/thermal_and_prep/two_by_two_noise_ablation.csv,1
+Hardware Progression (N=4),1.000 (Mitigated QPU) / 1.000 (Raw QPU) [Job: dafdv05n],N/A,N/A,results/hardware/expressive_hardware_summary.json,1 physical execution

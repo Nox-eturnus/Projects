@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from scipy import sparse
 
 from qcnn_lab.analysis.calibration import (
@@ -15,7 +16,12 @@ from qcnn_lab.physics.perturbations import (
     perturbed_tfim_hamiltonian,
 )
 from qcnn_lab.physics.thermal_states import compute_thermal_density_matrix
-from qcnn_lab.qcnn.ablations import make_random_quantum_states, make_shuffled_labels_data
+from qcnn_lab.qcnn.ablations import (
+    UntrainedQCNNBaseline,
+    evaluate_shuffled_label_permutation_distribution,
+    make_random_quantum_states,
+    make_shuffled_labels_data,
+)
 from qcnn_lab.qcnn.architecture import (
     build_qcnn,
     conv_param_count,
@@ -55,21 +61,51 @@ def test_random_states_have_no_label_signal():
     assert sum(labels) == 10
 
 
-def test_no_entanglement_architecture_parameter_count():
+def test_untrained_qcnn_baseline():
+    arch = get_architecture("expressive_shared_line")
+    clf = UntrainedQCNNBaseline(arch, n_qubits=4, seed=42)
+    states, _ = make_random_quantum_states(4, n_qubits=4, seed=42)
+    probs = clf.predict_proba(states)
+    preds = clf.predict(states)
+    assert len(probs) == 4
+    assert np.all((probs >= 0.0) & (probs <= 1.0))
+    assert np.all((preds == 0) | (preds == 1))
+
+
+def test_granular_entanglement_architectures():
     arch_full = get_architecture("expressive_shared_line")
+    arch_no_conv = get_architecture("expressive_no_conv_entanglement")
+    arch_no_pool = get_architecture("expressive_no_pool_entanglement")
     arch_no_ent = get_architecture("expressive_no_entanglement")
 
     # Expressive shared line has 27 parameters for N=8
     assert parameter_count(8, arch_full) == 27
-    # Expressive no-entanglement has 4 conv + 3 pool = 7 per round * 3 rounds = 21
+    # No conv entanglement: 4 conv + 3 pool = 7 per round * 3 rounds = 21
+    assert parameter_count(8, arch_no_conv) == 21
+    # No pool entanglement: 6 conv + 3 pool = 9 per round * 3 rounds = 27
+    assert parameter_count(8, arch_no_pool) == 27
+    # No entanglement anywhere: 4 conv + 3 pool = 7 per round * 3 rounds = 21
     assert parameter_count(8, arch_no_ent) == 21
 
-    metrics_no_ent = raw_circuit_metrics(8, arch_no_ent)
-    assert metrics_no_ent["two_qubit_operations"] == 0
+    m_full = raw_circuit_metrics(8, arch_full)
+    m_no_conv = raw_circuit_metrics(8, arch_no_conv)
+    m_no_pool = raw_circuit_metrics(8, arch_no_pool)
+    m_no_ent = raw_circuit_metrics(8, arch_no_ent)
+
+    assert m_no_ent["two_qubit_operations"] == 0
+    assert m_no_conv["two_qubit_operations"] < m_full["two_qubit_operations"]
+    assert m_no_pool["two_qubit_operations"] < m_full["two_qubit_operations"]
+    assert m_no_conv["two_qubit_operations"] + m_no_pool["two_qubit_operations"] == m_full["two_qubit_operations"]
 
 
 def test_ablation_circuit_builds():
-    for name in ["expressive_no_entanglement", "expressive_no_pooling", "expressive_unshared_line"]:
+    for name in [
+        "expressive_no_conv_entanglement",
+        "expressive_no_pool_entanglement",
+        "expressive_no_entanglement",
+        "expressive_no_pooling",
+        "expressive_unshared_line",
+    ]:
         arch = get_architecture(name)
         params = np.zeros(parameter_count(8, arch))
         qc, out_q = build_qcnn(8, params, arch)
@@ -125,7 +161,6 @@ def test_hamiltonian_perturbation_zero_matches_original():
 
 
 def test_symmetry_preserving_perturbation_contract():
-    # Verify perturbed cluster Hamiltonian commutes with Z_2 x Z_2 parities
     n = 4
     H_pert = perturbed_cluster_hamiltonian(n, h=0.5, delta=0.1, seed=123).toarray()
     p_even = pauli_product(n, {0: "X", 2: "X"}).toarray()

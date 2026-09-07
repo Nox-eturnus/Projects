@@ -12,6 +12,7 @@ from sklearn.metrics import balanced_accuracy_score, f1_score
 from qcnn_lab.analysis.calibration import brier_score
 from qcnn_lab.analysis.splits import load_split_manifest, split_indices_from_manifest
 from qcnn_lab.config import load_yaml
+from qcnn_lab.physics.operators import expectation, local_pauli, pauli_product
 from qcnn_lab.physics.observables import (
     cluster_stabilizer_order,
     tfim_long_range_zz,
@@ -23,23 +24,40 @@ from qcnn_lab.qcnn.finite_shots import simulate_finite_shot_observable, simulate
 from qcnn_lab.qcnn.train import train_ideal_qcnn
 
 
-def extract_classical_features(states: np.ndarray, family: str, n_qubits: int) -> np.ndarray:
-    """Extract standard Pauli expectation value channels for classical baseline."""
+def extract_classical_pauli_features(states: np.ndarray, family: str, n_qubits: int) -> tuple[np.ndarray, int]:
+    """Extract genuine physical Pauli expectation values in commuting measurement groups.
+
+    Every feature is the expectation value of a physical Pauli observable with eigenvalues in {-1, +1}.
+    Returns:
+        features: shape (n_samples, n_features)
+        n_commuting_groups: number of mutually commuting Pauli measurement bases
+    """
     features = []
     for st in states:
         if family == "tfim":
-            f1 = tfim_long_range_zz(st, n_qubits)
-            # Local Z and local X features
-            features.append([f1, float(np.real(st[0])), float(np.imag(st[0]))])
+            # Group 1 (Z-basis): Long-range ZZ correlation
+            f_zz = tfim_long_range_zz(st, n_qubits)
+            # Group 2 (X-basis): Average transverse X magnetization
+            f_x = float(np.mean([expectation(st, local_pauli(n_qubits, i, "X")) for i in range(n_qubits)]))
+            features.append([f_zz, f_x])
+            n_groups = 2
         elif family == "cluster":
-            f1 = cluster_stabilizer_order(st, n_qubits)
-            features.append([f1, float(np.real(st[0])), float(np.imag(st[0]))])
+            # Group 1: 3-site stabilizer order parameter
+            f_stab = cluster_stabilizer_order(st, n_qubits)
+            # Group 2: Transverse field X
+            f_x = float(np.mean([expectation(st, local_pauli(n_qubits, i, "X")) for i in range(n_qubits)]))
+            features.append([f_stab, f_x])
+            n_groups = 2
         elif family == "xxz":
-            f1 = xxz_staggered_structure(st, n_qubits)
-            features.append([f1, float(np.real(st[0])), float(np.imag(st[0]))])
+            # Group 1: Staggered Z structure factor
+            f_stag = xxz_staggered_structure(st, n_qubits)
+            # Group 2: Nearest-neighbor XX exchange
+            f_xx = float(np.mean([expectation(st, pauli_product(n_qubits, {i: "X", i + 1: "X"})) for i in range(n_qubits - 1)]))
+            features.append([f_stag, f_xx])
+            n_groups = 2
         else:
             raise ValueError(f"unknown family {family}")
-    return np.asarray(features, dtype=float)
+    return np.asarray(features, dtype=float), n_groups
 
 
 def main():
@@ -115,29 +133,29 @@ def main():
             })
 
         # 2. Measurement-budget matched classical baseline comparison
-        train_feats = extract_classical_features(states[indices.train], family, n_qubits)
-        test_feats = extract_classical_features(test_states, family, n_qubits)
+        train_feats, n_groups = extract_classical_pauli_features(states[indices.train], family, n_qubits)
+        test_feats, _ = extract_classical_pauli_features(test_states, family, n_qubits)
         clf = LogisticRegression()
         clf.fit(train_feats, y[indices.train])
 
         for b in budgets:
             q_bas = []
             c_bas = []
-            k_channels = train_feats.shape[1]
-            shots_per_channel = max(1, b // k_channels)
+            # Split total state-copy budget B across commuting Pauli measurement groups
+            shots_per_group = max(1, b // n_groups)
 
             for seed in range(n_sampling_seeds):
-                # QCNN finite shots
+                # QCNN finite shots: B state copies applied to QCNN circuit readout
                 p_hat_q = simulate_finite_shot_probability(exact_p1, shots=b, seed=seed + 2000)
                 q_bas.append(balanced_accuracy_score(test_y, (p_hat_q >= 0.5).astype(int)))
 
-                # Classical model with finite shots per observable channel
+                # Classical model with finite shots per commuting observable group
                 noisy_test_feats = np.empty_like(test_feats)
-                for ch in range(k_channels):
-                    noisy_test_feats[:, ch] = simulate_finite_shot_observable(
-                        test_feats[:, ch],
-                        shots_per_observable=shots_per_channel,
-                        seed=seed + 3000 + ch,
+                for g in range(n_groups):
+                    noisy_test_feats[:, g] = simulate_finite_shot_observable(
+                        test_feats[:, g],
+                        shots_per_observable=shots_per_group,
+                        seed=seed + 3000 + g,
                     )
                 c_pred = clf.predict(noisy_test_feats)
                 c_bas.append(balanced_accuracy_score(test_y, c_pred))
@@ -172,39 +190,29 @@ def main():
     plt.savefig(fig_dir / "shots_vs_balanced_accuracy.png", dpi=200)
     plt.close()
 
-    # Plot 2: Shots vs Brier Score
-    plt.figure(figsize=(8, 5))
-    for fam, grp in scaling_df.groupby("family"):
-        plt.plot(grp["shots"], grp["brier_mean"], marker="s", label=f"{fam.upper()} Brier Score")
-    plt.xscale("log", base=2)
-    plt.xlabel("Measurement Shots ($S$)")
-    plt.ylabel("Brier Score (lower is better)")
-    plt.title("Brier Score Scaling with Measurement Shots")
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(fig_dir / "shots_vs_brier_score.png", dpi=200)
-    plt.close()
-
-    # Plot 3: Budget-matched comparison (QCNN vs Classical)
-    plt.figure(figsize=(9, 5))
-    for fam, grp in budget_df.groupby("family"):
-        plt.plot(grp["budget"], grp["qcnn_ba_mean"], marker="o", label=f"{fam.upper()} QCNN")
-        plt.plot(grp["budget"], grp["classical_ba_mean"], marker="^", linestyle="--", label=f"{fam.upper()} Classical (Budget-Matched)")
-    plt.xscale("log", base=2)
-    plt.xlabel("Total State-Copy Budget ($B$)")
-    plt.ylabel("Test Balanced Accuracy")
-    plt.title("QCNN vs Measurement-Budget-Matched Classical Baseline")
-    plt.ylim(0.4, 1.05)
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.legend()
+    # Plot 2: Budget-matched Comparison
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4), sharey=True)
+    for idx, (fam, grp) in enumerate(budget_df.groupby("family")):
+        ax = axes[idx]
+        ax.plot(grp["budget"], grp["qcnn_ba_mean"], marker="o", linewidth=2, label="QCNN Readout", color="royalblue")
+        ax.fill_between(grp["budget"], grp["qcnn_ba_mean"] - grp["qcnn_ba_std"], grp["qcnn_ba_mean"] + grp["qcnn_ba_std"], alpha=0.2, color="royalblue")
+        ax.plot(grp["budget"], grp["classical_ba_mean"], marker="s", linewidth=2, linestyle="--", label="Classical Pauli Group", color="darkorange")
+        ax.fill_between(grp["budget"], grp["classical_ba_mean"] - grp["classical_ba_std"], grp["classical_ba_mean"] + grp["classical_ba_std"], alpha=0.2, color="darkorange")
+        ax.set_xscale("log", base=2)
+        ax.set_xlabel("State-Copy Budget ($B$)")
+        ax.set_title(f"{fam.upper()}: QCNN vs Classical Pauli")
+        ax.grid(True, linestyle="--", alpha=0.5)
+        if idx == 0:
+            ax.set_ylabel("Test Balanced Accuracy")
+        ax.legend()
     plt.tight_layout()
     plt.savefig(fig_dir / "classical_vs_qcnn_budget_matched.png", dpi=200)
     plt.close()
 
-    print(f"Finite-shot benchmarking completed. Results in {out_dir}")
-    print("\nBudget Matched Comparison Preview:")
-    print(budget_df.head(12).to_string(index=False))
+    print(f"Finite-shot benchmark completed. Results in {out_dir}")
+    print("\nBudget-Matched Comparison (mean BA):")
+    piv = budget_df.pivot(index="budget", columns="family", values=["qcnn_ba_mean", "classical_ba_mean"])
+    print(piv.round(3))
 
 
 if __name__ == "__main__":

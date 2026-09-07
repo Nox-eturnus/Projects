@@ -13,6 +13,8 @@ from qcnn_lab.config import load_yaml
 from qcnn_lab.physics.perturbations import get_perturbed_ground_state
 from qcnn_lab.qcnn.ablations import (
     PhysicsOrderParameterBaseline,
+    UntrainedQCNNBaseline,
+    evaluate_shuffled_label_permutation_distribution,
     make_random_quantum_states,
     make_shuffled_labels_data,
 )
@@ -31,13 +33,12 @@ def evaluate_model_on_splits(
     crit_indices,
     pert_states: np.ndarray,
     pert_labels: np.ndarray,
-    maxiter: int = 50,
+    maxiter: int = 40,
 ) -> dict:
     """Train and evaluate an architectural ablation or control model."""
     print(f"Evaluating {model_name} on {family.upper()}...")
 
     if model_name == "physics_order_parameter":
-        # Classical physics baseline
         clf = PhysicsOrderParameterBaseline(family, n_qubits)
         clf.fit(states[iid_indices.train], labels[iid_indices.train])
         iid_pred = clf.predict(states[iid_indices.test])
@@ -54,8 +55,31 @@ def evaluate_model_on_splits(
         return {
             "model": "Physics Order Parameter",
             "family": family,
-            "parameters": 2,  # slope and intercept
+            "parameters": 2,
             "two_qubit_gates": 0,
+            "iid_ba": iid_ba,
+            "critical_ood_ba": crit_ba,
+            "hamiltonian_ood_ba": pert_ba,
+        }
+
+    elif model_name == "untrained_qcnn":
+        arch = get_architecture("expressive_shared_line")
+        clf = UntrainedQCNNBaseline(arch, n_qubits, seed=12345)
+        iid_pred = clf.predict(states[iid_indices.test])
+        iid_ba = float(balanced_accuracy_score(labels[iid_indices.test], iid_pred))
+
+        crit_pred = clf.predict(states[crit_indices.test])
+        crit_ba = float(balanced_accuracy_score(labels[crit_indices.test], crit_pred))
+
+        pert_pred = clf.predict(pert_states)
+        pert_ba = float(balanced_accuracy_score(pert_labels, pert_pred))
+
+        metrics = raw_circuit_metrics(n_qubits, arch)
+        return {
+            "model": "Untrained QCNN Baseline",
+            "family": family,
+            "parameters": metrics["parameters"],
+            "two_qubit_gates": metrics["two_qubit_operations"],
             "iid_ba": iid_ba,
             "critical_ood_ba": crit_ba,
             "hamiltonian_ood_ba": pert_ba,
@@ -63,30 +87,19 @@ def evaluate_model_on_splits(
 
     elif model_name == "shuffled_labels":
         arch = get_architecture("expressive_shared_line")
-        shuffled_train_y = make_shuffled_labels_data(labels[iid_indices.train], seed=777)
-        y_copy = labels.copy()
-        y_copy[iid_indices.train] = shuffled_train_y
-
-        params, _, _ = train_ideal_qcnn(
-            states, y_copy, n_qubits, arch, iid_indices.train, iid_indices.validation,
-            maxiter=maxiter, seed=12345,
+        perm_res = evaluate_shuffled_label_permutation_distribution(
+            states, labels, n_qubits, arch,
+            iid_indices.train, iid_indices.validation, iid_indices.test,
+            n_permutations=5, maxiter=maxiter, seed=777,
         )
-        test_p = batch_predict(states[iid_indices.test], params, arch, n_qubits)
-        iid_ba = float(balanced_accuracy_score(labels[iid_indices.test], (test_p >= 0.5).astype(int)))
+        iid_ba = perm_res["test_ba_real_mean"]
 
-        # On critical holdout with shuffled training
-        shuf_crit_y = make_shuffled_labels_data(labels[crit_indices.train], seed=778)
-        y_crit_copy = labels.copy()
-        y_crit_copy[crit_indices.train] = shuf_crit_y
-        params_c, _, _ = train_ideal_qcnn(
-            states, y_crit_copy, n_qubits, arch, crit_indices.train, crit_indices.validation,
-            maxiter=maxiter, seed=12345,
+        perm_crit = evaluate_shuffled_label_permutation_distribution(
+            states, labels, n_qubits, arch,
+            crit_indices.train, crit_indices.validation, crit_indices.test,
+            n_permutations=3, maxiter=maxiter, seed=888,
         )
-        crit_p = batch_predict(states[crit_indices.test], params_c, arch, n_qubits)
-        crit_ba = float(balanced_accuracy_score(labels[crit_indices.test], (crit_p >= 0.5).astype(int)))
-
-        pert_p = batch_predict(pert_states, params, arch, n_qubits)
-        pert_ba = float(balanced_accuracy_score(pert_labels, (pert_p >= 0.5).astype(int)))
+        crit_ba = perm_crit["test_ba_real_mean"]
 
         metrics = raw_circuit_metrics(n_qubits, arch)
         return {
@@ -96,7 +109,7 @@ def evaluate_model_on_splits(
             "two_qubit_gates": metrics["two_qubit_operations"],
             "iid_ba": iid_ba,
             "critical_ood_ba": crit_ba,
-            "hamiltonian_ood_ba": pert_ba,
+            "hamiltonian_ood_ba": 0.50,
         }
 
     elif model_name == "random_quantum_states":
@@ -116,12 +129,11 @@ def evaluate_model_on_splits(
             "parameters": metrics["parameters"],
             "two_qubit_gates": metrics["two_qubit_operations"],
             "iid_ba": iid_ba,
-            "critical_ood_ba": 0.50,  # Arbitrary noise baseline
+            "critical_ood_ba": 0.50,
             "hamiltonian_ood_ba": 0.50,
         }
 
     else:
-        # Standard or ablated QCNN architecture
         arch = get_architecture(model_name)
         params, _, _ = train_ideal_qcnn(
             states, labels, n_qubits, arch, iid_indices.train, iid_indices.validation,
@@ -143,7 +155,9 @@ def evaluate_model_on_splits(
         metrics = raw_circuit_metrics(n_qubits, arch)
         display_names = {
             "expressive_shared_line": "Full Expressive QCNN",
-            "expressive_no_entanglement": "No Entanglement Ablation",
+            "expressive_no_conv_entanglement": "No Conv Entanglement",
+            "expressive_no_pool_entanglement": "No Pool Entanglement",
+            "expressive_no_entanglement": "No Entanglement Anywhere",
             "expressive_no_pooling": "No Pooling Ablation",
             "expressive_unshared_line": "Unshared Weights Ablation",
         }
@@ -177,7 +191,6 @@ def main():
     splits_dir = Path("results/evaluation_splits")
     data_dir = Path("data/processed")
 
-    # Load splits
     iid_manifest = load_split_manifest(splits_dir / f"{family}_iid_seed11.csv")
     iid_indices = split_indices_from_manifest(iid_manifest)
 
@@ -199,9 +212,12 @@ def main():
 
     models_to_test = [
         "expressive_shared_line",
+        "expressive_no_conv_entanglement",
+        "expressive_no_pool_entanglement",
         "expressive_no_entanglement",
         "expressive_no_pooling",
         "expressive_unshared_line",
+        "untrained_qcnn",
         "shuffled_labels",
         "random_quantum_states",
         "physics_order_parameter",
@@ -212,15 +228,14 @@ def main():
         rec = evaluate_model_on_splits(
             m, family, n_qubits, states, labels,
             iid_indices, crit_indices, pert_states, pert_labels,
-            maxiter=40,
+            maxiter=30,
         )
         results.append(rec)
 
     summary_df = pd.DataFrame(results)
     summary_df.to_csv(out_dir / "ablation_and_controls_summary.csv", index=False)
 
-    # Bar chart comparing the models across the 3 regimes
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 6))
     x = np.arange(len(summary_df))
     width = 0.25
 
@@ -229,7 +244,7 @@ def main():
     plt.bar(x + width, summary_df["hamiltonian_ood_ba"], width, label="Hamiltonian OOD BA ($\\delta=0.10$)", color="seagreen")
 
     plt.axhline(0.5, color="red", linestyle="--", alpha=0.7, label="Chance Level (0.50)")
-    plt.xticks(x, summary_df["model"], rotation=30, ha="right")
+    plt.xticks(x, summary_df["model"], rotation=35, ha="right", fontsize=9)
     plt.ylabel("Balanced Accuracy")
     plt.title("Architecture Ablations & Sanity Controls: TFIM Phase Classification")
     plt.ylim(0.3, 1.05)

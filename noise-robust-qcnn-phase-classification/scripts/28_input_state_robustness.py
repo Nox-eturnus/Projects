@@ -142,8 +142,8 @@ def main():
     factorial_df = pd.DataFrame(factorial_records)
     factorial_df.to_csv(out_dir / "two_by_two_noise_ablation.csv", index=False)
 
-    # 3. 2D Heatmap Grid: BA(p_state, p_circuit)
-    print("Generating 2D Noise Heatmap Grid...")
+    # 3. 2D Heatmap Grid: BA(p_state, p_circuit) - Analytical Sensitivity Surface
+    print("Generating 2D Noise Analytical Surrogate Heatmap Grid...")
     p_state_grid = [0.0, 0.02, 0.05, 0.10, 0.15]
     p_circ_grid = [0.0, 0.01, 0.02, 0.04, 0.08]
 
@@ -152,8 +152,7 @@ def main():
 
     for i, p_st in enumerate(p_state_grid):
         for j, p_circ in enumerate(p_circ_grid):
-            # Model circuit noise degradation roughly proportional to 2Q error
-            # Or evaluate with state prep noise on circuit output
+            # Analytical sensitivity surface: models 2Q error degradation and state prep depolarizing noise
             circ_deg = np.clip(ideal_p * (1.0 - 1.5 * p_circ) + 0.5 * (1.5 * p_circ), 0.0, 1.0)
             combined_p = noisy_state_preparation_predict(circ_deg, p_st)
             ba = float(balanced_accuracy_score(test_sub_y, (combined_p >= 0.5).astype(int)))
@@ -162,9 +161,11 @@ def main():
                 "p_state": p_st,
                 "p_circuit": p_circ,
                 "balanced_accuracy": ba,
+                "model_type": "analytical_sensitivity_surrogate",
             })
 
     grid_df = pd.DataFrame(grid_rows)
+    grid_df.to_csv(out_dir / "surrogate_noise_heatmap.csv", index=False)
     grid_df.to_csv(out_dir / "state_vs_circuit_noise_grid.csv", index=False)
 
     plt.figure(figsize=(7, 6))
@@ -173,19 +174,22 @@ def main():
     plt.yticks(range(len(p_state_grid)), [f"{p:.2f}" for p in p_state_grid])
     plt.xlabel("Circuit Two-Qubit Noise Rate ($p_{circuit}$)")
     plt.ylabel("State-Preparation Noise Rate ($p_{state}$)")
-    plt.title("2D Generalization Envelope: BA($p_{state}, p_{circuit}$)")
+    plt.title("Analytical Noise Sensitivity Surface: BA($p_{state}, p_{circuit}$)")
     cbar = plt.colorbar(im)
     cbar.set_label("Balanced Accuracy")
     for i in range(len(p_state_grid)):
         for j in range(len(p_circ_grid)):
             plt.text(j, i, f"{grid_matrix[i, j]:.2f}", ha="center", va="center", color="white" if grid_matrix[i, j] < 0.75 else "black")
     plt.tight_layout()
+    plt.savefig(fig_dir / "surrogate_noise_sensitivity_surface.png", dpi=200)
     plt.savefig(fig_dir / "state_vs_circuit_noise_heatmap.png", dpi=200)
     plt.close()
 
     print(f"Robustness evaluations saved in {out_dir} and {fig_dir}")
-    print("\n2x2 Design Table:")
+    print("\n2x2 Factorial Design Table (Simulated Aer Noise vs State Prep Noise):")
     print(factorial_df.to_string(index=False))
+    print("\nNote: 2D grid saved as surrogate_noise_heatmap.csv (analytical sensitivity model).")
+
 
 
 if __name__ == "__main__":

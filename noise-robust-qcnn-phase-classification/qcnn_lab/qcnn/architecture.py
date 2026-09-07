@@ -15,6 +15,15 @@ class QCNNArchitecture:
     ring: bool = False
     entanglement: bool = True
     pooling: bool = True
+    conv_entanglement: bool = True
+    pool_entanglement: bool = True
+
+    def __post_init__(self):
+        if not self.entanglement:
+            object.__setattr__(self, "conv_entanglement", False)
+            object.__setattr__(self, "pool_entanglement", False)
+        elif not self.conv_entanglement and not self.pool_entanglement:
+            object.__setattr__(self, "entanglement", False)
 
 
 def get_architecture(name: str) -> QCNNArchitecture:
@@ -24,7 +33,9 @@ def get_architecture(name: str) -> QCNNArchitecture:
         "expressive_shared_line": QCNNArchitecture(name, "expressive", True, False),
         "light_unshared_line": QCNNArchitecture(name, "light", False, False),
         "expressive_unshared_line": QCNNArchitecture(name, "expressive", False, False),
-        "expressive_no_entanglement": QCNNArchitecture(name, "expressive", True, False, entanglement=False),
+        "expressive_no_conv_entanglement": QCNNArchitecture(name, "expressive", True, False, conv_entanglement=False, pool_entanglement=True),
+        "expressive_no_pool_entanglement": QCNNArchitecture(name, "expressive", True, False, conv_entanglement=True, pool_entanglement=False),
+        "expressive_no_entanglement": QCNNArchitecture(name, "expressive", True, False, entanglement=False, conv_entanglement=False, pool_entanglement=False),
         "expressive_no_pooling": QCNNArchitecture(name, "expressive", True, False, pooling=False),
     }
     if name not in table:
@@ -71,7 +82,7 @@ def parameter_count(n_qubits: int, architecture: QCNNArchitecture) -> int:
     _validate_n(n_qubits)
     active = list(range(n_qubits))
     total = 0
-    cp = conv_param_count(architecture.conv_kind, architecture.entanglement)
+    cp = conv_param_count(architecture.conv_kind, architecture.conv_entanglement)
     pp = 3
 
     if not architecture.pooling:
@@ -138,7 +149,7 @@ def build_qcnn(n_qubits: int, params: np.ndarray, architecture: QCNNArchitecture
         raise ValueError(f"expected {expected} parameters, got {len(params)}")
     qc = QuantumCircuit(n_qubits, name=architecture.name)
     cursor = 0
-    cp = conv_param_count(architecture.conv_kind, architecture.entanglement)
+    cp = conv_param_count(architecture.conv_kind, architecture.conv_entanglement)
     pp = 3
 
     if not architecture.pooling:
@@ -150,10 +161,10 @@ def build_qcnn(n_qubits: int, params: np.ndarray, architecture: QCNNArchitecture
                 conv_p = params[cursor : cursor + cp]
                 cursor += cp
                 for q0, q1 in conv_pairs:
-                    _apply_conv(qc, q0, q1, conv_p, architecture.conv_kind, architecture.entanglement)
+                    _apply_conv(qc, q0, q1, conv_p, architecture.conv_kind, architecture.conv_entanglement)
             else:
                 for q0, q1 in conv_pairs:
-                    _apply_conv(qc, q0, q1, params[cursor : cursor + cp], architecture.conv_kind, architecture.entanglement)
+                    _apply_conv(qc, q0, q1, params[cursor : cursor + cp], architecture.conv_kind, architecture.conv_entanglement)
                     cursor += cp
         assert cursor == expected
         return qc, 0
@@ -166,17 +177,17 @@ def build_qcnn(n_qubits: int, params: np.ndarray, architecture: QCNNArchitecture
             conv_p = params[cursor : cursor + cp]
             cursor += cp
             for q0, q1 in conv_pairs:
-                _apply_conv(qc, q0, q1, conv_p, architecture.conv_kind, architecture.entanglement)
+                _apply_conv(qc, q0, q1, conv_p, architecture.conv_kind, architecture.conv_entanglement)
             pool_p = params[cursor : cursor + pp]
             cursor += pp
             for source, sink in pool_pairs:
-                _apply_pool(qc, source, sink, pool_p, architecture.entanglement)
+                _apply_pool(qc, source, sink, pool_p, architecture.pool_entanglement)
         else:
             for q0, q1 in conv_pairs:
-                _apply_conv(qc, q0, q1, params[cursor : cursor + cp], architecture.conv_kind, architecture.entanglement)
+                _apply_conv(qc, q0, q1, params[cursor : cursor + cp], architecture.conv_kind, architecture.conv_entanglement)
                 cursor += cp
             for source, sink in pool_pairs:
-                _apply_pool(qc, source, sink, params[cursor : cursor + pp], architecture.entanglement)
+                _apply_pool(qc, source, sink, params[cursor : cursor + pp], architecture.pool_entanglement)
                 cursor += pp
         active = [sink for _, sink in pool_pairs]
     assert cursor == expected
@@ -196,4 +207,4 @@ def raw_circuit_metrics(n_qubits: int, architecture: QCNNArchitecture) -> dict[s
         "depth": qc.depth(),
         "two_qubit_operations": two_qubit,
         "output_qubit": output,
-    }
+    }

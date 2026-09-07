@@ -71,6 +71,10 @@ def make_parameter_block_split(
     Train: far-left + far-right parameter regions
     Validation: intermediate unseen bands
     Test: separate unseen bands
+
+    Note: Parameter-block boundaries define a canonical deterministic spatial partitioning.
+    Variance across repeated seed evaluations under parameter blocks isolates optimizer initialization
+    and training trajectory sensitivity, rather than independent spatial resampling.
     """
     df = df.copy()
     if "sample_id" not in df.columns:

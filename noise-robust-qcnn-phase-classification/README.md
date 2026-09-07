@@ -265,7 +265,14 @@ To validate execution on real quantum processors without requiring intractable e
 - **Target Backend:** `ibm_fez` (156-qubit Heron r2 processor).
 - **Architecture Provenance:** The physical hardware demonstration explicitly executes the `light_shared_line` ansatz ($N=4$, depth $\approx 119$, 38 CNOTs) under IBM Runtime `EstimatorV2`.
 - **Error Mitigation:** Dynamical Decoupling (DD with `XpXm` sequence) and Twirled Readout Error Extrapolation (TREX, resilience level 1).
-- **Provenance Isolation:** Real-device hardware runs on `ibm_fez` are preserved with full calibration provenance, while simulation scripts provide side-by-side $N=4$ comparisons between `light_sha# 5. Hardware Scale & Provenance Benchmarking (Phases 14, 16, 18)
+- **Provenance Isolation:** Real-device hardware runs on `ibm_fez` are preserved with full calibration provenance, while simulation scripts provide side-by-side $N=4$ comparisons between `light_shared_line` and `expressive_shared_line` architectures.
+
+---
+
+## 13. Phased Execution Pipeline
+
+```powershell
+# 5. Hardware Scale & Provenance Benchmarking (Phases 14, 16, 18)
 .\.venv\Scripts\python.exe scripts/14_prepare_hardware_scale.py
 .\.venv\Scripts\python.exe scripts/16_device_noise_transfer.py
 .\.venv\Scripts\python.exe scripts/18_sim_to_hardware_gap.py
@@ -283,7 +290,7 @@ To validate execution on real quantum processors without requiring intractable e
 .\.venv\Scripts\python.exe scripts/26_sanity_and_ablation_suite.py
 .\.venv\Scripts\python.exe scripts/27_finite_shot_resource_benchmark.py
 .\.venv\Scripts\python.exe scripts/28_input_state_robustness.py
-.\.venv\Scripts\python.exe scripts/29_run_expressive_hardware_benchmark.py
+.\.venv\Scripts\python.exe scripts/29_run_expressive_hardware_benchmark.py --mode hardware --backend ibm_fez
 .\.venv\Scripts\python.exe scripts/30_generate_generalization_report.py
 ```
 
@@ -291,31 +298,32 @@ To validate execution on real quantum processors without requiring intractable e
 
 ## 14. Advanced Generalization & Robustness Suite (Phases 22–30)
 
-Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 22–30 evaluate whether QCNN phase classification survives progressively harder physical distribution shifts, separating architectural inductive bias from memorization and raw parameter count.
+Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 22–30 evaluate whether QCNN phase classification survives progressively harder physical distribution shifts, separating architectural inductive bias from memorization and raw parameter count. The evaluation strictly enforces a **fail-closed reporting policy** (`N/A` for unexecuted conditions).
 
 ### Primary Evaluation Matrix
 
 | Evaluation | TFIM BA | XXZ BA | Cluster BA |
 | :--- | :---: | :---: | :---: |
-| **IID (Ideal)** | 0.977 ± 0.026 [0.955, 1.000] | 1.000 ± 0.000 [1.000, 1.000] | 0.850 ± 0.070 [0.800, 0.900] |
-| **Critical-region OOD** | 0.751 ± 0.246 [0.538, 0.964] | 1.000 ± 0.000 [1.000, 1.000] | 0.850 ± 0.070 [0.800, 0.900] |
+| **IID (Ideal)** | 0.977 ± 0.026 [0.955, 1.000] | N/A — pending multi-seed | N/A — pending multi-seed |
+| **Critical-region OOD** | 0.751 ± 0.246 [0.538, 0.964] | N/A — pending multi-seed | N/A — pending multi-seed |
 | **Hamiltonian OOD (δ=0.10)** | 0.955 (δ=0.10) | 0.864 (δ=0.10) | 0.818 (δ=0.10) |
 | **1024-shot Readout** | 0.955 ± 0.000 | 0.898 ± 0.039 | 0.891 ± 0.034 |
 | **Thermal (T=0.10)** | 0.500 | 0.944 | 1.000 |
-| **Circuit noise (p₂=0.02)** | 0.965 ± 0.018 | 0.970 ± 0.021 | 0.820 ± 0.035 |
-| **IBM Hardware (N=4 Expressive)** | 1.000 (Mitigated) / 1.000 (Raw) | N/A (N=4 proof on TFIM) | N/A (N=4 proof on TFIM) |
+| **Simulated Circuit Noise** | 0.909 (Aer noise model) | N/A — pending execution | N/A — pending execution |
+| **Physical IBM Hardware (N=4)** | 1.000 (Mitigated) / 1.000 (Raw) | N/A | N/A |
 
 ### Key Experimental Discoveries
 
-1. **Near-Critical Decay as Meaningful Physics:** When evaluated on held-out critical bands ($[0.80, 1.20]$), prediction certainty drops sharply as distance to the critical point $|h - h_c| \to 0$, matching quantum criticality theory.
-2. **Hamiltonian Perturbation Generalization:** Models trained purely at $\delta = 0$ maintain phase classification under disordered TFIM and symmetry-preserving Cluster/XXZ deformations up to $\delta = 0.20$.
+1. **Near-Critical Crossover & Family Boundaries:** TFIM displays clear distance-dependent generalization ($BA = 0.70$ near transition, $1.00$ away) and a bracketed finite-size crossover ($h \approx 0.931$ vs thermodynamic $h_c=1.0$), while XXZ and Cluster expose genuine zero-shot transfer boundaries ($BA \approx 0.50$ in the critical holdout).
+2. **Hamiltonian Perturbation Generalization:** Models trained purely at $\delta = 0$ maintain high balanced accuracy under disordered TFIM and symmetry-preserving Cluster/XXZ deformations up to $\delta = 0.20$ under nominal phase boundaries, accompanied by tracked spectral gaps and state fidelities.
 3. **Ablation & Control Proving Ground:**
-   - Shuffled labels and random states collapse to chance ($BA \approx 0.50$), proving zero data leakage.
-   - Removing entanglers drops performance to $0.500$.
-   - Removing pooling reduces IID BA from $0.955$ to $0.773$ and erases critical generalization.
-   - The full QCNN outperforms classical order parameter baselines on held-out critical regions ($0.654$ vs $0.538$).
-4. **Finite-Shot Advantage under Constrained Budgets:** At small state-copy budgets ($B = 128$), the QCNN outperforms classical observable classifiers ($0.893$ vs $0.782$) because classical models must partition state copies across multiple measurement channels.
-5. **Multi-Session IBM Hardware Validation:** $N=4$ expressive QCNN achieves $0.957$ average mitigated balanced accuracy across 5 distinct IBM Quantum backend calibration windows.
+   - **Haar Random States**: Unstructured state classification collapses to chance ($BA \approx 0.51$), confirming the classifier requires genuine physical state structure.
+   - **Untrained QCNN Baseline**: Random parameter initializations evaluate the inductive bias floor without optimization.
+   - **Shuffled-Label Permutation Ensemble**: Average test accuracy across random label permutations is substantially below the true model ($BA \approx 0.56$ on shuffled training targets), proving the model relies on true physical correlation rather than arbitrary memorization.
+   - **Granular Entanglement**: Disentangles convolutional $R_{XX}/R_{ZZ}$ gates from pooling $CX$ operations, showing where two-qubit quantum resources are essential.
+   - **Pooling Ablation**: Removing pooling reduces IID BA from $0.955$ to $0.773$ and degrades critical generalization.
+4. **Finite-Shot Budgets with Commuting Pauli Observables:** Classical models with commuting Pauli observable groups achieve parity with or outperform QCNN on Cluster and at larger budgets ($B \ge 1024$), while QCNN maintains an edge in low-shot TFIM regimes ($B \le 256$).
+5. **Real Physical IBM Hardware Execution:** The $N=4$ expressive QCNN was executed directly on IBM Quantum's physical `ibm_fez` Heron r2 processor with live job IDs (`dafdv05nj4cs73ag8e5g` raw, `dafdv2t1ierc738n8c6g` mitigated), achieving 1.0 balanced accuracy on the test partition. Analytical surrogate simulation scripts (`--mode simulate`) provide offline sensitivity modeling. Multi-session hardware tracking is explicitly flagged as pending repeated physical calibration windows.
 
 ---
 
