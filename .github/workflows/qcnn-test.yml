@@ -1,0 +1,44 @@
+name: QCNN Test Suite
+
+on:
+  push:
+    paths:
+      - "noise-robust-qcnn-phase-classification/**"
+      - ".github/workflows/qcnn-test.yml"
+  pull_request:
+    paths:
+      - "noise-robust-qcnn-phase-classification/**"
+      - ".github/workflows/qcnn-test.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    defaults:
+      run:
+        working-directory: noise-robust-qcnn-phase-classification
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: noise-robust-qcnn-phase-classification/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Compile
+        run: python -m compileall -q qcnn_lab scripts tests
+
+      - name: Test
+        run: pytest -q

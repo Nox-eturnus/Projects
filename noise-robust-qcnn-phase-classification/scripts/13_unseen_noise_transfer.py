@@ -83,7 +83,7 @@ def main():
     (out / "noise_aware_threshold_comparison.json").write_text(json.dumps(threshold, indent=2), encoding="utf-8")
     print(frame.to_string(index=False))
     print(json.dumps(threshold, indent=2))
-    print("Unseen-noise transfer PASSED")
+    print("Unseen-noise transfer completed")
 
 
 if __name__ == "__main__":

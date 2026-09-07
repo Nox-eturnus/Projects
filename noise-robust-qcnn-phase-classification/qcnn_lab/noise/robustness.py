@@ -39,7 +39,14 @@ def evaluate_robustness_threshold(
             baseline_rec = r
             break
     if baseline_rec is None:
-        baseline_rec = sorted_records[0]
+        return {
+            "status": "zero_noise_baseline_missing",
+            "baseline_metric": None,
+            "floor": float(floor),
+            "robustness_threshold_applicable": False,
+            "first_tested_failure_probability": None,
+            "failure_noise_threshold": None,
+        }
 
     baseline_val = float(baseline_rec[metric_key])
 

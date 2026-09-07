@@ -52,11 +52,13 @@ def main():
         sweep_p = batch_predict(sweep_states, params, arch, n)
         smooth_p = moving_average(sweep_p, window=3)
         x = sweep_meta["parameter"].to_numpy(dtype=float)
-        learned_crossing, bracketed = crossing_point(x, smooth_p, level=0.5)
+        min_span = float(cfg.get("transition", {}).get("minimum_probability_span", 0.20))
+        raw_crossing, bracketed = crossing_point(x, smooth_p, level=0.5)
         prob_min = float(np.min(smooth_p))
         prob_max = float(np.max(smooth_p))
         prob_span = float(prob_max - prob_min)
-        transition_detected = bool(bracketed and prob_span >= 0.2)
+        transition_detected = bool(bracketed and prob_span >= min_span)
+        validated_crossing = raw_crossing if transition_detected else None
         learned_steepest = steepest_change_point(x, smooth_p)
         physical_steepest = steepest_change_point(
             x, sweep_meta["physical_diagnostic"].to_numpy(dtype=float)
@@ -81,9 +83,11 @@ def main():
             "architecture": arch.name,
             "training_seconds": seconds,
             "thermodynamic_reference_critical": spec.critical_value,
-            "qcnn_p05_crossing": learned_crossing,
-            "qcnn_crossing_bracketed": bracketed,
+            "raw_p05_crossing": raw_crossing,
+            "raw_crossing_bracketed": bracketed,
             "transition_detected": transition_detected,
+            "validated_p05_crossing": validated_crossing,
+            "minimum_probability_span_threshold": min_span,
             "probability_span": prob_span,
             "probability_min": prob_min,
             "probability_max": prob_max,
@@ -114,7 +118,7 @@ def main():
     frame.to_csv(out / "transition_summary.csv", index=False)
     (out / "transition_summary.json").write_text(json.dumps(summaries, indent=2), encoding="utf-8")
     print(frame.to_string(index=False))
-    print("Multi-family transition generalization PASSED")
+    print("Multi-family transition generalization completed")
 
 
 if __name__ == "__main__":

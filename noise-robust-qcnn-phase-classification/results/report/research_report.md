@@ -1,9 +1,9 @@
 # Noise-Robust QCNN for Quantum Phase and State Classification — Research Report
 
 ### Architecture & Provenance Summary
-- **Primary N=8 QCNN Architecture:** `expressive_shared_line` (16 variational parameters across 2 convolutional layers and pooling).
-- **Baseline / Negative Result Architecture:** `light_shared_line` (8 variational parameters; demonstrated under-parameterization on product-like phase states).
-- **Physical Hardware Demonstration Architecture:** `light_shared_line` executed at $N=4$ qubits on `ibm_sherbrooke` (retaining valid real-device calibration and proof-of-hardware execution).
+- **Primary N=8 QCNN Architecture:** `expressive_shared_line` (27 variational parameters across 3 scale-reduction rounds).
+- **Baseline / Negative Result Architecture:** `light_shared_line` (18 variational parameters; demonstrated under-parameterization on product-like phase states).
+- **Physical Hardware Demonstration Architecture:** `light_shared_line` executed at $N=4$ qubits on `ibm_fez` (retaining valid real-device calibration and proof-of-hardware execution).
 
 ## Claim boundary
 
@@ -13,11 +13,11 @@ Classical baselines are labelled by information access. In particular, the MPS p
 
 ## Multi-family phase classification and transition generalization
 
-| family   | architecture           |   accuracy |   balanced_accuracy |   qcnn_p05_crossing | qcnn_crossing_bracketed   | transition_detected   |   probability_span |   qcnn_steepest_change |   physical_diagnostic_steepest_change |   thermodynamic_reference_critical |
-|:---------|:-----------------------|-----------:|--------------------:|--------------------:|:--------------------------|:----------------------|-------------------:|-----------------------:|--------------------------------------:|-----------------------------------:|
-| tfim     | expressive_shared_line |   1        |            1        |            0.847456 | True                      | True                  |          0.237475  |                  0.64  |                                  0.7  |                                  1 |
-| xxz      | expressive_shared_line |   0.923077 |            0.916667 |          nan        | False                     | False                 |          0.0949738 |                  0.685 |                                  1.45 |                                  1 |
-| cluster  | expressive_shared_line |   0.923077 |            0.916667 |            0.589024 | True                      | True                  |          0.262235  |                  0.58  |                                  0.61 |                                  1 |
+| family   | architecture           |   accuracy |   balanced_accuracy |   raw_p05_crossing | raw_crossing_bracketed   | transition_detected   |   validated_p05_crossing |   probability_span |   qcnn_steepest_change |   physical_diagnostic_steepest_change |   thermodynamic_reference_critical |
+|:---------|:-----------------------|-----------:|--------------------:|-------------------:|:-------------------------|:----------------------|-------------------------:|-------------------:|-----------------------:|--------------------------------------:|-----------------------------------:|
+| tfim     | expressive_shared_line |   1        |            1        |           0.847456 | True                     | True                  |                 0.847456 |          0.237475  |                  0.64  |                                  0.7  |                                  1 |
+| xxz      | expressive_shared_line |   0.923077 |            0.916667 |         nan        | False                    | False                 |               nan        |          0.0949738 |                  0.685 |                                  1.45 |                                  1 |
+| cluster  | expressive_shared_line |   0.923077 |            0.916667 |           0.589024 | True                     | True                  |                 0.589024 |          0.262235  |                  0.58  |                                  0.61 |                                  1 |
 
 For finite systems, the learned or diagnostic crossover need not equal the thermodynamic-limit critical point. The transition sweep is therefore a **generalization/crossover diagnostic**, not a finite-size proof of an exact critical point.
 
@@ -162,7 +162,7 @@ Robustness threshold definition and result:
 | cluster  | ideal                  |           5 |        0.861538 |      0.0643585 |            0.781627 |             0.94145  |                 0.85     |               0.0697217 |                     0.763429 |                      0.936571 |  0.888039 | 0.0463807 |      0.83045  |       0.945628 |       1        |     0         |           1        |            1        |        0.434051 |     0.0329768  |            0.393105 |             0.474997 |
 | cluster  | mixed_training_b_noise |           5 |        0.861538 |      0.0643585 |            0.781627 |             0.94145  |                 0.85     |               0.0697217 |                     0.763429 |                      0.936571 |  0.888039 | 0.0463807 |      0.83045  |       0.945628 |       1        |     0         |           1        |            1        |        0.554826 |     0.0091975  |            0.543406 |             0.566246 |
 | tfim     | ideal                  |           5 |        1        |      0         |            1        |             1        |                 1        |               0         |                     1        |                      1        |  1        | 0         |      1        |       1        |       1        |     0         |           1        |            1        |        0.435368 |     0.0152618  |            0.416418 |             0.454318 |
-| tfim     | mixed_training_b_noise |           5 |        0.861538 |      0.034401  |            0.818824 |             0.904253 |                 0.852381 |               0.0363046 |                     0.807303 |                      0.897459 |  0.883095 | 0.029129  |      0.846927 |       0.919264 |       0.995238 |     0.0106479 |           0.982017 |            1.00846  |        0.593529 |     0.00943601 |            0.581813 |             0.605245 |
+| tfim     | mixed_training_b_noise |           5 |        0.861538 |      0.034401  |            0.818824 |             0.904253 |                 0.852381 |               0.0363046 |                     0.807303 |                      0.897459 |  0.883095 | 0.029129  |      0.846927 |       0.919264 |       0.995238 |     0.0106479 |           0.982017 |            1        |        0.593529 |     0.00943601 |            0.581813 |             0.605245 |
 | xxz      | ideal                  |           5 |        1        |      0         |            1        |             1        |                 1        |               0         |                     1        |                      1        |  1        | 0         |      1        |       1        |       1        |     0         |           1        |            1        |        0.542729 |     0.0189058  |            0.519254 |             0.566204 |
 | xxz      | mixed_training_b_noise |           5 |        0.830769 |      0.084265  |            0.72614  |             0.935398 |                 0.838095 |               0.0774267 |                     0.741957 |                      0.934233 |  0.816037 | 0.103881  |      0.687052 |       0.945023 |       0.916667 |     0.0607026 |           0.841294 |            0.992039 |        0.637152 |     0.00886455 |            0.626145 |             0.648158 |
 

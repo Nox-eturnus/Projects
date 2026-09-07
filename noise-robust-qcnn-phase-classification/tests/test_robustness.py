@@ -48,3 +48,17 @@ def test_robustness_empty():
     res = evaluate_robustness_threshold([], floor=0.75)
     assert res["status"] == "no_records"
     assert res["robustness_threshold_applicable"] is False
+
+
+def test_robustness_missing_zero_noise_baseline():
+    records = [
+        {"depolarizing_2q": 0.01, "balanced_accuracy": 0.95},
+        {"depolarizing_2q": 0.02, "balanced_accuracy": 0.90},
+        {"depolarizing_2q": 0.04, "balanced_accuracy": 0.65},
+    ]
+    res = evaluate_robustness_threshold(records, floor=0.75)
+    assert res["status"] == "zero_noise_baseline_missing"
+    assert res["robustness_threshold_applicable"] is False
+    assert res["baseline_metric"] is None
+    assert res["first_tested_failure_probability"] is None
+    assert res["failure_noise_threshold"] is None

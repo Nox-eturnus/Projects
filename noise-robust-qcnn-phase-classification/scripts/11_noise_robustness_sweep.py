@@ -49,7 +49,7 @@ def main():
     (out / "ideal_robustness_threshold.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(frame.to_string(index=False))
     print(json.dumps(summary, indent=2))
-    print("Noise robustness sweep PASSED")
+    print("Noise robustness sweep completed")
 
 
 if __name__ == "__main__":

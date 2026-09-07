@@ -17,14 +17,22 @@ from qcnn_lab.qcnn.evaluate import batch_predict
 from qcnn_lab.qcnn.train import stratified_splits, train_ideal_qcnn
 
 
-def mean_ci(values: np.ndarray) -> tuple[float, float, float, float]:
+def mean_ci(
+    values: np.ndarray,
+    clip_bounds: tuple[float, float] | None = None,
+) -> tuple[float, float, float, float]:
     values = np.asarray(values, dtype=float)
     mean = float(np.mean(values))
     std = float(np.std(values, ddof=1)) if len(values) > 1 else 0.0
     if len(values) < 2:
-        return mean, std, mean, mean
-    half = float(t.ppf(0.975, df=len(values) - 1) * std / sqrt(len(values)))
-    return mean, std, mean - half, mean + half
+        low, high = mean, mean
+    else:
+        half = float(t.ppf(0.975, df=len(values) - 1) * std / sqrt(len(values)))
+        low, high = mean - half, mean + half
+    if clip_bounds is not None:
+        low = float(np.clip(low, clip_bounds[0], clip_bounds[1]))
+        high = float(np.clip(high, clip_bounds[0], clip_bounds[1]))
+    return mean, std, low, high
 
 
 def main():
@@ -95,7 +103,8 @@ def main():
     for (family, condition), group in frame.groupby(["family", "condition"]):
         row = {"family": family, "condition": condition, "n_repeats": int(group["repeat"].nunique())}
         for metric in ("accuracy", "balanced_accuracy", "f1", "roc_auc", "log_loss"):
-            mean, std, low, high = mean_ci(group[metric].to_numpy(dtype=float))
+            bounds = (0.0, 1.0) if metric != "log_loss" else (0.0, float("inf"))
+            mean, std, low, high = mean_ci(group[metric].to_numpy(dtype=float), clip_bounds=bounds)
             row[f"{metric}_mean"] = mean
             row[f"{metric}_std"] = std
             row[f"{metric}_ci95_low"] = low
@@ -107,7 +116,7 @@ def main():
         json.dumps(summary_rows, indent=2), encoding="utf-8"
     )
     print(summary.to_string(index=False))
-    print("Repeated-seed statistical benchmarking PASSED")
+    print("Repeated-seed statistical benchmarking completed")
 
 
 if __name__ == "__main__":

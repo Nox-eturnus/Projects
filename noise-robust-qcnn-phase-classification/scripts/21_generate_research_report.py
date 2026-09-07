@@ -56,6 +56,26 @@ def main():
 
     cfg = load_yaml("configs/project.yaml")
     primary_arch = cfg.get("qcnn", {}).get("architecture", "expressive_shared_line")
+    n_qubits = int(cfg.get("n_qubits", 8))
+
+    tfim_ideal = _json("results/ideal/tfim_ideal_summary.json") or {}
+    primary_params = tfim_ideal.get("parameters", 27)
+
+    # Dynamic lookup for light_shared_line baseline params
+    arch_sweep_p = Path("results/architectures/architecture_sweep.csv")
+    light_params = 18
+    if arch_sweep_p.exists():
+        sweep_df = pd.read_csv(arch_sweep_p)
+        match = sweep_df[sweep_df["architecture"] == "light_shared_line"]
+        if not match.empty:
+            light_params = int(match.iloc[0]["parameters"])
+
+    # Dynamic lookup for hardware demonstration
+    hw_jobs = _json("results/hardware/hardware_jobs.json") or {}
+    hw_summary = _json("results/hardware/hardware4_summary.json") or {}
+    hw_backend = hw_jobs.get("backend", "ibm_fez")
+    hw_arch = hw_jobs.get("architecture", hw_summary.get("architecture", "light_shared_line"))
+    hw_n_qubits = hw_summary.get("n_qubits", 4)
 
     sections.append(
         "# Noise-Robust QCNN for Quantum Phase and State Classification "
@@ -65,9 +85,9 @@ def main():
     sections.append(
         f"""
 ### Architecture & Provenance Summary
-- **Primary N=8 QCNN Architecture:** `{primary_arch}` (16 variational parameters across 2 convolutional layers and pooling).
-- **Baseline / Negative Result Architecture:** `light_shared_line` (8 variational parameters; demonstrated under-parameterization on product-like phase states).
-- **Physical Hardware Demonstration Architecture:** `light_shared_line` executed at $N=4$ qubits on `ibm_sherbrooke` (retaining valid real-device calibration and proof-of-hardware execution).
+- **Primary N={n_qubits} QCNN Architecture:** `{primary_arch}` ({primary_params} variational parameters across 3 scale-reduction rounds).
+- **Baseline / Negative Result Architecture:** `light_shared_line` ({light_params} variational parameters; demonstrated under-parameterization on product-like phase states).
+- **Physical Hardware Demonstration Architecture:** `{hw_arch}` executed at $N={hw_n_qubits}$ qubits on `{hw_backend}` (retaining valid real-device calibration and proof-of-hardware execution).
 """
     )
 
@@ -93,9 +113,10 @@ Classical baselines are labelled by information access. In particular, the MPS p
                 "architecture",
                 "accuracy",
                 "balanced_accuracy",
-                "qcnn_p05_crossing",
-                "qcnn_crossing_bracketed",
+                "raw_p05_crossing",
+                "raw_crossing_bracketed",
                 "transition_detected",
+                "validated_p05_crossing",
                 "probability_span",
                 "qcnn_steepest_change",
                 "physical_diagnostic_steepest_change",
@@ -274,7 +295,7 @@ For finite systems, the learned or diagnostic crossover need not equal the therm
 
     print(report)
     print()
-    print("Research report generation PASSED")
+    print("Research report generation completed")
     print(f"Report written to: {report_path}")
 
 

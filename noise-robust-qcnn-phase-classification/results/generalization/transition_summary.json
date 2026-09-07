@@ -4,8 +4,6 @@
     "architecture": "expressive_shared_line",
     "training_seconds": 46.04063789999782,
     "thermodynamic_reference_critical": 1.0,
-    "qcnn_p05_crossing": 0.8474559085053861,
-    "qcnn_crossing_bracketed": true,
     "transition_detected": true,
     "probability_span": 0.23747484281226844,
     "probability_min": 0.34414508071183464,
@@ -17,15 +15,17 @@
     "balanced_accuracy": 1.0,
     "f1": 1.0,
     "roc_auc": 1.0,
-    "log_loss": 0.4525862981950754
+    "log_loss": 0.4525862981950754,
+    "raw_p05_crossing": 0.8474559085053861,
+    "raw_crossing_bracketed": true,
+    "validated_p05_crossing": 0.8474559085053861,
+    "minimum_probability_span_threshold": 0.2
   },
   {
     "family": "xxz",
     "architecture": "expressive_shared_line",
     "training_seconds": 34.77399249999871,
     "thermodynamic_reference_critical": 1.0,
-    "qcnn_p05_crossing": null,
-    "qcnn_crossing_bracketed": false,
     "transition_detected": false,
     "probability_span": 0.09497377060019874,
     "probability_min": 0.5104637101570739,
@@ -37,15 +37,17 @@
     "balanced_accuracy": 0.9166666666666667,
     "f1": 0.9333333333333333,
     "roc_auc": 1.0,
-    "log_loss": 0.5650896918967498
+    "log_loss": 0.5650896918967498,
+    "raw_p05_crossing": null,
+    "raw_crossing_bracketed": false,
+    "validated_p05_crossing": null,
+    "minimum_probability_span_threshold": 0.2
   },
   {
     "family": "cluster",
     "architecture": "expressive_shared_line",
     "training_seconds": 57.64879849999852,
     "thermodynamic_reference_critical": 1.0,
-    "qcnn_p05_crossing": 0.5890238217567585,
-    "qcnn_crossing_bracketed": true,
     "transition_detected": true,
     "probability_span": 0.2622350330974136,
     "probability_min": 0.48033523452647764,
@@ -57,6 +59,10 @@
     "balanced_accuracy": 0.9166666666666667,
     "f1": 0.9333333333333333,
     "roc_auc": 1.0,
-    "log_loss": 0.419031471187473
+    "log_loss": 0.419031471187473,
+    "raw_p05_crossing": 0.5890238217567585,
+    "raw_crossing_bracketed": true,
+    "validated_p05_crossing": 0.5890238217567585,
+    "minimum_probability_span_threshold": 0.2
   }
 ]

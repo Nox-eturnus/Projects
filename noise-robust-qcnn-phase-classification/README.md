@@ -1,8 +1,8 @@
 # Noise-Robust Quantum Convolutional Neural Network for Quantum Phase and State Classification
 
-[![QCNN Test Suite & Verification](https://github.com/Nox-eturnus/noise-robust-qcnn-phase-classification/actions/workflows/qcnn-test.yml/badge.svg)](https://github.com/Nox-eturnus/noise-robust-qcnn-phase-classification/actions/workflows/qcnn-test.yml)
+[![QCNN Test Suite](https://github.com/Nox-eturnus/Projects/actions/workflows/qcnn-test.yml/badge.svg)](https://github.com/Nox-eturnus/Projects/actions/workflows/qcnn-test.yml)
 [![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](../LICENSE)
 
 An end-to-end research testbed and benchmark studying whether **Quantum Convolutional Neural Networks (QCNNs)** provide an effective inductive bias, parameter-efficiency profile, and noise-robustness envelope for quantum-native many-body phase classification.
 
@@ -36,10 +36,10 @@ Quantum Convolutional Neural Networks ([Cong et al., 2019](https://doi.org/10.10
 - **Fair Classical Comparisons:** Classical models provided full simulated statevectors (e.g., Matrix Product States) solve an entirely different computational task than quantum models processing direct state preparations.
 
 This repository resolves these methodological pitfalls through:
-1. **Primary Architecture:** `expressive_shared_line` with 27 variational parameters across 3 scale-reduction rounds, achieving $\ge 90\%$ balanced accuracy on 1D Transverse Field Ising Model (TFIM) ground states.
+1. **Primary Architecture:** `expressive_shared_line` with 27 variational parameters across 3 scale-reduction rounds, achieving 100% test accuracy on 1D Transverse Field Ising Model (TFIM), XXZ, and Cluster-Ising ground states.
 2. **Negative Result Documentation:** Preserving `light_shared_line` (18 parameters) as an explicit negative result illustrating architectural under-parameterization.
-3. **Sound Robustness Thresholding:** Introducing `evaluate_robustness_threshold` to formally disqualify sweeps where zero-noise performance is below threshold floors.
-4. **End-to-End NISQ Pipeline:** Synthetic Pauli/depolarizing channel sweeps, SPSA noise-aware warm-start fine-tuning, hardware backend emulation (`FakeSherbrooke`), and physical execution on IBM Quantum superconducting hardware (`ibm_fez` / `ibm_sherbrooke`).
+3. **Sound Robustness Thresholding:** Introducing `evaluate_robustness_threshold` to formally disqualify sweeps where zero-noise performance is below threshold floors or missing entirely.
+4. **End-to-End NISQ Pipeline:** Synthetic Pauli/depolarizing channel sweeps, SPSA noise-aware warm-start fine-tuning, hardware backend emulation (`FakeSherbrooke`), and physical execution on IBM Quantum superconducting hardware (`ibm_fez`).
 
 ---
 
@@ -83,21 +83,38 @@ A QCNN for $N = 2^k$ qubits consists of alternating Convolution ($C_m$) and Pool
 ```
 Qubit 0 ──[ Conv ]──●──────
           │         │ 
-Qubit 1 ──[ Conv ]──X (Pool)
-                    
-Qubit 2 ──[ Conv ]──●──────
-          │         │
-Qubit 3 ──[ Conv ]──X (Pool)  ==> Remaining: Qubits [0, 2, 4, 6] ==> ... ==> Qubit 0 (Readout)
+Qubit 1 ──[ Conv ]──X (Sink) ───[ Conv ]──●──────
+                                │         │
+Qubit 2 ──[ Conv ]──●──────     │         │
+          │         │           │         │
+Qubit 3 ──[ Conv ]──X (Sink) ───[ Conv ]──X (Sink) ───[ Conv ]──●──────
+                                                      │         │
+Qubit 4 ──[ Conv ]──●──────                           │         │
+          │         │                                 │         │
+Qubit 5 ──[ Conv ]──X (Sink) ───[ Conv ]──●──────     │         │
+                                │         │           │         │
+Qubit 6 ──[ Conv ]──●──────     │         │           │         │
+          │         │           │         │           │         │
+Qubit 7 ──[ Conv ]──X (Sink) ───[ Conv ]──X (Sink) ───[ Conv ]──X (Sink) ==> Qubit 7 (Readout)
 ```
+
+In each scale-reduction round, source qubits act as control on sink qubits; source qubits are unmeasured and decoupled, while sink qubits remain active:
+- **Round 1 ($8 \to 4$ qubits):** Active $[0, 1, 2, 3, 4, 5, 6, 7] \to$ Sinks $[1, 3, 5, 7]$
+- **Round 2 ($4 \to 2$ qubits):** Active $[1, 3, 5, 7] \to$ Sinks $[3, 7]$
+- **Round 3 ($2 \to 1$ qubit):** Active $[3, 7] \to$ Sink $[7]$ (Final Readout)
 
 ### Convolution Blocks
 - **Light Convolution (`conv_kind="light"`, 3 params):**
   $$U_{\text{light}}(\theta_1, \theta_2, \theta_3) = R_Z(\pi/2) \cdot \text{CNOT} \cdot R_Y(\theta_3) \cdot \text{CNOT} \cdot (R_Z(\theta_1) \otimes R_Y(\theta_2)) \cdot \text{CNOT} \cdot R_Z(-\pi/2)$$
 - **Expressive Convolution (`conv_kind="expressive"`, 6 params):**
-  Two cascaded $SU(2)$ parameter sets with interleaved $XX + YY$ / cross-resonance equivalent entanglement, enabling universal arbitrary 2-qubit interactions on target subspaces.
+  Uses independent local single-qubit rotations followed by two-qubit entangling interactions:
+  $$U_{\text{expressive}}(\vec{\theta}) = R_{ZZ}(\theta_5) \cdot R_{XX}(\theta_4) \cdot \left[ (R_Z(\theta_2) R_Y(\theta_0)) \otimes (R_Z(\theta_3) R_Y(\theta_1)) \right]$$
 
 ### Pooling Blocks
-- Controlled single-qubit rotations where source qubit $q_s$ selectively applies $R_X(\phi_1) R_Y(\phi_2) R_Z(\phi_3)$ onto sink qubit $q_t$, after which $q_s$ is unmeasured and decoupled from downstream layers.
+- **Controlled Pooling (`_apply_pool`, 3 params):**
+  Transfers information from source to sink qubit via:
+  $$U_{\text{pool}}(\phi_0, \phi_1, \phi_2) = R_Y(\phi_2)_{\text{sink}} \cdot \text{CNOT}(\text{src} \to \text{sink}) \cdot \left( R_Z(\phi_0)_{\text{src}} \otimes R_Y(\phi_1)_{\text{sink}} \right) \cdot \text{CNOT}(\text{sink} \to \text{src}) \cdot R_Z(-\pi/2)_{\text{sink}}$$
+  The source qubit is subsequently unmeasured and discarded, retaining only the sink qubit for downstream stages.
 
 ### Architecture Comparison ($N=8$ Qubits)
 
@@ -138,11 +155,11 @@ A major scientific integrity issue in quantum machine learning literature is com
 1. **Variational Quantum Classifier (VQC):**
    - 2-layer hardware-efficient ansatz using alternating $R_Y(\theta)$ and linear CNOT ladders ($2 \times 8 = 16$ single-qubit params + CNOTs) measuring $\langle Z_0 \rangle$.
 2. **Support Vector Machine (SVM):**
-   - Radial Basis Function (RBF) kernel trained on $2N$ features: $\{\langle Z_i \rangle, \langle X_i \rangle\}_{i=0}^{N-1}$.
+   - Radial Basis Function (RBF) kernel trained on five local and bond operator expectation channels (shape $5 \times N$): $X_i$, $Z_i$, $X_i X_{i+1}$, $Z_i Z_{i+1}$, and $Z_{i-1} X_i Z_{i+1}$.
 3. **Multi-Layer Perceptron (MLP):**
-   - 2 hidden layers (64, 32 units) with ReLU activation, Adam optimizer, and cross-entropy loss.
+   - 2 hidden layers (64, 32 units) with ReLU activation, Adam optimizer, and cross-entropy loss trained on the flattened 5-channel observable tensor ($5N$ inputs).
 4. **1D Convolutional Neural Network (CNN):**
-   - 1D spatial feature map of local magnetizations with kernel size 3 and max pooling.
+   - 1D spatial convolutions across the 5 local and bond observable channels with kernel size 3 and max pooling.
 5. **Matrix Product State (MPS):**
    - Variational SVD truncation with maximum bond dimension $\chi \in \{4, 8, 16\}$, contracting directly against simulated ground statevectors.
 
@@ -152,7 +169,7 @@ A major scientific integrity issue in quantum machine learning literature is com
 
 - **Ideal Objective:** Binary cross-entropy under exact statevector evolution:
   $$\mathcal{L}(\theta) = -\frac{1}{M} \sum_{m=1}^M \left[ y_m \log p_1(\theta; |\psi_m\rangle) + (1 - y_m) \log (1 - p_1(\theta; |\psi_m\rangle)) \right]$$
-- **Optimizer:** `scipy.optimize.minimize` with L-BFGS-B (bounds $[-\pi, \pi]$ or unbounded periodic), dynamic gradient tolerance, and up to 120 iterations.
+- **Optimizer:** `scipy.optimize.minimize` with method `COBYLA` (`rhobeg=0.25`, `tol=1e-4`, maxiter up to 120).
 - **Stratified Data Splits:** 70% Train, 15% Validation, 15% Test, stratified across Hamiltonian phase labels.
 
 ---
@@ -181,13 +198,16 @@ $$\text{Balanced Accuracy} < \tau_{\text{floor}} = 0.75$$
 
 ```python
 # Formal evaluation via qcnn_lab.noise.robustness.evaluate_robustness_threshold
-if baseline_balanced_accuracy < floor:
+if zero_noise_row_missing:
+    status = "zero_noise_baseline_missing"
+    robustness_threshold_applicable = False
+elif baseline_balanced_accuracy < floor:
     status = "baseline_below_floor"
     robustness_threshold_applicable = False
     first_tested_failure_probability = None
 ```
 
-> **Why this matters:** When a model fails at zero noise ($p=0.5$), claiming that its "failure threshold is $p_2=0.005$" is mathematically erroneous. The new evaluation module explicitly marks such instances as `baseline_below_floor`.
+> **Why this matters:** When a model fails at zero noise ($p=0.5$), or when zero-noise data is absent, claiming that its "failure threshold is $p_2=0.005$" is mathematically erroneous. The evaluation module explicitly enforces that zero-noise baseline performance must be present and exceed the floor.
 
 ---
 
@@ -199,9 +219,10 @@ $$\theta_{k+1} = \theta_k - a_k \hat{g}_k(\theta_k)$$
 where $\Delta_k \in \{-1, +1\}^{\dim \theta}$, $a_k = a / (k + 1 + A)^\alpha$, $c_k = c / (k + 1)^\gamma$.
 
 ### Warm-Starting from Ideal Optimization
-Training SPSA from random initialization in the presence of noise frequently traps the optimizer in noise-induced local minima. By **warm-starting** SPSA with the optimal parameters $\theta^*_{\text{ideal}}$ obtained from ideal L-BFGS-B simulation:
-1. Convergence is accelerated within 60 iterations.
-2. The model shifts weights into noise-resilient subspaces, widening the operational noise envelope on unseen test channels (e.g. phase damping, asymmetric readout).
+Training SPSA from random initialization in the presence of noise frequently traps the optimizer in noise-induced local minima. By **warm-starting** SPSA with the optimal parameters $\theta^*_{\text{ideal}}$ obtained from ideal COBYLA simulation:
+1. Convergence is achieved efficiently within 60 iterations.
+2. The model exhibits improved transfer to specific unseen noise regimes (e.g., reaching 1.000 balanced accuracy on `unseen_phase_heavy` compared to 0.917 for the ideal model).
+3. Under the controlled 2-qubit depolarizing sweep, noise-aware training does **not** significantly widen the operational failure threshold (both ideal and noise-aware models breach the $\tau=0.75$ floor near $p_2 \approx 0.05$). Characterizing this limitation provides an honest assessment of SPSA noise adaptation.
 
 ---
 
@@ -223,8 +244,8 @@ P(class 1)
 ```
 
 ### Transition Crossing Detection
-1. **Strict Level Bracketing:** The curve must sample points strictly below $(0.5 - \text{atol})$ and strictly above $(0.5 + \text{atol})$.
-2. **Probability Span Condition:** A valid physical transition requires $\Delta p = \max(p) - \min(p) \ge 0.20$.
+1. **Strict Level Bracketing:** The curve must sample points strictly below $(0.5 - \text{atol})$ and strictly above $(0.5 + \text{atol})$, recorded in `raw_p05_crossing` and `raw_crossing_bracketed`.
+2. **Probability Span Condition:** A valid physical transition requires $\Delta p = \max(p) - \min(p) \ge \Delta_{\text{min}}$ (configured via `transition.minimum_probability_span: 0.20` in `configs/project.yaml`). If span validation fails, `validated_p05_crossing` returns `None`.
 3. **Finite-Size Warning:** In $N=8$ finite chains, the crossover point typically shifts from the thermodynamic $N \to \infty$ critical value due to finite-size scaling corrections ($h_c(L) - h_c(\infty) \propto L^{-1/\nu}$).
 
 ---
@@ -232,7 +253,7 @@ P(class 1)
 ## 11. Sample Efficiency & Statistical Reliability
 
 - **Sample Efficiency:** Models are evaluated across training set fractions $\eta \in [0.2, 0.4, 0.6, 0.8, 1.0]$. QCNNs demonstrate high data efficiency, saturating classification performance with as few as 24 labeled quantum states per phase.
-- **Repeated Seed Statistics:** Training is repeated across 5 independent PRNG seeds ($12345, 12346, 12347, 12348, 12349$), reporting mean, standard deviation, and min/max bounds across accuracy, balanced accuracy, ROC-AUC, and F1 score.
+- **Repeated Seed Statistics:** Training is repeated across 5 independent PRNG seeds ($12345, 12346, 12347, 12348, 12349$), reporting mean, standard deviation, and bounded 95% confidence intervals (clipped to $[0, 1]$ for probability/accuracy metrics).
 
 ---
 
@@ -240,10 +261,10 @@ P(class 1)
 
 ### Simulation-to-Hardware Transfer
 To validate execution on real quantum processors without requiring intractable error mitigation on large depths, we implement an $N=4$ qubit scale-down:
-- **Target Backend:** `ibm_sherbrooke` / `ibm_fez` (127-qubit Eagle/Heron processors).
+- **Target Backend:** `ibm_fez` (156-qubit Heron r2 processor).
 - **Architecture Provenance:** The physical hardware demonstration explicitly executes the `light_shared_line` ansatz ($N=4$, depth $\approx 119$, 38 CNOTs) under IBM Runtime `EstimatorV2`.
-- **Error Mitigation:** Dynamical Decoupling (DD with XY4 sequence) and Twirled Readout Error Extrapolation (TREX, resilience level 1).
-- **Provenance Isolation:** Real-device hardware runs are preserved with full calibration provenance, while simulation scripts provide side-by-side $N=4$ comparisons between `light_shared_line` and `expressive_shared_line`.
+- **Error Mitigation:** Dynamical Decoupling (DD with `XpXm` sequence) and Twirled Readout Error Extrapolation (TREX, resilience level 1).
+- **Provenance Isolation:** Real-device hardware runs on `ibm_fez` are preserved with full calibration provenance, while simulation scripts provide side-by-side $N=4$ comparisons between `light_shared_line` and `expressive_shared_line`.
 
 ---
 
@@ -291,9 +312,10 @@ The entire project is structured into deterministic, self-contained sequential p
 ## 14. Codebase Architecture & File Sitemap
 
 ```
-noise-robust-qcnn-phase-classification/
+Projects/
 ├── .github/workflows/
-│   └── qcnn-test.yml               # Automated CI test suite on PR & push
+│   └── qcnn-test.yml               # Monorepo root CI workflow for QCNN test suite
+└── noise-robust-qcnn-phase-classification/
 ├── configs/
 │   ├── project.yaml                # Primary project configuration (expressive QCNN)
 │   └── noise.yaml                  # Synthetic & realistic noise channel definitions
