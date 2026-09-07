@@ -6,7 +6,7 @@ train_fraction: 0.70
 validation_fraction: 0.15
 
 qcnn:
-  architecture: light_shared_line
+  architecture: expressive_shared_line
   maxiter_ideal: 120
 
 noise_training:

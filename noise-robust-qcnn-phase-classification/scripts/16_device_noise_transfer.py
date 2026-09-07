@@ -24,9 +24,9 @@ def main():
     for snap in snapshot[:2]:
         backend = svc.backend(name=snap["name"])
         p, metrics = device_noise_predict(states[test_idx], params, arch, 4, backend, shots=1024, seed=2026)
-        rows.append({"backend": backend.name, **asdict(binary_metrics(y[test_idx], p))})
+        rows.append({"backend": backend.name, "architecture": "light_shared_line", **asdict(binary_metrics(y[test_idx], p))})
         for idx, m in zip(test_idx, metrics):
-            circuit_rows.append({"backend": backend.name, "sample_id": int(idx), **m})
+            circuit_rows.append({"backend": backend.name, "architecture": "light_shared_line", "sample_id": int(idx), **m})
     out = Path("results/hardware")
     pd.DataFrame(rows).to_csv(out / "device_noise_transfer.csv", index=False)
     pd.DataFrame(circuit_rows).to_csv(out / "device_noise_circuit_metrics.csv", index=False)

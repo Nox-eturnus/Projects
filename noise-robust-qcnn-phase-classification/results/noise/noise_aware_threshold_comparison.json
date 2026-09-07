@@ -1,6 +1,24 @@
 {
   "balanced_accuracy_floor": 0.75,
-  "ideal_first_tested_failure_probability": 0.0,
-  "noise_aware_first_tested_failure_probability": 0.0,
+  "ideal": {
+    "status": "threshold_found",
+    "baseline_metric": 1.0,
+    "floor": 0.75,
+    "robustness_threshold_applicable": true,
+    "first_tested_failure_probability": 0.08,
+    "failure_noise_threshold": 0.05399999999999999
+  },
+  "noise_aware": {
+    "status": "threshold_found",
+    "baseline_metric": 1.0,
+    "floor": 0.75,
+    "robustness_threshold_applicable": true,
+    "first_tested_failure_probability": 0.08,
+    "failure_noise_threshold": 0.050370370370370364
+  },
+  "ideal_first_tested_failure_probability": 0.08,
+  "noise_aware_first_tested_failure_probability": 0.08,
+  "ideal_failure_noise_threshold": 0.05399999999999999,
+  "noise_aware_failure_noise_threshold": 0.050370370370370364,
   "interpretation": "A higher first-tested failure probability indicates a wider operational robustness envelope on this predefined coarse sweep."
 }

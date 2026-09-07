@@ -53,6 +53,10 @@ def main():
         smooth_p = moving_average(sweep_p, window=3)
         x = sweep_meta["parameter"].to_numpy(dtype=float)
         learned_crossing, bracketed = crossing_point(x, smooth_p, level=0.5)
+        prob_min = float(np.min(smooth_p))
+        prob_max = float(np.max(smooth_p))
+        prob_span = float(prob_max - prob_min)
+        transition_detected = bool(bracketed and prob_span >= 0.2)
         learned_steepest = steepest_change_point(x, smooth_p)
         physical_steepest = steepest_change_point(
             x, sweep_meta["physical_diagnostic"].to_numpy(dtype=float)
@@ -79,6 +83,10 @@ def main():
             "thermodynamic_reference_critical": spec.critical_value,
             "qcnn_p05_crossing": learned_crossing,
             "qcnn_crossing_bracketed": bracketed,
+            "transition_detected": transition_detected,
+            "probability_span": prob_span,
+            "probability_min": prob_min,
+            "probability_max": prob_max,
             "qcnn_steepest_change": learned_steepest,
             "physical_diagnostic_steepest_change": physical_steepest,
             "finite_size_warning": "N=8 finite systems need not transition exactly at the thermodynamic critical value.",

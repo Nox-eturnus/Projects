@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from qcnn_lab.config import load_yaml
+
 
 def _table(path: str, columns: list[str] | None = None) -> str:
     p = Path(path)
@@ -52,9 +54,21 @@ def main():
 
     sections = []
 
+    cfg = load_yaml("configs/project.yaml")
+    primary_arch = cfg.get("qcnn", {}).get("architecture", "expressive_shared_line")
+
     sections.append(
         "# Noise-Robust QCNN for Quantum Phase and State Classification "
         "— Research Report\n"
+    )
+
+    sections.append(
+        f"""
+### Architecture & Provenance Summary
+- **Primary N=8 QCNN Architecture:** `{primary_arch}` (16 variational parameters across 2 convolutional layers and pooling).
+- **Baseline / Negative Result Architecture:** `light_shared_line` (8 variational parameters; demonstrated under-parameterization on product-like phase states).
+- **Physical Hardware Demonstration Architecture:** `light_shared_line` executed at $N=4$ qubits on `ibm_sherbrooke` (retaining valid real-device calibration and proof-of-hardware execution).
+"""
     )
 
     sections.append(
@@ -81,6 +95,8 @@ Classical baselines are labelled by information access. In particular, the MPS p
                 "balanced_accuracy",
                 "qcnn_p05_crossing",
                 "qcnn_crossing_bracketed",
+                "transition_detected",
+                "probability_span",
                 "qcnn_steepest_change",
                 "physical_diagnostic_steepest_change",
                 "thermodynamic_reference_critical",
@@ -205,6 +221,11 @@ For finite systems, the learned or diagnostic crossover need not equal the therm
             "results/hardware/device_noise_transfer.csv"
         )
     )
+
+    hw_comp = _json("results/hardware/hardware4_comparison.json")
+    if hw_comp is not None:
+        sections.append("\n\n### N=4 Simulation Architecture Comparison\n\n")
+        sections.append(_json_block(hw_comp))
 
     sections.append(
         "\n\n## Real-QPU simulation-to-hardware gap\n\n"

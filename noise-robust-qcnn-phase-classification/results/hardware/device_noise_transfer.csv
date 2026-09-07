@@ -1,3 +1,3 @@
-backend,accuracy,balanced_accuracy,f1,roc_auc,log_loss
-ibm_fez,0.5,0.5,0.4444444444444444,0.62,0.6928085394966734
-ibm_kingston,0.4,0.4,0.25,0.3,0.6979405063957317
+backend,architecture,accuracy,balanced_accuracy,f1,roc_auc,log_loss
+ibm_fez,light_shared_line,0.5,0.5,0.4444444444444444,0.62,0.6928085394966734
+ibm_kingston,light_shared_line,0.4,0.4,0.25,0.3,0.6979405063957317

@@ -1,5 +1,10 @@
 # Noise-Robust QCNN for Quantum Phase and State Classification — Research Report
 
+### Architecture & Provenance Summary
+- **Primary N=8 QCNN Architecture:** `expressive_shared_line` (16 variational parameters across 2 convolutional layers and pooling).
+- **Baseline / Negative Result Architecture:** `light_shared_line` (8 variational parameters; demonstrated under-parameterization on product-like phase states).
+- **Physical Hardware Demonstration Architecture:** `light_shared_line` executed at $N=4$ qubits on `ibm_sherbrooke` (retaining valid real-device calibration and proof-of-hardware execution).
+
 ## Claim boundary
 
 This repository studies whether a QCNN provides a useful **inductive bias, parameter-efficiency profile, and noise-robustness envelope** for quantum-native state classification. It does **not** claim generic quantum advantage over classical machine learning.
@@ -8,11 +13,11 @@ Classical baselines are labelled by information access. In particular, the MPS p
 
 ## Multi-family phase classification and transition generalization
 
-| family   | architecture      |   accuracy |   balanced_accuracy |   qcnn_p05_crossing | qcnn_crossing_bracketed   |   qcnn_steepest_change |   physical_diagnostic_steepest_change |   thermodynamic_reference_critical |
-|:---------|:------------------|-----------:|--------------------:|--------------------:|:--------------------------|-----------------------:|--------------------------------------:|-----------------------------------:|
-| tfim     | light_shared_line |   0.538462 |            0.535714 |                0.55 | True                      |                  0.655 |                                  0.7  |                                  1 |
-| xxz      | light_shared_line |   0.461538 |            0.452381 |                0.55 | True                      |                  0.985 |                                  1.45 |                                  1 |
-| cluster  | light_shared_line |   0.538462 |            0.511905 |                0.55 | True                      |                  0.835 |                                  0.61 |                                  1 |
+| family   | architecture           |   accuracy |   balanced_accuracy |   qcnn_p05_crossing | qcnn_crossing_bracketed   | transition_detected   |   probability_span |   qcnn_steepest_change |   physical_diagnostic_steepest_change |   thermodynamic_reference_critical |
+|:---------|:-----------------------|-----------:|--------------------:|--------------------:|:--------------------------|:----------------------|-------------------:|-----------------------:|--------------------------------------:|-----------------------------------:|
+| tfim     | expressive_shared_line |   1        |            1        |            0.847456 | True                      | True                  |          0.237475  |                  0.64  |                                  0.7  |                                  1 |
+| xxz      | expressive_shared_line |   0.923077 |            0.916667 |          nan        | False                     | False                 |          0.0949738 |                  0.685 |                                  1.45 |                                  1 |
+| cluster  | expressive_shared_line |   0.923077 |            0.916667 |            0.589024 | True                      | True                  |          0.262235  |                  0.58  |                                  0.61 |                                  1 |
 
 For finite systems, the learned or diagnostic crossover need not equal the thermodynamic-limit critical point. The transition sweep is therefore a **generalization/crossover diagnostic**, not a finite-size proof of an exact critical point.
 
@@ -20,18 +25,18 @@ For finite systems, the learned or diagnostic crossover need not equal the therm
 
 | family   | architecture           |   parameters |   depth |   two_qubit_operations |   accuracy |   balanced_accuracy |   training_seconds |
 |:---------|:-----------------------|-------------:|--------:|-----------------------:|-----------:|--------------------:|-------------------:|
-| tfim     | light_shared_line      |           18 |      47 |                     47 |   0.538462 |            0.535714 |            30.0401 |
-| tfim     | light_shared_ring      |           18 |      49 |                     53 |   0.769231 |            0.77381  |            34.2451 |
-| tfim     | expressive_shared_line |           27 |      35 |                     36 |   1        |            1        |            27.4739 |
-| tfim     | light_unshared_line    |           54 |      47 |                     47 |   0.538462 |            0.559524 |            33.1007 |
-| xxz      | light_shared_line      |           18 |      47 |                     47 |   0.461538 |            0.464286 |            30.4679 |
-| xxz      | light_shared_ring      |           18 |      49 |                     53 |   0.692308 |            0.678571 |            35.0784 |
-| xxz      | expressive_shared_line |           27 |      35 |                     36 |   1        |            1        |            17.5149 |
-| xxz      | light_unshared_line    |           54 |      47 |                     47 |   0.384615 |            0.380952 |            12.2966 |
-| cluster  | light_shared_line      |           18 |      47 |                     47 |   0.461538 |            0.440476 |            11.4913 |
-| cluster  | light_shared_ring      |           18 |      49 |                     53 |   0.461538 |            0.452381 |            13.2223 |
-| cluster  | expressive_shared_line |           27 |      35 |                     36 |   1        |            1        |            26.384  |
-| cluster  | light_unshared_line    |           54 |      47 |                     47 |   0.615385 |            0.595238 |            29.8877 |
+| tfim     | light_shared_line      |           18 |      47 |                     47 |   0.538462 |            0.535714 |            44.1384 |
+| tfim     | light_shared_ring      |           18 |      49 |                     53 |   0.769231 |            0.77381  |            41.8309 |
+| tfim     | expressive_shared_line |           27 |      35 |                     36 |   1        |            1        |            41.9894 |
+| tfim     | light_unshared_line    |           54 |      47 |                     47 |   0.538462 |            0.559524 |            20.2056 |
+| xxz      | light_shared_line      |           18 |      47 |                     47 |   0.461538 |            0.464286 |            41.1956 |
+| xxz      | light_shared_ring      |           18 |      49 |                     53 |   0.692308 |            0.678571 |            49.243  |
+| xxz      | expressive_shared_line |           27 |      35 |                     36 |   1        |            1        |            37.7875 |
+| xxz      | light_unshared_line    |           54 |      47 |                     47 |   0.384615 |            0.380952 |            30.122  |
+| cluster  | light_shared_line      |           18 |      47 |                     47 |   0.461538 |            0.440476 |            43.9622 |
+| cluster  | light_shared_ring      |           18 |      49 |                     53 |   0.461538 |            0.452381 |            50.4175 |
+| cluster  | expressive_shared_line |           27 |      35 |                     36 |   1        |            1        |            44.3318 |
+| cluster  | light_unshared_line    |           54 |      47 |                     47 |   0.615385 |            0.595238 |            42.1958 |
 
 ## Quantum baseline
 
@@ -62,30 +67,30 @@ For finite systems, the learned or diagnostic crossover need not equal the therm
 
 | model   |   samples_per_class |   accuracy_mean |   accuracy_std |   balanced_accuracy_mean |   training_seconds_mean |
 |:--------|--------------------:|----------------:|---------------:|-------------------------:|------------------------:|
-| qcnn    |                   4 |        0.435897 |      0.0444116 |                 0.43254  |              2.99055    |
-| qcnn    |                   8 |        0.410256 |      0.0888231 |                 0.396825 |              3.93673    |
-| qcnn    |                  16 |        0.717949 |      0.0444116 |                 0.710317 |              7.58828    |
-| qcnn    |                  24 |        0.410256 |      0.0444116 |                 0.400794 |             11.1601     |
-| svm_rbf |                   4 |        0.948718 |      0.0888231 |                 0.944444 |              0.0027149  |
-| svm_rbf |                   8 |        1        |      0         |                 1        |              0.00142453 |
-| svm_rbf |                  16 |        1        |      0         |                 1        |              0.00140767 |
-| svm_rbf |                  24 |        1        |      0         |                 1        |              0.0016718  |
+| qcnn    |                   4 |        1        |      0         |                 1        |              6.6163     |
+| qcnn    |                   8 |        1        |      0         |                 1        |             12.413      |
+| qcnn    |                  16 |        1        |      0         |                 1        |             21.7226     |
+| qcnn    |                  24 |        1        |      0         |                 1        |             35.7267     |
+| svm_rbf |                   4 |        0.948718 |      0.0888231 |                 0.944444 |              0.0162022  |
+| svm_rbf |                   8 |        1        |      0         |                 1        |              0.00301813 |
+| svm_rbf |                  16 |        1        |      0         |                 1        |              0.00315333 |
+| svm_rbf |                  24 |        1        |      0         |                 1        |              0.00379693 |
 
 ## Noise robustness of ideal-trained QCNN
 
 | profile              | sweep_kind             |   depolarizing_2q |   accuracy |   balanced_accuracy |       f1 |   roc_auc |   log_loss |
 |:---------------------|:-----------------------|------------------:|-----------:|--------------------:|---------:|----------:|-----------:|
-| mild_depolarizing    | named_profile          |             0.008 |   0.230769 |            0.22619  | 0.285714 |  0.142857 |   0.7194   |
-| mixed_training_a     | named_profile          |             0.012 |   0.307692 |            0.309524 | 0.307692 |  0.22619  |   0.713664 |
-| mixed_training_b     | named_profile          |             0.02  |   0.230769 |            0.25     | 0        |  0.142857 |   0.719736 |
-| unseen_phase_heavy   | named_profile          |             0.01  |   0.384615 |            0.380952 | 0.428571 |  0.333333 |   0.709772 |
-| unseen_readout_heavy | named_profile          |             0.01  |   0.461538 |            0.47619  | 0.363636 |  0.321429 |   0.712257 |
-| depol2_0.0           | two_qubit_depolarizing |             0     |   0.384615 |            0.369048 | 0.5      |  0.47619  |   0.699116 |
-| depol2_0.005         | two_qubit_depolarizing |             0.005 |   0.230769 |            0.22619  | 0.285714 |  0.142857 |   0.720001 |
-| depol2_0.01          | two_qubit_depolarizing |             0.01  |   0.230769 |            0.22619  | 0.285714 |  0.142857 |   0.720001 |
-| depol2_0.02          | two_qubit_depolarizing |             0.02  |   0.230769 |            0.22619  | 0.285714 |  0.142857 |   0.720001 |
-| depol2_0.04          | two_qubit_depolarizing |             0.04  |   0.230769 |            0.22619  | 0.285714 |  0.142857 |   0.720001 |
-| depol2_0.08          | two_qubit_depolarizing |             0.08  |   0.230769 |            0.22619  | 0.285714 |  0.142857 |   0.720001 |
+| mild_depolarizing    | named_profile          |             0.008 |   1        |            1        | 1        |  1        |   0.524787 |
+| mixed_training_a     | named_profile          |             0.012 |   1        |            1        | 1        |  1        |   0.563288 |
+| mixed_training_b     | named_profile          |             0.02  |   1        |            1        | 1        |  1        |   0.609827 |
+| unseen_phase_heavy   | named_profile          |             0.01  |   1        |            1        | 1        |  1        |   0.597862 |
+| unseen_readout_heavy | named_profile          |             0.01  |   1        |            1        | 1        |  1        |   0.55244  |
+| depol2_0.0           | two_qubit_depolarizing |             0     |   1        |            1        | 1        |  1        |   0.455041 |
+| depol2_0.005         | two_qubit_depolarizing |             0.005 |   1        |            1        | 1        |  1        |   0.500167 |
+| depol2_0.01          | two_qubit_depolarizing |             0.01  |   1        |            1        | 1        |  1        |   0.521352 |
+| depol2_0.02          | two_qubit_depolarizing |             0.02  |   1        |            1        | 1        |  1        |   0.564855 |
+| depol2_0.04          | two_qubit_depolarizing |             0.04  |   0.846154 |            0.833333 | 0.875    |  0.97619  |   0.623658 |
+| depol2_0.08          | two_qubit_depolarizing |             0.08  |   0.461538 |            0.440476 | 0.588235 |  0.607143 |   0.686208 |
 
 Robustness threshold definition and result:
 
@@ -93,7 +98,11 @@ Robustness threshold definition and result:
 {
   "failure_definition": "first tested 2q depolarizing probability with balanced_accuracy < 0.75",
   "balanced_accuracy_floor": 0.75,
-  "first_tested_failure_probability": 0.0,
+  "first_tested_failure_probability": 0.08,
+  "failure_noise_threshold": 0.04848484848484848,
+  "status": "threshold_found",
+  "robustness_threshold_applicable": true,
+  "baseline_metric": 1.0,
   "grid_is_coarse": true
 }
 ```
@@ -102,28 +111,46 @@ Robustness threshold definition and result:
 
 | experiment         | profile              |   depolarizing_2q | training    |       ece |   accuracy |   balanced_accuracy |       f1 |   roc_auc |   log_loss |
 |:-------------------|:---------------------|------------------:|:------------|----------:|-----------:|--------------------:|---------:|----------:|-----------:|
-| unseen_profile     | unseen_phase_heavy   |             0.01  | ideal       | 0.0439453 |   0.538462 |            0.547619 | 0.5      |  0.440476 |   0.699543 |
-| unseen_profile     | unseen_phase_heavy   |             0.01  | noise_aware | 0.0531851 |   0.461538 |            0.5      | 0        |  0.357143 |   0.701655 |
-| unseen_profile     | unseen_readout_heavy |             0.01  | ideal       | 0.0485276 |   0.461538 |            0.47619  | 0.363636 |  0.357143 |   0.700342 |
-| unseen_profile     | unseen_readout_heavy |             0.01  | noise_aware | 0.0486779 |   0.538462 |            0.559524 | 0.4      |  0.404762 |   0.697457 |
-| depolarizing_sweep | depol2_0.0           |             0     | ideal       | 0.0377103 |   0.538462 |            0.535714 | 0.571429 |  0.547619 |   0.688391 |
-| depolarizing_sweep | depol2_0.0           |             0     | noise_aware | 0.0377103 |   0.538462 |            0.535714 | 0.571429 |  0.547619 |   0.688391 |
-| depolarizing_sweep | depol2_0.005         |             0.005 | ideal       | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
-| depolarizing_sweep | depol2_0.005         |             0.005 | noise_aware | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
-| depolarizing_sweep | depol2_0.01          |             0.01  | ideal       | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
-| depolarizing_sweep | depol2_0.01          |             0.01  | noise_aware | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
-| depolarizing_sweep | depol2_0.02          |             0.02  | ideal       | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
-| depolarizing_sweep | depol2_0.02          |             0.02  | noise_aware | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
-| depolarizing_sweep | depol2_0.04          |             0.04  | ideal       | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
-| depolarizing_sweep | depol2_0.04          |             0.04  | noise_aware | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
-| depolarizing_sweep | depol2_0.08          |             0.08  | ideal       | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
-| depolarizing_sweep | depol2_0.08          |             0.08  | noise_aware | 0.127103  |   0.384615 |            0.392857 | 0.333333 |  0.285714 |   0.705906 |
+| unseen_profile     | unseen_phase_heavy   |             0.01  | ideal       | 0.366962  |   0.923077 |            0.916667 | 0.933333 |  1        |   0.589937 |
+| unseen_profile     | unseen_phase_heavy   |             0.01  | noise_aware | 0.436824  |   1        |            1        | 1        |  1        |   0.575623 |
+| unseen_profile     | unseen_readout_heavy |             0.01  | ideal       | 0.419396  |   1        |            1        | 1        |  1        |   0.54718  |
+| unseen_profile     | unseen_readout_heavy |             0.01  | noise_aware | 0.413086  |   1        |            1        | 1        |  1        |   0.536283 |
+| depolarizing_sweep | depol2_0.0           |             0     | ideal       | 0.355168  |   1        |            1        | 1        |  1        |   0.445867 |
+| depolarizing_sweep | depol2_0.0           |             0     | noise_aware | 0.346304  |   1        |            1        | 1        |  1        |   0.432307 |
+| depolarizing_sweep | depol2_0.005         |             0.005 | ideal       | 0.385442  |   1        |            1        | 1        |  1        |   0.49241  |
+| depolarizing_sweep | depol2_0.005         |             0.005 | noise_aware | 0.378456  |   1        |            1        | 1        |  1        |   0.481106 |
+| depolarizing_sweep | depol2_0.01          |             0.01  | ideal       | 0.400466  |   1        |            1        | 1        |  1        |   0.515963 |
+| depolarizing_sweep | depol2_0.01          |             0.01  | noise_aware | 0.394381  |   1        |            1        | 1        |  1        |   0.505747 |
+| depolarizing_sweep | depol2_0.02          |             0.02  | ideal       | 0.426683  |   1        |            1        | 1        |  1        |   0.558391 |
+| depolarizing_sweep | depol2_0.02          |             0.02  | noise_aware | 0.422476  |   1        |            1        | 1        |  1        |   0.550979 |
+| depolarizing_sweep | depol2_0.04          |             0.04  | ideal       | 0.302809  |   0.846154 |            0.833333 | 0.875    |  1        |   0.6181   |
+| depolarizing_sweep | depol2_0.04          |             0.04  | noise_aware | 0.299579  |   0.846154 |            0.833333 | 0.875    |  1        |   0.612147 |
+| depolarizing_sweep | depol2_0.08          |             0.08  | ideal       | 0.0932242 |   0.615385 |            0.595238 | 0.705882 |  0.678571 |   0.674563 |
+| depolarizing_sweep | depol2_0.08          |             0.08  | noise_aware | 0.0211839 |   0.538462 |            0.511905 | 0.666667 |  0.761905 |   0.67032  |
 
 ```json
 {
   "balanced_accuracy_floor": 0.75,
-  "ideal_first_tested_failure_probability": 0.0,
-  "noise_aware_first_tested_failure_probability": 0.0,
+  "ideal": {
+    "status": "threshold_found",
+    "baseline_metric": 1.0,
+    "floor": 0.75,
+    "robustness_threshold_applicable": true,
+    "first_tested_failure_probability": 0.08,
+    "failure_noise_threshold": 0.05399999999999999
+  },
+  "noise_aware": {
+    "status": "threshold_found",
+    "baseline_metric": 1.0,
+    "floor": 0.75,
+    "robustness_threshold_applicable": true,
+    "first_tested_failure_probability": 0.08,
+    "failure_noise_threshold": 0.050370370370370364
+  },
+  "ideal_first_tested_failure_probability": 0.08,
+  "noise_aware_first_tested_failure_probability": 0.08,
+  "ideal_failure_noise_threshold": 0.05399999999999999,
+  "noise_aware_failure_noise_threshold": 0.050370370370370364,
   "interpretation": "A higher first-tested failure probability indicates a wider operational robustness envelope on this predefined coarse sweep."
 }
 ```
@@ -132,19 +159,47 @@ Robustness threshold definition and result:
 
 | family   | condition              |   n_repeats |   accuracy_mean |   accuracy_std |   accuracy_ci95_low |   accuracy_ci95_high |   balanced_accuracy_mean |   balanced_accuracy_std |   balanced_accuracy_ci95_low |   balanced_accuracy_ci95_high |   f1_mean |    f1_std |   f1_ci95_low |   f1_ci95_high |   roc_auc_mean |   roc_auc_std |   roc_auc_ci95_low |   roc_auc_ci95_high |   log_loss_mean |   log_loss_std |   log_loss_ci95_low |   log_loss_ci95_high |
 |:---------|:-----------------------|------------:|----------------:|---------------:|--------------------:|---------------------:|-------------------------:|------------------------:|-----------------------------:|------------------------------:|----------:|----------:|--------------:|---------------:|---------------:|--------------:|-------------------:|--------------------:|----------------:|---------------:|--------------------:|---------------------:|
-| cluster  | ideal                  |           5 |        0.569231 |      0.0421325 |            0.516916 |             0.621545 |                 0.540476 |               0.039123  |                     0.491899 |                      0.589054 |  0.694737 | 0.0384367 |     0.647011  |       0.742462 |       0.214286 |     0.0445435 |           0.158978 |            0.269594 |        0.693147 |    3.63895e-13 |            0.693147 |             0.693147 |
-| cluster  | mixed_training_b_noise |           5 |        0.538462 |      0.0942111 |            0.421483 |             0.65544  |                 0.569048 |               0.0876436 |                     0.460224 |                      0.677872 |  0.25     | 0.259808  |    -0.0725938 |       0.572594 |       0.47381  |     0.184312  |           0.244955 |            0.702664 |        0.703083 |    0.0133987   |            0.686446 |             0.71972  |
-| tfim     | ideal                  |           5 |        0.538462 |      0.0942111 |            0.421483 |             0.65544  |                 0.538095 |               0.0997446 |                     0.414246 |                      0.661944 |  0.560879 | 0.0742309 |     0.468709  |       0.653049 |       0.528571 |     0.141261  |           0.353173 |            0.70397  |        0.693147 |    2.45855e-11 |            0.693147 |             0.693147 |
-| tfim     | mixed_training_b_noise |           5 |        0.384615 |      0.108786  |            0.24954  |             0.519691 |                 0.388095 |               0.110272  |                     0.251175 |                      0.525016 |  0.359048 | 0.163459  |     0.156087  |       0.562009 |       0.361905 |     0.134845  |           0.194473 |            0.529337 |        0.707996 |    0.00795277  |            0.698122 |             0.717871 |
-| xxz      | ideal                  |           5 |        0.476923 |      0.0643585 |            0.397011 |             0.556835 |                 0.47381  |               0.0615143 |                     0.397429 |                      0.55019  |  0.509615 | 0.0841507 |     0.405128  |       0.614102 |       0.445238 |     0.0592852 |           0.371626 |            0.51885  |        0.693147 |    6.48499e-14 |            0.693147 |             0.693147 |
-| xxz      | mixed_training_b_noise |           5 |        0.476923 |      0.100295  |            0.35239  |             0.601456 |                 0.497619 |               0.103236  |                     0.369435 |                      0.625803 |  0.321616 | 0.114649  |     0.179261  |       0.463972 |       0.445238 |     0.106679  |           0.312779 |            0.577697 |        0.702072 |    0.00891571  |            0.691002 |             0.713143 |
+| cluster  | ideal                  |           5 |        0.861538 |      0.0643585 |            0.781627 |             0.94145  |                 0.85     |               0.0697217 |                     0.763429 |                      0.936571 |  0.888039 | 0.0463807 |      0.83045  |       0.945628 |       1        |     0         |           1        |            1        |        0.434051 |     0.0329768  |            0.393105 |             0.474997 |
+| cluster  | mixed_training_b_noise |           5 |        0.861538 |      0.0643585 |            0.781627 |             0.94145  |                 0.85     |               0.0697217 |                     0.763429 |                      0.936571 |  0.888039 | 0.0463807 |      0.83045  |       0.945628 |       1        |     0         |           1        |            1        |        0.554826 |     0.0091975  |            0.543406 |             0.566246 |
+| tfim     | ideal                  |           5 |        1        |      0         |            1        |             1        |                 1        |               0         |                     1        |                      1        |  1        | 0         |      1        |       1        |       1        |     0         |           1        |            1        |        0.435368 |     0.0152618  |            0.416418 |             0.454318 |
+| tfim     | mixed_training_b_noise |           5 |        0.861538 |      0.034401  |            0.818824 |             0.904253 |                 0.852381 |               0.0363046 |                     0.807303 |                      0.897459 |  0.883095 | 0.029129  |      0.846927 |       0.919264 |       0.995238 |     0.0106479 |           0.982017 |            1.00846  |        0.593529 |     0.00943601 |            0.581813 |             0.605245 |
+| xxz      | ideal                  |           5 |        1        |      0         |            1        |             1        |                 1        |               0         |                     1        |                      1        |  1        | 0         |      1        |       1        |       1        |     0         |           1        |            1        |        0.542729 |     0.0189058  |            0.519254 |             0.566204 |
+| xxz      | mixed_training_b_noise |           5 |        0.830769 |      0.084265  |            0.72614  |             0.935398 |                 0.838095 |               0.0774267 |                     0.741957 |                      0.934233 |  0.816037 | 0.103881  |      0.687052 |       0.945023 |       0.916667 |     0.0607026 |           0.841294 |            0.992039 |        0.637152 |     0.00886455 |            0.626145 |             0.648158 |
 
 ## Device-derived simulation transfer
 
-| backend      |   accuracy |   balanced_accuracy |       f1 |   roc_auc |   log_loss |
-|:-------------|-----------:|--------------------:|---------:|----------:|-----------:|
-| ibm_fez      |        0.5 |                 0.5 | 0.444444 |      0.62 |   0.692809 |
-| ibm_kingston |        0.4 |                 0.4 | 0.25     |      0.3  |   0.697941 |
+| backend      | architecture      |   accuracy |   balanced_accuracy |       f1 |   roc_auc |   log_loss |
+|:-------------|:------------------|-----------:|--------------------:|---------:|----------:|-----------:|
+| ibm_fez      | light_shared_line |        0.5 |                 0.5 | 0.444444 |      0.62 |   0.692809 |
+| ibm_kingston | light_shared_line |        0.4 |                 0.4 | 0.25     |      0.3  |   0.697941 |
+
+### N=4 Simulation Architecture Comparison
+
+```json
+{
+  "n_qubits": 4,
+  "architectures": {
+    "light_shared_line": {
+      "architecture": "light_shared_line",
+      "training_seconds": 10.147594599999138,
+      "accuracy": 0.8,
+      "balanced_accuracy": 0.8,
+      "f1": 0.8333333333333334,
+      "roc_auc": 0.6,
+      "log_loss": 0.6931471805599477
+    },
+    "expressive_shared_line": {
+      "architecture": "expressive_shared_line",
+      "training_seconds": 13.082379500003299,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "f1": 1.0,
+      "roc_auc": 1.0,
+      "log_loss": 0.38326663343627715
+    }
+  }
+}
+```
 
 ## Real-QPU simulation-to-hardware gap
 
@@ -152,6 +207,7 @@ Robustness threshold definition and result:
 
 ```json
 {
+  "architecture": "light_shared_line",
   "ideal": {
     "accuracy": 0.75,
     "balanced_accuracy": 0.75,

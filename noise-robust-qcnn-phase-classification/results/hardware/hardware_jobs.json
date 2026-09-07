@@ -1,5 +1,6 @@
 {
   "backend": "ibm_fez",
+  "architecture": "light_shared_line",
   "raw_job_id": "daerd03dd5gc73d90hog",
   "mitigated_job_id": "daerd33dd5gc73d90hvg"
 }

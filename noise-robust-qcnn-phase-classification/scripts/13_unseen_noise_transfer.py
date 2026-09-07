@@ -9,14 +9,9 @@ from qcnn_lab.config import load_yaml
 from qcnn_lab.metrics import binary_metrics, expected_calibration_error
 from qcnn_lab.noise.evaluate import noisy_predict
 from qcnn_lab.noise.models import NoiseSpec, build_noise_model, noise_specs_from_config
+from qcnn_lab.noise.robustness import evaluate_robustness_threshold
 from qcnn_lab.physics.datasets import load_labelled_dataset
 from qcnn_lab.qcnn.architecture import get_architecture
-
-
-def threshold_from_rows(frame: pd.DataFrame, training: str, floor: float) -> float | None:
-    g = frame[(frame["experiment"] == "depolarizing_sweep") & (frame["training"] == training)].sort_values("depolarizing_2q")
-    failed = g[g["balanced_accuracy"] < floor]
-    return None if failed.empty else float(failed.iloc[0]["depolarizing_2q"])
 
 
 def main():
@@ -45,7 +40,7 @@ def main():
 
     for p2 in cfg["robustness"]["depolarizing_2q_grid"]:
         p2 = float(p2)
-        spec = NoiseSpec(name=f"depol2_{p2}", depolarizing_1q=p2 / 10, depolarizing_2q=p2, readout=0.01)
+        spec = NoiseSpec(name=f"depol2_{p2}", depolarizing_1q=p2 / 10, depolarizing_2q=p2, readout=0.0)
         noise = build_noise_model(spec)
         for training, params in (("ideal", ideal["params"]), ("noise_aware", robust["params"])):
             p = noisy_predict(states[test_idx], params, arch, int(cfg["n_qubits"]), noise, shots=1024, seed=int(cfg["seed"]) + 17)
@@ -62,10 +57,27 @@ def main():
     out = Path("results/noise"); out.mkdir(parents=True, exist_ok=True)
     frame.to_csv(out / "unseen_noise_transfer.csv", index=False)
     floor = float(cfg["robustness"]["failure_balanced_accuracy"])
+    depol_frame = frame[frame["experiment"] == "depolarizing_sweep"]
+    ideal_eval = evaluate_robustness_threshold(
+        depol_frame[depol_frame["training"] == "ideal"].to_dict("records"),
+        floor=floor,
+        noise_key="depolarizing_2q",
+        metric_key="balanced_accuracy",
+    )
+    noise_aware_eval = evaluate_robustness_threshold(
+        depol_frame[depol_frame["training"] == "noise_aware"].to_dict("records"),
+        floor=floor,
+        noise_key="depolarizing_2q",
+        metric_key="balanced_accuracy",
+    )
     threshold = {
         "balanced_accuracy_floor": floor,
-        "ideal_first_tested_failure_probability": threshold_from_rows(frame, "ideal", floor),
-        "noise_aware_first_tested_failure_probability": threshold_from_rows(frame, "noise_aware", floor),
+        "ideal": ideal_eval,
+        "noise_aware": noise_aware_eval,
+        "ideal_first_tested_failure_probability": ideal_eval["first_tested_failure_probability"],
+        "noise_aware_first_tested_failure_probability": noise_aware_eval["first_tested_failure_probability"],
+        "ideal_failure_noise_threshold": ideal_eval["failure_noise_threshold"],
+        "noise_aware_failure_noise_threshold": noise_aware_eval["failure_noise_threshold"],
         "interpretation": "A higher first-tested failure probability indicates a wider operational robustness envelope on this predefined coarse sweep.",
     }
     (out / "noise_aware_threshold_comparison.json").write_text(json.dumps(threshold, indent=2), encoding="utf-8")

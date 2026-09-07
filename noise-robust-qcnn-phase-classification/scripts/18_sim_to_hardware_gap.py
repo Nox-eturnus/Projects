@@ -19,6 +19,7 @@ def main():
     ideal_p = batch_predict(states[idx], model["params"], arch, 4)
     y = hw["label"].to_numpy(dtype=int)
     summary = {
+        "architecture": "light_shared_line",
         "ideal": asdict(binary_metrics(y, ideal_p)),
         "hardware_raw": asdict(binary_metrics(y, hw["p1_raw"].to_numpy())),
         "hardware_mitigated": asdict(binary_metrics(y, hw["p1_mitigated"].to_numpy())),

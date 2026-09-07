@@ -24,6 +24,7 @@ def main():
     for pos, idx in enumerate(chosen):
         rows.append({
             "backend": backend.name,
+            "architecture": "light_shared_line",
             "sample_id": int(idx),
             "parameter": float(meta.iloc[idx]["parameter"]),
             "label": int(meta.iloc[idx]["label"]),
@@ -36,7 +37,7 @@ def main():
         })
     out = Path("results/hardware")
     pd.DataFrame(rows).to_csv(out / "hardware_predictions.csv", index=False)
-    (out / "hardware_jobs.json").write_text(json.dumps({"backend": backend.name, "raw_job_id": raw_job, "mitigated_job_id": mit_job}, indent=2), encoding="utf-8")
+    (out / "hardware_jobs.json").write_text(json.dumps({"backend": backend.name, "architecture": "light_shared_line", "raw_job_id": raw_job, "mitigated_job_id": mit_job}, indent=2), encoding="utf-8")
     print(pd.DataFrame(rows).to_string(index=False))
     print("IBM hardware execution PASSED")
 

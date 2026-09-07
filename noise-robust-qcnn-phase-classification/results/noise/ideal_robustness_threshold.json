@@ -1,6 +1,10 @@
 {
   "failure_definition": "first tested 2q depolarizing probability with balanced_accuracy < 0.75",
   "balanced_accuracy_floor": 0.75,
-  "first_tested_failure_probability": 0.0,
+  "first_tested_failure_probability": 0.08,
+  "failure_noise_threshold": 0.04848484848484848,
+  "status": "threshold_found",
+  "robustness_threshold_applicable": true,
+  "baseline_metric": 1.0,
   "grid_is_coarse": true
 }

@@ -1,6 +1,7 @@
 {
   "n_qubits": 4,
-  "training_seconds": 6.537209099999018,
+  "architecture": "light_shared_line",
+  "training_seconds": 10.147594599999138,
   "accuracy": 0.8,
   "balanced_accuracy": 0.8,
   "f1": 0.8333333333333334,

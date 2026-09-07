@@ -27,6 +27,7 @@ def train_noise_aware_spsa(
     validation_idx: np.ndarray,
     training_specs: list[NoiseSpec],
     *,
+    initial_params: np.ndarray | None = None,
     iterations: int = 60,
     batch_size: int = 12,
     shots: int = 256,
@@ -37,7 +38,10 @@ def train_noise_aware_spsa(
     if not training_specs:
         raise ValueError("at least one training noise specification is required")
     rng = np.random.default_rng(seed)
-    params = rng.normal(0.0, 0.15, size=parameter_count(n_qubits, architecture))
+    if initial_params is not None:
+        params = np.array(initial_params, dtype=float).copy()
+    else:
+        params = rng.normal(0.0, 0.15, size=parameter_count(n_qubits, architecture))
     history = []
     started = perf_counter()
     labels = np.asarray(labels, dtype=int)

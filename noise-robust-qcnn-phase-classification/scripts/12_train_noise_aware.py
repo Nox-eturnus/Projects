@@ -27,6 +27,7 @@ def main():
     result = train_noise_aware_spsa(
         states, y, int(cfg["n_qubits"]), arch, train_idx, val_idx,
         [specs["mild_depolarizing"], specs["mixed_training_a"], specs["mixed_training_b"]],
+        initial_params=base["params"],
         iterations=int(nt["iterations"]), batch_size=int(nt["batch_size"]), shots=int(nt["shots"]),
         a=float(nt["spsa_a"]), c=float(nt["spsa_c"]), seed=int(cfg["seed"]),
     )

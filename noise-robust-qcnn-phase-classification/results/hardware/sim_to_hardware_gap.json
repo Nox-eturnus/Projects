@@ -1,4 +1,5 @@
 {
+  "architecture": "light_shared_line",
   "ideal": {
     "accuracy": 0.75,
     "balanced_accuracy": 0.75,
