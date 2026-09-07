@@ -67,14 +67,23 @@ def main():
 
         for split_type in split_types:
             prefix = "critical" if "critical" in split_type else ("block" if "block" in split_type else "iid")
-            for s_seed in split_seeds:
+
+            # Canonical spatial block: 1 canonical split partition with 10 optimizer seeds
+            if split_type == "parameter_block":
+                split_seeds_to_use = [11] if not args.fast else [11]
+                opt_seeds_to_use = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000] if not args.fast else [100, 200]
+            else:
+                split_seeds_to_use = split_seeds
+                opt_seeds_to_use = optimizer_seeds
+
+            for s_seed in split_seeds_to_use:
                 manifest_name = f"{family}_{prefix}_seed{s_seed}.csv"
                 manifest_path = splits_dir / manifest_name
                 manifest = load_split_manifest(manifest_path)
 
                 indices = split_indices_from_manifest(manifest)
 
-                for opt_seed in optimizer_seeds:
+                for opt_seed in opt_seeds_to_use:
                     params, history, sec = train_ideal_qcnn(
                         states,
                         y,
@@ -132,9 +141,13 @@ def main():
     for (fam, s_type), grp in runs_df.groupby(["family", "split_type"]):
         key = f"{fam}_{s_type}"
         ci_dict[key] = {}
+        n_partitions = grp["split_seed"].nunique()
+        n_opt_seeds = grp["optimizer_seed"].nunique()
         row = {
             "family": fam,
             "split_type": s_type,
+            "n_partitions": n_partitions,
+            "n_optimizer_seeds": n_opt_seeds,
             "n_runs": len(grp),
         }
         for metric in ["balanced_accuracy", "accuracy", "f1", "roc_auc", "brier_score", "cross_entropy", "ece"]:
@@ -154,6 +167,34 @@ def main():
     agg_df = pd.DataFrame(agg_rows)
     agg_df.to_csv(out_dir / "aggregate.csv", index=False)
     (out_dir / "confidence_intervals.json").write_text(json.dumps(ci_dict, indent=2), encoding="utf-8")
+
+    # Save Provenance JSON (Priority 14)
+    import subprocess
+    def get_commit():
+        try:
+            return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        except Exception:
+            return "unknown"
+
+    from datetime import datetime, timezone
+    import sys
+    provenance = {
+        "git_commit": get_commit(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "python_version": sys.version,
+        "n_qubits": n_qubits,
+        "optimizer": "COBYLA",
+        "families": families,
+        "split_types": split_types,
+        "split_design": {
+            "iid": {"n_partitions": 10, "n_optimizer_seeds": 5, "total_runs": 50},
+            "critical_holdout": {"n_partitions": 10, "n_optimizer_seeds": 5, "total_runs": 50},
+            "parameter_block": {"n_partitions": 1, "n_optimizer_seeds": 10, "canonical_split_seed": 11, "total_runs": 10},
+        },
+        "script": "scripts/23_multiseed_generalization_benchmark.py",
+    }
+    with open(out_dir / "provenance.json", "w") as f:
+        json.dump(provenance, f, indent=2)
 
     cal_df = pd.DataFrame(all_calibrations)
     cal_df.to_csv(out_dir / "calibration.csv", index=False)

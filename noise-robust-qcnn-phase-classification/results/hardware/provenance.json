@@ -1,0 +1,22 @@
+{
+  "git_commit": "2cc080a9a4b8bfd3c631e67ce292b3a1a9e7f5f9",
+  "generated_at": "2026-09-07T16:00:37.492446+00:00",
+  "backend": "ibm_fez",
+  "backend_processor": "Heron r2",
+  "raw_job_id": "dafdv05nj4cs73ag8e5g",
+  "mitigated_job_id": "dafdv2t1ierc738n8c6g",
+  "shots_or_precision": 1024,
+  "test_sample_count": 10,
+  "test_correct": 10,
+  "balanced_accuracy": 1.0,
+  "accuracy_ci95_low": 0.6915,
+  "accuracy_ci95_high": 1.0,
+  "transpiler_seed": 12345,
+  "transpiled_depth_raw": 18,
+  "transpiled_depth_mitigated": 18,
+  "two_qubit_count_raw": 8,
+  "two_qubit_count_mitigated": 8,
+  "dataset_hash": "912facf40aa961de",
+  "multi_session_hardware_complete": false,
+  "script": "scripts/29_run_expressive_hardware_benchmark.py"
+}

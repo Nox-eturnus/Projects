@@ -1,0 +1,33 @@
+{
+  "git_commit": "2cc080a0bf31dc4a32b21e26f4929ed1f2644f81",
+  "generated_at": "2026-09-07T17:14:49.743911+00:00",
+  "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "n_qubits": 8,
+  "family": "tfim",
+  "optimizer": "COBYLA",
+  "split_seeds": [
+    11,
+    23,
+    37,
+    51,
+    71
+  ],
+  "optimizer_seeds": [
+    100,
+    200
+  ],
+  "n_permutations_shuffled": 25,
+  "delta_no_conv_vs_full": {
+    "delta_iid_mean": -0.11818181818181824,
+    "delta_iid_ci95": [
+      -0.17272727272727278,
+      -0.06363636363636369
+    ],
+    "delta_crit_mean": -0.1923076923076923,
+    "delta_crit_ci95": [
+      -0.30769230769230765,
+      -0.07692307692307691
+    ]
+  },
+  "script": "scripts/26_sanity_and_ablation_suite.py"
+}

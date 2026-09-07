@@ -1,0 +1,30 @@
+{
+  "git_commit": "2cc080a0bf31dc4a32b21e26f4929ed1f2644f81",
+  "generated_at": "2026-09-07T17:19:14.407242+00:00",
+  "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "n_qubits": 8,
+  "temperatures": [
+    0.0,
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.2,
+    0.4
+  ],
+  "p_state_grid": [
+    0.0,
+    0.02,
+    0.05,
+    0.1,
+    0.15
+  ],
+  "p_circuit_grid": [
+    0.0,
+    0.01,
+    0.02,
+    0.04,
+    0.08
+  ],
+  "script": "scripts/28_input_state_robustness.py"
+}

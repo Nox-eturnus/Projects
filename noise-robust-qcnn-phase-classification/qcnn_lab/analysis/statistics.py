@@ -35,6 +35,9 @@ def bootstrap_ci_from_samples(
     return low, high
 
 
+bootstrap_confidence_interval = bootstrap_ci_from_samples
+
+
 def bootstrap_metric_ci(
     y_true: np.ndarray,
     p1: np.ndarray,

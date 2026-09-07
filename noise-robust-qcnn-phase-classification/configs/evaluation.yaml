@@ -20,6 +20,8 @@ evaluation:
       test_max: 1.20
 
   parameter_block:
+    split_seeds: [11]
+    optimizer_seeds: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
     tfim:
       train_low_max: 0.55
       val_low_min: 0.55

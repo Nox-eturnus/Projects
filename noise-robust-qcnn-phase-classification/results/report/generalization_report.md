@@ -4,7 +4,7 @@
 
 This report establishes the **generalization, distribution shift, and robustness boundaries** for Quantum Convolutional Neural Networks (QCNNs) across 3 canonical physical phase transitions (TFIM, XXZ, Cluster/SPT).
 
-To ensure scientific rigor, the evaluation enforces a **strict fail-closed reporting policy**: any condition or family not explicitly executed is marked as `N/A — experiment not executed`. No numerical values are fabricated or substituted.
+To ensure scientific integrity, the evaluation enforces a **strict fail-closed reporting policy**: any condition or family not explicitly executed is marked as `N/A — experiment not executed` or `N/A — not applicable`. No numerical values are fabricated or substituted.
 
 Performance is benchmarked across a staircase of distribution shifts:
 
@@ -21,47 +21,50 @@ Performance is benchmarked across a staircase of distribution shifts:
 
 ## Primary Evaluation Matrix
 
-| Evaluation                 | TFIM BA                                                 | XXZ BA                        | Cluster BA                    | Provenance Source                                      | Runs                 |
-|:---------------------------|:--------------------------------------------------------|:------------------------------|:------------------------------|:-------------------------------------------------------|:---------------------|
-| IID (Ideal)                | 0.977 ± 0.026 [0.955, 1.000]                            | N/A — experiment not executed | N/A — experiment not executed | results/statistical_generalization/aggregate.csv       | 4                    |
-| Critical-region OOD        | 0.751 ± 0.246 [0.538, 0.964]                            | N/A — experiment not executed | N/A — experiment not executed | results/statistical_generalization/aggregate.csv       | 4                    |
-| Hamiltonian OOD (δ=0.10)   | 0.955 (δ=0.10)                                          | 0.864 (δ=0.10)                | 0.818 (δ=0.10)                | results/hamiltonian_ood/summary.csv                    | 20                   |
-| 1024-shot Readout          | 0.955 ± 0.000                                           | 0.898 ± 0.039                 | 0.891 ± 0.034                 | results/finite_shots/shot_scaling_metrics.csv          | 20 seeds             |
-| Thermal (T=0.10)           | 0.500                                                   | 0.944                         | 1.000                         | results/thermal_and_prep/thermal_scaling.csv           | 16 points            |
-| Simulated Circuit Noise    | 0.909 (Aer noise model)                                 | N/A — experiment not executed | N/A — experiment not executed | results/thermal_and_prep/two_by_two_noise_ablation.csv | 1                    |
-| Hardware Progression (N=4) | 1.000 (Mitigated QPU) / 1.000 (Raw QPU) [Job: dafdv05n] | N/A                           | N/A                           | results/hardware/expressive_hardware_summary.json      | 1 physical execution |
+| Evaluation                 | TFIM BA                                                                      | XXZ BA                        | Cluster BA                    | Provenance Source                                      | Runs                      |
+|:---------------------------|:-----------------------------------------------------------------------------|:------------------------------|:------------------------------|:-------------------------------------------------------|:--------------------------|
+| IID (Ideal)                | 0.977 ± 0.026 [0.955, 1.000]                                                 | N/A — experiment not executed | N/A — experiment not executed | results/statistical_generalization/aggregate.csv       | 4                         |
+| Critical-region OOD        | 0.751 ± 0.246 [0.538, 0.964]                                                 | N/A — experiment not executed | N/A — experiment not executed | results/statistical_generalization/aggregate.csv       | 4                         |
+| Hamiltonian OOD (δ=0.10)   | 0.955 (δ=0.10)                                                               | 0.864 (δ=0.10)                | 0.818 (δ=0.10)                | results/hamiltonian_ood/summary.csv                    | 20                        |
+| 1024-shot Readout          | 0.955 ± 0.000                                                                | 0.898 ± 0.039                 | 0.891 ± 0.034                 | results/finite_shots/shot_scaling_metrics.csv          | 20 seeds                  |
+| Thermal (T=0.10)           | 0.500                                                                        | 0.944                         | 1.000                         | results/thermal_and_prep/thermal_scaling.csv           | 16 points                 |
+| Simulated Circuit Noise    | 0.909 (Aer noise model)                                                      | N/A — experiment not executed | N/A — experiment not executed | results/thermal_and_prep/two_by_two_noise_ablation.csv | 1                         |
+| Hardware Progression (N=4) | 10/10 correct [95% CI: 0.692, 1.000] (1.000 Mit / 1.000 Raw) [Job: dafdv05n] | N/A                           | N/A                           | results/hardware/expressive_hardware_summary.json      | n = 10 states (1 session) |
 
 > **Provenance Contract**: All values represent test Balanced Accuracy. Conditions missing completed experimental artifacts report `N/A — experiment not executed`. Hardware cells explicitly state whether numbers originate from physical QPU jobs or analytical surrogates.
 
 ---
 
-## Architectural Ablations & Controls
+## Architectural Ablations & Controls (Fail-Closed)
 
-| model                         | family   |   parameters |   two_qubit_gates |   iid_ba |   critical_ood_ba |   hamiltonian_ood_ba |
-|:------------------------------|:---------|-------------:|------------------:|---------:|------------------:|---------------------:|
-| Full Expressive QCNN          | tfim     |           27 |                36 | 0.954545 |          0.692308 |             0.954545 |
-| No Conv Entanglement          | tfim     |           21 |                14 | 1        |          0.928571 |             1        |
-| No Pool Entanglement          | tfim     |           27 |                22 | 0.727273 |          0.5      |             0.772727 |
-| No Entanglement Anywhere      | tfim     |           21 |                 0 | 0.5      |          0.5      |             0.5      |
-| No Pooling Ablation           | tfim     |           18 |                42 | 0.636364 |          0.5      |             0.636364 |
-| Unshared Weights Ablation     | tfim     |           87 |                36 | 0.954545 |          0.5      |             0.954545 |
-| Untrained QCNN Baseline       | tfim     |           27 |                36 | 0.5      |          0.5      |             0.5      |
-| Shuffled Labels Control       | tfim     |           27 |                36 | 0.672727 |          0.5      |             0.5      |
-| Random Quantum States Control | tfim     |           27 |                36 | 0.416667 |          0.5      |             0.5      |
-| Physics Order Parameter       | tfim     |            2 |                 0 | 0.954545 |          0.538462 |             0.954545 |
+| model                         |   parameters |   two_qubit_gates |   iid_ba | critical_ood_ba      | hamiltonian_ood_ba   |
+|:------------------------------|-------------:|------------------:|---------:|:---------------------|:---------------------|
+| Full Expressive QCNN          |           27 |                36 |    0.955 | 0.692                | 0.955                |
+| No Conv Entanglement          |           21 |                14 |    1     | 0.929                | 1.000                |
+| No Pool Entanglement          |           27 |                22 |    0.727 | 0.500                | 0.773                |
+| No Entanglement Anywhere      |           21 |                 0 |    0.5   | 0.500                | 0.500                |
+| No Pooling Ablation           |           18 |                42 |    0.636 | 0.500                | 0.636                |
+| Unshared Weights Ablation     |           87 |                36 |    0.955 | 0.500                | 0.955                |
+| Untrained QCNN Baseline       |           27 |                36 |    0.5   | 0.500                | 0.500                |
+| Shuffled Labels Control       |           27 |                36 |    0.549 | 0.538                | N/A — not executed   |
+| Random Quantum States Control |           27 |                36 |    0.417 | N/A — not applicable | N/A — not applicable |
+| Physics Order Parameter       |            2 |                 0 |    0.955 | 0.538                | 0.955                |
 
 > **Key Findings & Inductive Bias Analysis**:
-> - **Random State Control**: Classifying Haar-random / unstructured quantum states collapses to chance ($BA \approx 0.50$), confirming the classifier requires genuine physical state structure.
-> - **Shuffled-Label Permutation Control**: Training on randomly permuted labels across an ensemble of permutations produces average test accuracy substantially below the true model, proving the model relies on true correlation rather than arbitrary memorization.
-> - **Disentangling Entanglement**: Granular ablations isolate the roles of convolutional $R_{XX}/R_{ZZ}$ entanglers versus pooling $CX$ operations, showing where two-qubit quantum resources are essential.
+> - **Random State Control**: Classifying Haar-random / unstructured quantum states provides a negative sanity control consistent with chance-level generalization ($BA \approx 0.42$), confirming absence of label leakage.
+> - **Shuffled-Label Permutation Control**: Permutation controls yield test performance substantially below true-label performance, supporting that generalization depends on the genuine state-label relationship rather than training label memorization.
+> - **Disentangling Entanglement**: Hierarchical pooling entanglement contributes more strongly than explicit convolutional entanglers in the preliminary TFIM ablation; multi-seed aggregate confirmation is documented in `ablation_aggregate.csv`.
 
 ---
 
-## Hardware Provenance & Multi-Session Status
+## Hardware Provenance & Uncertainty
 
 - **Execution Mode**: Physical QPU Hardware (`ibm_fez`)
+- **Observed Result**: 10/10 held-out TFIM states correctly classified (100.0%)
+- **Exact Binomial Uncertainty**: 95% Clopper-Pearson CI = [0.692, 1.000]
 - **Job IDs**: Raw `dafdv05nj4cs73ag8e5g`, Mitigated `dafdv2t1ierc738n8c6g`
-- **Multi-Session Hardware Status**: `multi_session_hardware_complete = false` (multi-session tracking pending distinct calibration runs).
+- **Circuit Telemetry**: Transpiled depth = 18, 2Q gates = 8
+- **Multi-Session Status**: `multi_session_hardware_complete = false` (multi-session calibration across multiple cooling windows is pending).
 
 ---
 

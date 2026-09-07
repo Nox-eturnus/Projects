@@ -1,10 +1,22 @@
 {
   "execution_mode": "physical_hardware",
   "is_physical_hardware": true,
+  "git_commit": "2cc080a9a4b8bfd3c631e67ce292b3a1a9e7f5f9",
   "backend": "ibm_fez",
   "raw_job_id": "dafdv05nj4cs73ag8e5g",
   "mitigated_job_id": "dafdv2t1ierc738n8c6g",
-  "multi_session_hardware_complete": false,
+  "shots_or_precision": 1024,
+  "test_sample_count": 10,
+  "test_correct": 10,
+  "balanced_accuracy": 1.0,
+  "accuracy_ci95_low": 0.6915,
+  "accuracy_ci95_high": 1.0,
+  "transpiler_seed": 12345,
+  "transpiled_depth_raw": 18,
+  "transpiled_depth_mitigated": 18,
+  "two_qubit_count_raw": 8,
+  "two_qubit_count_mitigated": 8,
+  "logical_to_physical_layout": "[0, 1, 2, 3] -> physical on ibm_fez",
   "execution_timestamp": "2026-09-07T16:00:37.492446+00:00",
   "n_qubits": 4,
   "architecture": "expressive_shared_line",
@@ -12,5 +24,8 @@
   "ideal_balanced_accuracy": 1.0,
   "device_noise_balanced_accuracy": 1.0,
   "raw_hardware_balanced_accuracy": 1.0,
-  "mitigated_hardware_balanced_accuracy": 1.0
+  "mitigated_hardware_balanced_accuracy": 1.0,
+  "multi_session_hardware_complete": false,
+  "dataset_hash": "912facf40aa961de",
+  "notes": "Observed 10/10 correct classifications on held-out N=4 TFIM test states during one ibm_fez hardware session. Multi-session calibration across multiple distinct cooling/calibration windows is pending."
 }

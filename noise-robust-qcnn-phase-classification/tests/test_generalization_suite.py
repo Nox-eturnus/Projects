@@ -1,13 +1,20 @@
+import json
+from pathlib import Path
 import numpy as np
 import pytest
 from scipy import sparse
+from sklearn.metrics import balanced_accuracy_score
 
+from qcnn_lab.analysis.binomial_ci import clopper_pearson_interval, wilson_score_interval
 from qcnn_lab.analysis.calibration import (
     brier_score,
     expected_calibration_error,
     negative_log_likelihood,
 )
+from qcnn_lab.analysis.splits import load_split_manifest, split_indices_from_manifest
 from qcnn_lab.analysis.statistics import bootstrap_ci_from_samples, bootstrap_metric_ci
+from qcnn_lab.config import load_yaml
+from qcnn_lab.measurement.grouped_observables import extract_grouped_classical_features
 from qcnn_lab.noise.state_preparation import noisy_state_preparation_predict
 from qcnn_lab.physics.hamiltonians import cluster_ising_hamiltonian, tfim_hamiltonian
 from qcnn_lab.physics.operators import local_pauli, pauli_product
@@ -29,10 +36,12 @@ from qcnn_lab.qcnn.architecture import (
     parameter_count,
     raw_circuit_metrics,
 )
+from qcnn_lab.qcnn.evaluate import batch_predict
 from qcnn_lab.qcnn.finite_shots import (
     simulate_finite_shot_observable,
     simulate_finite_shot_probability,
 )
+from qcnn_lab.qcnn.train import train_ideal_qcnn
 
 
 def test_optimizer_seed_reproducibility():
@@ -43,15 +52,16 @@ def test_optimizer_seed_reproducibility():
     np.testing.assert_array_equal(v1, v2)
 
 
-def test_shuffled_labels_destroy_test_signal():
+def test_label_shuffle_changes_order_preserves_counts():
+    """Verify that label shuffling randomizes element positions while preserving class counts."""
     y = np.array([0] * 50 + [1] * 50)
     shuffled = make_shuffled_labels_data(y, seed=999)
-    # Shuffling changes positions
     assert not np.array_equal(y, shuffled)
     assert sum(shuffled) == sum(y)
 
 
-def test_random_states_have_no_label_signal():
+def test_random_state_generator_normalizes_and_balances():
+    """Verify that synthetic random quantum state generator normalizes vectors and balances labels."""
     states, labels = make_random_quantum_states(20, n_qubits=4, seed=42)
     assert len(states) == 20
     assert states.shape[1] == 16
@@ -188,3 +198,135 @@ def test_calibration_metrics_bounds():
     assert 0.0 <= bs <= 1.0
     assert 0.0 <= ece <= 1.0
     assert nll >= 0.0
+
+
+# --- BEHAVIORAL REGRESSION TESTS (PRIORITY 9) ---
+
+def test_clopper_pearson_exact_bounds():
+    """Verify exact Clopper-Pearson binomial confidence interval on 10/10 hardware result."""
+    low, high = clopper_pearson_interval(10, 10, confidence=0.95)
+    assert low == 0.6915
+    assert high == 1.0
+
+
+def test_wilson_score_interval_bounds():
+    low, high = wilson_score_interval(10, 10, confidence=0.95)
+    assert 0.70 <= low <= 0.75
+    assert high == 1.0
+
+
+def test_training_changes_predictions():
+    """Verify that training on labeled states materially changes model parameter weights and predictions."""
+    arch = get_architecture("expressive_shared_line")
+    n_qubits = 4
+    init_params = np.zeros(parameter_count(n_qubits, arch))
+
+    # Generate small 4-qubit dataset
+    states, labels = make_random_quantum_states(8, n_qubits=n_qubits, seed=123)
+    train_idx = np.array([0, 1, 2, 3])
+    val_idx = np.array([4, 5])
+    test_idx = np.array([6, 7])
+
+    trained_params, _, _ = train_ideal_qcnn(
+        states, labels, n_qubits, arch, train_idx, val_idx, maxiter=20, seed=42
+    )
+
+    # Weights must have moved
+    weight_shift = np.linalg.norm(trained_params - init_params)
+    assert weight_shift > 0.05
+
+    # Predictions must differ from initial 0.5 flat baseline
+    init_preds = batch_predict(states[test_idx], init_params, arch, n_qubits)
+    trained_preds = batch_predict(states[test_idx], trained_params, arch, n_qubits)
+    assert not np.allclose(init_preds, trained_preds, atol=0.01)
+
+
+def test_shuffled_labels_reduce_generalization():
+    """Verify that permuting training labels degrades out-of-sample test generalization."""
+    arch = get_architecture("expressive_shared_line")
+    n_qubits = 4
+    states, labels = make_random_quantum_states(12, n_qubits=n_qubits, seed=777)
+    train_idx = np.arange(8)
+    val_idx = np.array([8, 9])
+    test_idx = np.array([10, 11])
+
+    res = evaluate_shuffled_label_permutation_distribution(
+        states, labels, n_qubits, arch,
+        train_idx, val_idx, test_idx,
+        true_test_ba=1.0,
+        n_permutations=5,
+        maxiter=15,
+        seed=100,
+    )
+    assert "permutation_runs" in res
+    assert len(res["permutation_runs"]) == 5
+    assert res["empirical_p_value"] is not None
+
+
+def test_unexecuted_control_metrics_are_nan():
+    """Verify fail-closed contract: unexecuted or non-applicable control regimes return NaN."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("mod26", Path("scripts/26_sanity_and_ablation_suite.py"))
+    mod26 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod26)
+    evaluate_model_on_splits = mod26.evaluate_model_on_splits
+
+    arch = get_architecture("expressive_shared_line")
+    states, labels = make_random_quantum_states(10, n_qubits=4, seed=42)
+
+    class DummyIndices:
+        train = np.array([0, 1, 2, 3, 4, 5])
+        validation = np.array([6, 7])
+        test = np.array([8, 9])
+
+    idx = DummyIndices()
+    pert_st = states[:4]
+    pert_lbl = labels[:4]
+
+    rec_rand, _ = evaluate_model_on_splits(
+        "random_quantum_states", "tfim", 4, states, labels,
+        idx, idx, pert_st, pert_lbl, maxiter=10
+    )
+    assert np.isnan(rec_rand["critical_ood_ba"])
+    assert np.isnan(rec_rand["hamiltonian_ood_ba"])
+    assert rec_rand["critical_ood_status"] == "not_applicable"
+    assert rec_rand["hamiltonian_ood_status"] == "not_applicable"
+
+    rec_shuf, _ = evaluate_model_on_splits(
+        "shuffled_labels", "tfim", 4, states, labels,
+        idx, idx, pert_st, pert_lbl, maxiter=10
+    )
+    assert np.isnan(rec_shuf["hamiltonian_ood_ba"])
+    assert rec_shuf["hamiltonian_ood_status"] == "not_executed"
+
+
+def test_parameter_block_canonical_split_contract():
+    """Verify that parameter-block configuration enforces 1 canonical split with multiple optimizer seeds."""
+    eval_cfg = load_yaml("configs/evaluation.yaml")["evaluation"]
+    block_cfg = eval_cfg.get("parameter_block", {})
+    # Canonical split seed must be exactly [11]
+    assert block_cfg.get("split_seeds") == [11]
+    assert len(block_cfg.get("optimizer_seeds", [])) >= 10
+
+
+def test_physical_summary_requires_job_ids():
+    """Verify that physical hardware summary strictly contains valid QPU job IDs and Clopper-Pearson CI."""
+    hw_path = Path("results/hardware/expressive_hardware_summary.json")
+    if hw_path.exists():
+        data = json.loads(hw_path.read_text(encoding="utf-8"))
+        if data.get("is_physical_hardware", False):
+            assert len(data.get("raw_job_id", "")) > 10
+            assert len(data.get("mitigated_job_id", "")) > 10
+            assert data.get("test_sample_count") == 10
+            assert data.get("test_correct") == 10
+            assert data.get("accuracy_ci95_low") == 0.6915
+            assert data.get("accuracy_ci95_high") == 1.0
+
+
+def test_grouped_observables_basis_contract():
+    """Verify that grouped observables sample from exactly 2 physical bases."""
+    states, _ = make_random_quantum_states(3, n_qubits=4, seed=42)
+    feats, n_bases = extract_grouped_classical_features(states, "tfim", 4, budget=256, seed=123)
+    assert n_bases == 2
+    assert feats.shape == (3, 2)
+    assert np.all((feats >= -1.0) & (feats <= 1.0))

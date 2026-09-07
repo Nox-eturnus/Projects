@@ -125,8 +125,8 @@ def evaluate_shuffled_label_permutation_distribution(
     test_idx: np.ndarray,
     *,
     true_test_ba: float | None = None,
-    n_permutations: int = 10,
-    maxiter: int = 30,
+    n_permutations: int = 25,
+    maxiter: int = 25,
     seed: int = 12345,
 ) -> dict[str, Any]:
     """Evaluate classifier performance over an ensemble of random label permutations.
@@ -135,10 +135,11 @@ def evaluate_shuffled_label_permutation_distribution(
     1. memorization (train BA on shuffled labels)
     2. out-of-sample generalization (test BA on true labels)
     3. test Brier score
-    4. empirical permutation p-value
+    4. empirical permutation p-value: p = (1 + #{BA_perm >= BA_real}) / (1 + N_perm)
     """
     records = []
     for k in range(n_permutations):
+        opt_seed = seed + 1000 + k * 31
         shuffled_train_y = make_shuffled_labels_data(labels[train_idx], seed=seed + k * 17)
         y_copy = labels.copy()
         y_copy[train_idx] = shuffled_train_y
@@ -151,7 +152,7 @@ def evaluate_shuffled_label_permutation_distribution(
             train_idx,
             val_idx,
             maxiter=maxiter,
-            seed=seed + 1000 + k * 31,
+            seed=opt_seed,
         )
 
         train_p = batch_predict(states[train_idx], params, architecture, n_qubits)
@@ -164,6 +165,7 @@ def evaluate_shuffled_label_permutation_distribution(
 
         records.append({
             "permutation_id": k + 1,
+            "optimizer_seed": opt_seed,
             "train_ba_shuffled": train_ba_shuf,
             "train_ba_real": train_ba_real,
             "test_ba_real": test_ba_real,
@@ -185,5 +187,7 @@ def evaluate_shuffled_label_permutation_distribution(
         "test_ba_real_mean": float(np.mean(test_bas)),
         "test_ba_real_std": float(np.std(test_bas, ddof=1)) if len(test_bas) > 1 else 0.0,
         "empirical_p_value": p_value,
+        "true_test_ba": true_test_ba,
         "permutation_runs": records,
     }
+

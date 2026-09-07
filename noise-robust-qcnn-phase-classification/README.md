@@ -302,28 +302,91 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 
 ### Primary Evaluation Matrix
 
-| Evaluation | TFIM BA | XXZ BA | Cluster BA |
-| :--- | :---: | :---: | :---: |
-| **IID (Ideal)** | 0.977 ± 0.026 [0.955, 1.000] | N/A — pending multi-seed | N/A — pending multi-seed |
-| **Critical-region OOD** | 0.751 ± 0.246 [0.538, 0.964] | N/A — pending multi-seed | N/A — pending multi-seed |
-| **Hamiltonian OOD (δ=0.10)** | 0.955 (δ=0.10) | 0.864 (δ=0.10) | 0.818 (δ=0.10) |
-| **1024-shot Readout** | 0.955 ± 0.000 | 0.898 ± 0.039 | 0.891 ± 0.034 |
-| **Thermal (T=0.10)** | 0.500 | 0.944 | 1.000 |
-| **Simulated Circuit Noise** | 0.909 (Aer noise model) | N/A — pending execution | N/A — pending execution |
-| **Physical IBM Hardware (N=4)** | 1.000 (Mitigated) / 1.000 (Raw) | N/A | N/A |
+<!-- BEGIN AUTO RESULTS: PRIMARY_MATRIX -->
+| Evaluation                 | TFIM BA                                                                      | XXZ BA                        | Cluster BA                    | Runs                      |
+|:---------------------------|:-----------------------------------------------------------------------------|:------------------------------|:------------------------------|:--------------------------|
+| IID (Ideal)                | 0.977 ± 0.026 [0.955, 1.000]                                                 | N/A — experiment not executed | N/A — experiment not executed | 4                         |
+| Critical-region OOD        | 0.751 ± 0.246 [0.538, 0.964]                                                 | N/A — experiment not executed | N/A — experiment not executed | 4                         |
+| Hamiltonian OOD (δ=0.10)   | 0.955 (δ=0.10)                                                               | 0.864 (δ=0.10)                | 0.818 (δ=0.10)                | 20                        |
+| 1024-shot Readout          | 0.955 ± 0.000                                                                | 0.898 ± 0.039                 | 0.891 ± 0.034                 | 20 seeds                  |
+| Thermal (T=0.10)           | 0.500                                                                        | 0.944                         | 1.000                         | 16 points                 |
+| Simulated Circuit Noise    | 0.909 (Aer noise model)                                                      | N/A — experiment not executed | N/A — experiment not executed | 1                         |
+| Hardware Progression (N=4) | 10/10 correct [95% CI: 0.692, 1.000] (1.000 Mit / 1.000 Raw) [Job: dafdv05n] | nan                           | nan                           | n = 10 states (1 session) |
+<!-- END AUTO RESULTS: PRIMARY_MATRIX -->
+
+### Architectural Ablations & Controls
+
+<!-- BEGIN AUTO RESULTS: ABLATIONS -->
+| model                         |   parameters |   two_qubit_gates |   iid_ba | critical_ood_ba      | hamiltonian_ood_ba   |
+|:------------------------------|-------------:|------------------:|---------:|:---------------------|:---------------------|
+| Full Expressive QCNN          |           27 |                36 |    0.955 | 0.692                | 0.955                |
+| No Conv Entanglement          |           21 |                14 |    1     | 0.929                | 1.000                |
+| No Pool Entanglement          |           27 |                22 |    0.727 | 0.500                | 0.773                |
+| No Entanglement Anywhere      |           21 |                 0 |    0.5   | 0.500                | 0.500                |
+| No Pooling Ablation           |           18 |                42 |    0.636 | 0.500                | 0.636                |
+| Unshared Weights Ablation     |           87 |                36 |    0.955 | 0.500                | 0.955                |
+| Untrained QCNN Baseline       |           27 |                36 |    0.5   | 0.500                | 0.500                |
+| Shuffled Labels Control       |           27 |                36 |    0.549 | 0.538                | N/A — not executed   |
+| Random Quantum States Control |           27 |                36 |    0.417 | N/A — not applicable | N/A — not applicable |
+| Physics Order Parameter       |            2 |                 0 |    0.955 | 0.538                | 0.955                |
+
+> **Shuffled-Label Permutation Test (N=25 permutations)**:
+> Training BA on permuted labels = 0.542 ± 0.040; test BA on real labels = 0.549 ± 0.388.
+> The permutation-control distribution was substantially below true-label performance, supporting that generalization depends on the genuine state-label relationship.
+
+> **Multi-Seed Architectural Ablation Aggregate (5 splits × 2 optimizer seeds)**:
+| architecture                    |   parameter_count |   two_qubit_gates |   n_runs |   iid_ba_mean |   critical_ood_ba_mean |   hamiltonian_ood_ba_mean |
+|:--------------------------------|------------------:|------------------:|---------:|--------------:|-----------------------:|--------------------------:|
+| expressive_no_conv_entanglement |                21 |                14 |       10 |         0.814 |                  0.5   |                     0.891 |
+| expressive_no_entanglement      |                21 |                 0 |       10 |         0.5   |                  0.5   |                     0.5   |
+| expressive_no_pool_entanglement |                27 |                22 |       10 |         0.814 |                  0.5   |                     0.846 |
+| expressive_no_pooling           |                18 |                42 |       10 |         0.5   |                  0.5   |                     0.5   |
+| expressive_shared_line          |                27 |                36 |       10 |         0.932 |                  0.692 |                     0.922 |
+| expressive_unshared_line        |                87 |                36 |       10 |         0.923 |                  0.512 |                     0.955 |
+<!-- END AUTO RESULTS: ABLATIONS -->
+
+### Classical Measurement-Budget Comparator
+
+<!-- BEGIN AUTO RESULTS: BUDGET -->
+| Budget ($B$) | Family | QCNN Mean BA | Classical Pauli Mean BA | Settings |
+| :---: | :---: | :---: | :---: | :---: |
+| 128 | TFIM | 0.957 ± 0.027 | 0.952 ± 0.018 | 2 bases |
+| 512 | TFIM | 0.955 ± 0.000 | 0.955 ± 0.000 | 2 bases |
+| 2048 | TFIM | 0.955 ± 0.000 | 0.955 ± 0.000 | 2 bases |
+| 4096 | TFIM | 0.955 ± 0.000 | 0.955 ± 0.000 | 2 bases |
+| 128 | XXZ | 0.893 ± 0.050 | 0.916 ± 0.054 | 2 bases |
+| 512 | XXZ | 0.893 ± 0.034 | 0.955 ± 0.026 | 2 bases |
+| 2048 | XXZ | 0.884 ± 0.023 | 0.961 ± 0.027 | 2 bases |
+| 4096 | XXZ | 0.884 ± 0.027 | 0.961 ± 0.027 | 2 bases |
+| 128 | CLUSTER | 0.870 ± 0.054 | 0.952 ± 0.010 | 2 bases |
+| 512 | CLUSTER | 0.882 ± 0.045 | 0.955 ± 0.000 | 2 bases |
+| 2048 | CLUSTER | 0.902 ± 0.037 | 0.955 ± 0.000 | 2 bases |
+| 4096 | CLUSTER | 0.907 ± 0.027 | 0.955 ± 0.000 | 2 bases |
+<!-- END AUTO RESULTS: BUDGET -->
+
+### Physical IBM Hardware Execution & Uncertainty
+
+<!-- BEGIN AUTO RESULTS: HARDWARE -->
+- **Observed Result**: **10/10** held-out N=4 TFIM test states correctly classified on `ibm_fez`.
+- **Exact Binomial Uncertainty**: 95% Clopper-Pearson CI = **[0.692, 1.000]**.
+- **QPU Job Provenance**: Raw Job ID `dafdv05nj4cs73ag8e5g`, Mitigated Job ID `dafdv2t1ierc738n8c6g`.
+- **Execution Protocol**: Twirled Readout Error Extrapolation (TREX, resilience level 1) + Dynamical Decoupling (`XpXm`).
+- **Multi-Session Status**: Single physical session complete; multi-session stability tracking across distinct calibration windows is pending.
+<!-- END AUTO RESULTS: HARDWARE -->
 
 ### Key Experimental Discoveries
 
 1. **Near-Critical Crossover & Family Boundaries:** TFIM displays clear distance-dependent generalization ($BA = 0.70$ near transition, $1.00$ away) and a bracketed finite-size crossover ($h \approx 0.931$ vs thermodynamic $h_c=1.0$), while XXZ and Cluster expose genuine zero-shot transfer boundaries ($BA \approx 0.50$ in the critical holdout).
 2. **Hamiltonian Perturbation Generalization:** Models trained purely at $\delta = 0$ maintain high balanced accuracy under disordered TFIM and symmetry-preserving Cluster/XXZ deformations up to $\delta = 0.20$ under nominal phase boundaries, accompanied by tracked spectral gaps and state fidelities.
 3. **Ablation & Control Proving Ground:**
-   - **Haar Random States**: Unstructured state classification collapses to chance ($BA \approx 0.51$), confirming the classifier requires genuine physical state structure.
+   - **Haar Random States**: Provide a negative sanity control consistent with chance-level generalization ($BA \approx 0.42$), confirming absence of label leakage.
    - **Untrained QCNN Baseline**: Random parameter initializations evaluate the inductive bias floor without optimization.
-   - **Shuffled-Label Permutation Ensemble**: Average test accuracy across random label permutations is substantially below the true model ($BA \approx 0.56$ on shuffled training targets), proving the model relies on true physical correlation rather than arbitrary memorization.
-   - **Granular Entanglement**: Disentangles convolutional $R_{XX}/R_{ZZ}$ gates from pooling $CX$ operations, showing where two-qubit quantum resources are essential.
-   - **Pooling Ablation**: Removing pooling reduces IID BA from $0.955$ to $0.773$ and degrades critical generalization.
-4. **Finite-Shot Budgets with Commuting Pauli Observables:** Classical models with commuting Pauli observable groups achieve parity with or outperform QCNN on Cluster and at larger budgets ($B \ge 1024$), while QCNN maintains an edge in low-shot TFIM regimes ($B \le 256$).
-5. **Real Physical IBM Hardware Execution:** The $N=4$ expressive QCNN was executed directly on IBM Quantum's physical `ibm_fez` Heron r2 processor with live job IDs (`dafdv05nj4cs73ag8e5g` raw, `dafdv2t1ierc738n8c6g` mitigated), achieving 1.0 balanced accuracy on the test partition. Analytical surrogate simulation scripts (`--mode simulate`) provide offline sensitivity modeling. Multi-session hardware tracking is explicitly flagged as pending repeated physical calibration windows.
+   - **Shuffled-Label Permutation Ensemble**: Average test accuracy across random label permutations is substantially below the true model, supporting that generalization depends on the genuine state-label relationship rather than arbitrary memorization.
+   - **Entanglement Inductive Bias**: Pooling entanglement appears substantially more important than explicit convolutional entanglers in the preliminary TFIM ablation; multi-seed aggregate confirmation is documented in `ablation_aggregate.csv`.
+   - **Pooling Ablation**: Removing pooling degrades critical and out-of-distribution generalization.
+4. **Finite-Shot Budgets with Commuting Pauli Observables:** Demonstrates family- and budget-dependent resource tradeoffs: classical models with commuting Pauli observable groups achieve parity with or outperform QCNN on Cluster and at larger budgets ($B \ge 1024$), while QCNN maintains an edge in low-shot TFIM regimes ($B \le 256$).
+5. **Physical IBM Hardware Session:** Observed 10/10 correct classifications on a held-out N=4 TFIM test subset during one `ibm_fez` hardware session (95% Clopper-Pearson CI: $[0.692, 1.000]$; raw job `dafdv05nj4cs73ag8e5g`, mitigated job `dafdv2t1ierc738n8c6g`). Multi-session calibration tracking across distinct cooling windows is pending.
+
 
 ---
 

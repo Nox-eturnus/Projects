@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
+import json
 from pathlib import Path
+import subprocess
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,6 +13,7 @@ import pandas as pd
 from sklearn.metrics import balanced_accuracy_score
 
 from qcnn_lab.analysis.splits import load_split_manifest, split_indices_from_manifest
+from qcnn_lab.analysis.statistics import bootstrap_confidence_interval
 from qcnn_lab.config import load_yaml
 from qcnn_lab.physics.perturbations import get_perturbed_ground_state
 from qcnn_lab.qcnn.ablations import (
@@ -16,11 +21,23 @@ from qcnn_lab.qcnn.ablations import (
     UntrainedQCNNBaseline,
     evaluate_shuffled_label_permutation_distribution,
     make_random_quantum_states,
-    make_shuffled_labels_data,
 )
 from qcnn_lab.qcnn.architecture import get_architecture, parameter_count, raw_circuit_metrics
 from qcnn_lab.qcnn.evaluate import batch_predict
 from qcnn_lab.qcnn.train import train_ideal_qcnn
+
+
+def get_git_commit() -> str:
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return res.stdout.strip()
+    except Exception:
+        return "unknown"
 
 
 def evaluate_model_on_splits(
@@ -33,9 +50,14 @@ def evaluate_model_on_splits(
     crit_indices,
     pert_states: np.ndarray,
     pert_labels: np.ndarray,
-    maxiter: int = 40,
-) -> dict:
-    """Train and evaluate an architectural ablation or control model."""
+    full_qcnn_iid_ba: float | None = None,
+    maxiter: int = 30,
+) -> tuple[dict, list[dict] | None]:
+    """Train and evaluate an architectural ablation or control model.
+
+    Returns:
+        (summary_record, permutation_records_or_none)
+    """
     print(f"Evaluating {model_name} on {family.upper()}...")
 
     if model_name == "physics_order_parameter":
@@ -52,7 +74,7 @@ def evaluate_model_on_splits(
         pert_pred = clf.predict(pert_states)
         pert_ba = float(balanced_accuracy_score(pert_labels, pert_pred))
 
-        return {
+        rec = {
             "model": "Physics Order Parameter",
             "family": family,
             "parameters": 2,
@@ -60,7 +82,11 @@ def evaluate_model_on_splits(
             "iid_ba": iid_ba,
             "critical_ood_ba": crit_ba,
             "hamiltonian_ood_ba": pert_ba,
+            "iid_status": "executed",
+            "critical_ood_status": "executed",
+            "hamiltonian_ood_status": "executed",
         }
+        return rec, None
 
     elif model_name == "untrained_qcnn":
         arch = get_architecture("expressive_shared_line")
@@ -75,7 +101,7 @@ def evaluate_model_on_splits(
         pert_ba = float(balanced_accuracy_score(pert_labels, pert_pred))
 
         metrics = raw_circuit_metrics(n_qubits, arch)
-        return {
+        rec = {
             "model": "Untrained QCNN Baseline",
             "family": family,
             "parameters": metrics["parameters"],
@@ -83,34 +109,45 @@ def evaluate_model_on_splits(
             "iid_ba": iid_ba,
             "critical_ood_ba": crit_ba,
             "hamiltonian_ood_ba": pert_ba,
+            "iid_status": "executed",
+            "critical_ood_status": "executed",
+            "hamiltonian_ood_status": "executed",
         }
+        return rec, None
 
     elif model_name == "shuffled_labels":
         arch = get_architecture("expressive_shared_line")
+        # Run permutation test with N=25 permutations
         perm_res = evaluate_shuffled_label_permutation_distribution(
             states, labels, n_qubits, arch,
             iid_indices.train, iid_indices.validation, iid_indices.test,
-            n_permutations=5, maxiter=maxiter, seed=777,
+            true_test_ba=full_qcnn_iid_ba,
+            n_permutations=25, maxiter=maxiter, seed=777,
         )
         iid_ba = perm_res["test_ba_real_mean"]
 
         perm_crit = evaluate_shuffled_label_permutation_distribution(
             states, labels, n_qubits, arch,
             crit_indices.train, crit_indices.validation, crit_indices.test,
-            n_permutations=3, maxiter=maxiter, seed=888,
+            n_permutations=10, maxiter=maxiter, seed=888,
         )
         crit_ba = perm_crit["test_ba_real_mean"]
 
         metrics = raw_circuit_metrics(n_qubits, arch)
-        return {
+        rec = {
             "model": "Shuffled Labels Control",
             "family": family,
             "parameters": metrics["parameters"],
             "two_qubit_gates": metrics["two_qubit_operations"],
             "iid_ba": iid_ba,
             "critical_ood_ba": crit_ba,
-            "hamiltonian_ood_ba": 0.50,
+            "hamiltonian_ood_ba": np.nan,  # Fail-closed: not executed
+            "iid_status": "executed",
+            "critical_ood_status": "executed",
+            "hamiltonian_ood_status": "not_executed",
+            "empirical_p_value": perm_res["empirical_p_value"],
         }
+        return rec, perm_res["permutation_runs"]
 
     elif model_name == "random_quantum_states":
         arch = get_architecture("expressive_shared_line")
@@ -123,15 +160,19 @@ def evaluate_model_on_splits(
         iid_ba = float(balanced_accuracy_score(rand_labels[iid_indices.test], (test_p >= 0.5).astype(int)))
 
         metrics = raw_circuit_metrics(n_qubits, arch)
-        return {
+        rec = {
             "model": "Random Quantum States Control",
             "family": family,
             "parameters": metrics["parameters"],
             "two_qubit_gates": metrics["two_qubit_operations"],
             "iid_ba": iid_ba,
-            "critical_ood_ba": 0.50,
-            "hamiltonian_ood_ba": 0.50,
+            "critical_ood_ba": np.nan,    # Fail-closed: conceptually not applicable
+            "hamiltonian_ood_ba": np.nan, # Fail-closed: conceptually not applicable
+            "iid_status": "executed",
+            "critical_ood_status": "not_applicable",
+            "hamiltonian_ood_status": "not_applicable",
         }
+        return rec, None
 
     else:
         arch = get_architecture(model_name)
@@ -161,7 +202,7 @@ def evaluate_model_on_splits(
             "expressive_no_pooling": "No Pooling Ablation",
             "expressive_unshared_line": "Unshared Weights Ablation",
         }
-        return {
+        rec = {
             "model": display_names.get(model_name, model_name),
             "family": family,
             "parameters": metrics["parameters"],
@@ -169,7 +210,11 @@ def evaluate_model_on_splits(
             "iid_ba": iid_ba,
             "critical_ood_ba": crit_ba,
             "hamiltonian_ood_ba": pert_ba,
+            "iid_status": "executed",
+            "critical_ood_status": "executed",
+            "hamiltonian_ood_status": "executed",
         }
+        return rec, None
 
 
 def main():
@@ -210,6 +255,14 @@ def main():
     pert_states = np.asarray(pert_states)
     pert_labels = (test_params >= 1.0).astype(int)
 
+    # 1. Single-split canonical summary (with full expressive run first to get true_test_ba)
+    print("--- Stage 1: Single-Split Canonical Summary & Fail-Closed Controls ---")
+    full_qcnn_res, _ = evaluate_model_on_splits(
+        "expressive_shared_line", family, n_qubits, states, labels,
+        iid_indices, crit_indices, pert_states, pert_labels, maxiter=30,
+    )
+    full_qcnn_iid_ba = full_qcnn_res["iid_ba"]
+
     models_to_test = [
         "expressive_shared_line",
         "expressive_no_conv_entanglement",
@@ -224,39 +277,184 @@ def main():
     ]
 
     results = []
+    shuffled_records = None
+
     for m in models_to_test:
-        rec = evaluate_model_on_splits(
+        if m == "expressive_shared_line":
+            results.append(full_qcnn_res)
+            continue
+        rec, perm_runs = evaluate_model_on_splits(
             m, family, n_qubits, states, labels,
             iid_indices, crit_indices, pert_states, pert_labels,
+            full_qcnn_iid_ba=full_qcnn_iid_ba,
             maxiter=30,
         )
         results.append(rec)
+        if perm_runs is not None:
+            shuffled_records = perm_runs
 
     summary_df = pd.DataFrame(results)
     summary_df.to_csv(out_dir / "ablation_and_controls_summary.csv", index=False)
 
+    # Save permutation logs
+    if shuffled_records:
+        perm_df = pd.DataFrame(shuffled_records)
+        perm_df.to_csv(out_dir / "shuffled_label_permutations.csv", index=False)
+        print(f"Saved {len(perm_df)} shuffled-label permutations to {out_dir / 'shuffled_label_permutations.csv'}")
+
+    # 2. Multi-Seed Statistical Architecture Ablation Study (Priority 4)
+    print("\n--- Stage 2: Multi-Seed Architecture Ablation Study ---")
+    ablation_archs = [
+        "expressive_shared_line",
+        "expressive_no_conv_entanglement",
+        "expressive_no_pool_entanglement",
+        "expressive_no_entanglement",
+        "expressive_no_pooling",
+        "expressive_unshared_line",
+    ]
+    split_seeds = [11, 23, 37, 51, 71]
+    optimizer_seeds = [100, 200]
+
+    ablation_runs = []
+    for arch_name in ablation_archs:
+        arch = get_architecture(arch_name)
+        metrics = raw_circuit_metrics(n_qubits, arch)
+        for s_seed in split_seeds:
+            manifest_iid = load_split_manifest(splits_dir / f"{family}_iid_seed{s_seed}.csv")
+            idx_iid = split_indices_from_manifest(manifest_iid)
+
+            manifest_crit = load_split_manifest(splits_dir / f"{family}_critical_seed{s_seed}.csv")
+            idx_crit = split_indices_from_manifest(manifest_crit)
+
+            for opt_seed in optimizer_seeds:
+                # IID run
+                params_iid, _, _ = train_ideal_qcnn(
+                    states, labels, n_qubits, arch, idx_iid.train, idx_iid.validation,
+                    maxiter=25, seed=opt_seed,
+                )
+                iid_p = batch_predict(states[idx_iid.test], params_iid, arch, n_qubits)
+                run_iid_ba = float(balanced_accuracy_score(labels[idx_iid.test], (iid_p >= 0.5).astype(int)))
+
+                # Critical OOD run
+                params_crit, _, _ = train_ideal_qcnn(
+                    states, labels, n_qubits, arch, idx_crit.train, idx_crit.validation,
+                    maxiter=25, seed=opt_seed + 10,
+                )
+                crit_p = batch_predict(states[idx_crit.test], params_crit, arch, n_qubits)
+                run_crit_ba = float(balanced_accuracy_score(labels[idx_crit.test], (crit_p >= 0.5).astype(int)))
+
+                # Hamiltonian OOD run
+                pert_p = batch_predict(pert_states, params_iid, arch, n_qubits)
+                run_ham_ba = float(balanced_accuracy_score(pert_labels, (pert_p >= 0.5).astype(int)))
+
+                ablation_runs.append({
+                    "architecture": arch_name,
+                    "split_seed": s_seed,
+                    "optimizer_seed": opt_seed,
+                    "parameter_count": metrics["parameters"],
+                    "two_qubit_gates": metrics["two_qubit_operations"],
+                    "iid_ba": run_iid_ba,
+                    "critical_ood_ba": run_crit_ba,
+                    "hamiltonian_ood_ba": run_ham_ba,
+                })
+
+    runs_df = pd.DataFrame(ablation_runs)
+    runs_df.to_csv(out_dir / "ablation_runs.csv", index=False)
+
+    # Aggregate statistics
+    agg_records = []
+    for arch_name, grp in runs_df.groupby("architecture"):
+        iid_ci = bootstrap_confidence_interval(grp["iid_ba"].to_numpy())
+        crit_ci = bootstrap_confidence_interval(grp["critical_ood_ba"].to_numpy())
+        ham_ci = bootstrap_confidence_interval(grp["hamiltonian_ood_ba"].to_numpy())
+
+        agg_records.append({
+            "architecture": arch_name,
+            "parameter_count": int(grp["parameter_count"].iloc[0]),
+            "two_qubit_gates": int(grp["two_qubit_gates"].iloc[0]),
+            "n_runs": len(grp),
+            "iid_ba_mean": float(grp["iid_ba"].mean()),
+            "iid_ba_std": float(grp["iid_ba"].std(ddof=1)),
+            "iid_ba_median": float(grp["iid_ba"].median()),
+            "iid_ba_ci95_low": iid_ci[0],
+            "iid_ba_ci95_high": iid_ci[1],
+            "critical_ood_ba_mean": float(grp["critical_ood_ba"].mean()),
+            "critical_ood_ba_std": float(grp["critical_ood_ba"].std(ddof=1)),
+            "critical_ood_ba_median": float(grp["critical_ood_ba"].median()),
+            "critical_ood_ba_ci95_low": crit_ci[0],
+            "critical_ood_ba_ci95_high": crit_ci[1],
+            "hamiltonian_ood_ba_mean": float(grp["hamiltonian_ood_ba"].mean()),
+            "hamiltonian_ood_ba_std": float(grp["hamiltonian_ood_ba"].std(ddof=1)),
+            "hamiltonian_ood_ba_median": float(grp["hamiltonian_ood_ba"].median()),
+            "hamiltonian_ood_ba_ci95_low": ham_ci[0],
+            "hamiltonian_ood_ba_ci95_high": ham_ci[1],
+        })
+
+    agg_df = pd.DataFrame(agg_records)
+    agg_df.to_csv(out_dir / "ablation_aggregate.csv", index=False)
+
+    # Bootstrap delta comparison: Delta BA = BA_no_conv - BA_full
+    full_runs = runs_df[runs_df["architecture"] == "expressive_shared_line"].sort_values(["split_seed", "optimizer_seed"])
+    noconv_runs = runs_df[runs_df["architecture"] == "expressive_no_conv_entanglement"].sort_values(["split_seed", "optimizer_seed"])
+    delta_iid = noconv_runs["iid_ba"].to_numpy() - full_runs["iid_ba"].to_numpy()
+    delta_crit = noconv_runs["critical_ood_ba"].to_numpy() - full_runs["critical_ood_ba"].to_numpy()
+    delta_iid_ci = bootstrap_confidence_interval(delta_iid)
+    delta_crit_ci = bootstrap_confidence_interval(delta_crit)
+
+    print(f"\nStatistical Comparison (No-Conv vs Full Expressive, N={len(delta_iid)} paired runs):")
+    print(f"  Delta IID BA:      mean = {np.mean(delta_iid):+.4f}, 95% CI: [{delta_iid_ci[0]:+.4f}, {delta_iid_ci[1]:+.4f}]")
+    print(f"  Delta Critical BA: mean = {np.mean(delta_crit):+.4f}, 95% CI: [{delta_crit_ci[0]:+.4f}, {delta_crit_ci[1]:+.4f}]")
+
+    # Save Provenance JSON (Priority 14)
+    provenance = {
+        "git_commit": get_git_commit(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "python_version": sys.version,
+        "n_qubits": n_qubits,
+        "family": family,
+        "optimizer": "COBYLA",
+        "split_seeds": split_seeds,
+        "optimizer_seeds": optimizer_seeds,
+        "n_permutations_shuffled": 25,
+        "delta_no_conv_vs_full": {
+            "delta_iid_mean": float(np.mean(delta_iid)),
+            "delta_iid_ci95": [float(delta_iid_ci[0]), float(delta_iid_ci[1])],
+            "delta_crit_mean": float(np.mean(delta_crit)),
+            "delta_crit_ci95": [float(delta_crit_ci[0]), float(delta_crit_ci[1])],
+        },
+        "script": "scripts/26_sanity_and_ablation_suite.py",
+    }
+    with open(out_dir / "provenance.json", "w") as f:
+        json.dump(provenance, f, indent=2)
+
+    # Plot ablation comparison
     plt.figure(figsize=(12, 6))
     x = np.arange(len(summary_df))
     width = 0.25
 
-    plt.bar(x - width, summary_df["iid_ba"], width, label="IID BA", color="royalblue")
-    plt.bar(x, summary_df["critical_ood_ba"], width, label="Critical OOD BA", color="darkorange")
-    plt.bar(x + width, summary_df["hamiltonian_ood_ba"], width, label="Hamiltonian OOD BA ($\\delta=0.10$)", color="seagreen")
+    # Replace NaNs with 0 for plotting purpose only, but annotate
+    iid_plot = summary_df["iid_ba"].fillna(0.0)
+    crit_plot = summary_df["critical_ood_ba"].fillna(0.0)
+    ham_plot = summary_df["hamiltonian_ood_ba"].fillna(0.0)
+
+    plt.bar(x - width, iid_plot, width, label="IID BA", color="royalblue")
+    plt.bar(x, crit_plot, width, label="Critical OOD BA", color="darkorange")
+    plt.bar(x + width, ham_plot, width, label="Hamiltonian OOD BA ($\\delta=0.10$)", color="seagreen")
 
     plt.axhline(0.5, color="red", linestyle="--", alpha=0.7, label="Chance Level (0.50)")
     plt.xticks(x, summary_df["model"], rotation=35, ha="right", fontsize=9)
     plt.ylabel("Balanced Accuracy")
-    plt.title("Architecture Ablations & Sanity Controls: TFIM Phase Classification")
-    plt.ylim(0.3, 1.05)
+    plt.title("Architecture Ablations & Sanity Controls: TFIM Phase Classification (Fail-Closed)")
+    plt.ylim(0.0, 1.05)
     plt.legend()
     plt.grid(True, linestyle="--", alpha=0.5)
     plt.tight_layout()
     plt.savefig(fig_dir / "ablation_comparison.png", dpi=200)
     plt.close()
 
-    print(f"Ablation and sanity control suite completed. Results in {out_dir}")
-    print("\nSummary Table:")
-    print(summary_df[["model", "parameters", "two_qubit_gates", "iid_ba", "critical_ood_ba", "hamiltonian_ood_ba"]].to_string(index=False))
+    print(f"\nAblation and sanity control suite completed. Results in {out_dir}")
+    print("\nSummary Table (Fail-Closed):")
+    print(summary_df[["model", "parameters", "two_qubit_gates", "iid_ba", "critical_ood_ba", "hamiltonian_ood_ba", "iid_status", "critical_ood_status", "hamiltonian_ood_status"]].to_string(index=False))
 
 
 if __name__ == "__main__":

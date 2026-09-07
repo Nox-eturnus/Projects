@@ -166,7 +166,6 @@ def main():
 
     grid_df = pd.DataFrame(grid_rows)
     grid_df.to_csv(out_dir / "surrogate_noise_heatmap.csv", index=False)
-    grid_df.to_csv(out_dir / "state_vs_circuit_noise_grid.csv", index=False)
 
     plt.figure(figsize=(7, 6))
     im = plt.imshow(grid_matrix, origin="lower", cmap="viridis", vmin=0.5, vmax=1.0)
@@ -182,8 +181,30 @@ def main():
             plt.text(j, i, f"{grid_matrix[i, j]:.2f}", ha="center", va="center", color="white" if grid_matrix[i, j] < 0.75 else "black")
     plt.tight_layout()
     plt.savefig(fig_dir / "surrogate_noise_sensitivity_surface.png", dpi=200)
-    plt.savefig(fig_dir / "state_vs_circuit_noise_heatmap.png", dpi=200)
     plt.close()
+
+    # Save Provenance JSON (Priority 14)
+    import json
+    import subprocess
+    import sys
+    from datetime import datetime, timezone
+    def get_commit():
+        try:
+            return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        except Exception:
+            return "unknown"
+    prov = {
+        "git_commit": get_commit(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "python_version": sys.version,
+        "n_qubits": n_qubits,
+        "temperatures": temperatures,
+        "p_state_grid": p_state_grid,
+        "p_circuit_grid": p_circ_grid,
+        "script": "scripts/28_input_state_robustness.py",
+    }
+    with open(out_dir / "provenance.json", "w") as f:
+        json.dump(prov, f, indent=2)
 
     print(f"Robustness evaluations saved in {out_dir} and {fig_dir}")
     print("\n2x2 Factorial Design Table (Simulated Aer Noise vs State Prep Noise):")

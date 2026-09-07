@@ -1,8 +1,12 @@
 {
   "title": "Noise-Robust QCNN Generalization Report",
   "phases_covered": "Phases 22 to 30",
-  "status": "COMPLETED",
-  "headline_claim": "QCNN phase classification survives progressive distribution shifts, separating architectural inductive bias from memorization and parameter count.",
+  "status": "ADVANCED_BENCHMARK_PRELIMINARY",
+  "headline_claim": "QCNN robustness is strongly evaluation- and phase-family-dependent, with strong Hamiltonian-perturbation and finite-shot performance but substantial degradation near criticality and under TFIM thermal mixing.",
+  "pending": [
+    "Full 10x5 statistical benchmark across all families",
+    "Multi-session physical hardware validation across distinct calibration windows"
+  ],
   "matrix_path": "results/report/evaluation_matrix.csv",
   "report_path": "results/report/generalization_report.md"
 }
