@@ -114,7 +114,7 @@ def main():
         f"""
 ### Architecture & Provenance Summary
 - **Primary N={n_qubits} QCNN Architecture:** `{primary_arch}` ({primary_params_str} across 3 scale-reduction rounds).
-- **Baseline / Negative Result Architecture:** `light_shared_line` ({light_params_str}; demonstrated limited block expressivity / architecture-task mismatch on product-like phase states).
+- **Baseline / Negative Result Architecture:** `light_shared_line` ({light_params_str}; demonstrated limited block expressivity / architecture-task mismatch across the evaluated phase-classification tasks).
 - **Physical Hardware Demonstration Architecture:** {hw_arch_str} executed at {hw_qubits_str} qubits on {hw_backend_str} (retaining valid real-device calibration and proof-of-hardware execution).
 """
     )

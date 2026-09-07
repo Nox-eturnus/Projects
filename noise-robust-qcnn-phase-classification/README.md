@@ -30,8 +30,8 @@ An end-to-end research testbed and benchmark studying whether **Quantum Convolut
 
 ## 1. Executive Summary
 
-Quantum Convolutional Neural Networks ([Cong et al., 2019](https://doi.org/10.1038/s41567-019-0648-8)) interleave parameterized two-qubit unitary convolutions with projective or tracing pooling reductions to process quantum states with $O(\log N)$ circuit depth. While theoretically immune to barren plateaus under appropriate ansatz conditions, QCNNs deployed on Noisy Intermediate-Scale Quantum (NISQ) devices face severe practical constraints:
-- **Expressivity vs. Hardware Depth Trade-Off:** Overly constrained parameter-sharing (e.g. 3-parameter convolutions) can under-fit non-entangled product states, while expressive unitaries accumulate gate infidelity.
+Quantum Convolutional Neural Networks ([Cong et al., 2019](https://doi.org/10.1038/s41567-019-0648-8)) interleave parameterized two-qubit unitary convolutions with projective or tracing pooling reductions to process quantum states with $O(\log N)$ circuit depth. While QCNN architectures can avoid barren plateaus under specific theoretical assumptions and ansatz conditions, QCNNs deployed on Noisy Intermediate-Scale Quantum (NISQ) devices face severe practical constraints:
+- **Expressivity vs. Hardware Depth Trade-Off:** Overly constrained convolution blocks can exhibit insufficient expressivity for particular phase-classification tasks, while expressive unitaries accumulate gate infidelity.
 - **Deceptive Zero-Noise Failure Modes:** Standard evaluations measuring degradation thresholds often fail silently when baseline accuracy is already near random guessing ($p \approx 0.5$).
 - **Fair Classical Comparisons:** Classical models provided full simulated statevectors (e.g., Matrix Product States) solve an entirely different computational task than quantum models processing direct state preparations.
 
@@ -153,7 +153,7 @@ A major scientific integrity issue in quantum machine learning literature is com
 ## 5. Baselines (Classical, Tensor Network, Quantum)
 
 1. **Variational Quantum Classifier (VQC):**
-   - 2-layer hardware-efficient ansatz using alternating $R_Y(\theta)$ and linear CNOT ladders ($2 \times 8 = 16$ single-qubit params + CNOTs) measuring $\langle Z_0 \rangle$.
+   - 2-layer hardware-efficient ansatz using parameterized $R_Y$ and $R_Z$ rotations on every qubit followed by linear CNOT ladders. For $N=8$ and two layers, the ansatz contains 32 variational parameters ($2 \times 8 \times 2$) and reads out the final qubit $q_7$.
 2. **Support Vector Machine (SVM):**
    - Radial Basis Function (RBF) kernel trained on five local and bond operator expectation channels (shape $5 \times N$): $X_i$, $Z_i$, $X_i X_{i+1}$, $Z_i Z_{i+1}$, and $Z_{i-1} X_i Z_{i+1}$.
 3. **Multi-Layer Perceptron (MLP):**
@@ -328,8 +328,8 @@ Projects/
 │   │   └── transition.py           # Robust crossing detection & slope analysis
 │   ├── baselines/
 │   │   ├── classical.py            # SVM, MLP, and 1D CNN observable models
-│   │   ├── mps.py                  # Matrix Product State tensor network model
-│   │   └── vqc.py                  # Standard Hardware-Efficient VQC baseline
+│   │   ├── features.py             # 5-channel local and bond expectation maps
+│   │   └── mps.py                  # Matrix Product State tensor network model
 │   ├── hardware/
 │   │   └── ibm.py                  # IBM Runtime EstimatorV2 interface & error mitigation
 │   ├── metrics/
@@ -346,7 +346,8 @@ Projects/
 │   └── qcnn/
 │       ├── architecture.py         # Param counts, convolution/pooling unitaries
 │       ├── evaluate.py             # Exact statevector prediction & BCE loss
-│       └── train.py                # COBYLA optimizer & stratified split engine
+│       ├── train.py                # COBYLA optimizer & stratified split engine
+│       └── vqc.py                  # Hardware-efficient VQC ansatz & trainer
 ├── results/
 │   ├── architectures/              # Architecture sweep CSVs
 │   ├── baselines/                  # Classical & VQC benchmark outputs
