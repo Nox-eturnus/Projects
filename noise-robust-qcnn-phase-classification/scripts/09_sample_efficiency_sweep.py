@@ -61,7 +61,7 @@ def main():
     )
     summary.to_csv(out / "sample_efficiency_summary.csv", index=False)
     print(summary.to_string(index=False))
-    print("Sample-efficiency sweep PASSED")
+    print("Sample-efficiency sweep completed")
 
 
 if __name__ == "__main__":

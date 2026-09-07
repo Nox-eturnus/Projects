@@ -36,10 +36,10 @@ Quantum Convolutional Neural Networks ([Cong et al., 2019](https://doi.org/10.10
 - **Fair Classical Comparisons:** Classical models provided full simulated statevectors (e.g., Matrix Product States) solve an entirely different computational task than quantum models processing direct state preparations.
 
 This repository resolves these methodological pitfalls through:
-1. **Primary Architecture:** `expressive_shared_line` with 27 variational parameters across 3 scale-reduction rounds, achieving 100% test accuracy on 1D Transverse Field Ising Model (TFIM), XXZ, and Cluster-Ising ground states.
-2. **Negative Result Documentation:** Preserving `light_shared_line` (18 parameters) as an explicit negative result illustrating architectural under-parameterization.
+1. **Primary Architecture:** `expressive_shared_line` with 27 variational parameters across 3 scale-reduction rounds, achieving 100% test accuracy for all three families in the architecture-sweep experiment.
+2. **Negative Result Documentation:** Preserving `light_shared_line` (18 parameters) as an explicit negative result illustrating limited block expressivity and architecture-task mismatch.
 3. **Sound Robustness Thresholding:** Introducing `evaluate_robustness_threshold` to formally disqualify sweeps where zero-noise performance is below threshold floors or missing entirely.
-4. **End-to-End NISQ Pipeline:** Synthetic Pauli/depolarizing channel sweeps, SPSA noise-aware warm-start fine-tuning, hardware backend emulation (`FakeSherbrooke`), and physical execution on IBM Quantum superconducting hardware (`ibm_fez`).
+4. **End-to-End NISQ Pipeline:** Synthetic Pauli/depolarizing channel sweeps, SPSA noise-aware warm-start fine-tuning, device-derived IBM backend noise simulation, and physical execution on IBM Quantum superconducting hardware (`ibm_fez`).
 
 ---
 
@@ -52,7 +52,7 @@ $$H_{\text{TFIM}} = -J \sum_{i=0}^{N-2} Z_i Z_{i+1} - h \sum_{i=0}^{N-1} X_i$$
 - **Parameters:** Open boundary conditions, $J=1.0$, $h \in [0.2, 1.8]$.
 - **Thermodynamic Transition:** $h_c = 1.0$.
 - **Phases:**
-  - $h < 1.0$: Ferromagnetic order (spontaneous $\mathbb{Z}_2$ symmetry breaking, non-zero order parameter $M_z = \frac{1}{N}\sum_i \langle Z_i \rangle$).
+  - $h < 1.0$: Ferromagnetic phase characterized by long-range correlation $\langle Z_0 Z_{N-1} \rangle \to 1$ for finite-size symmetric eigenstates (with spontaneous non-zero magnetization $M_z = \frac{1}{N}\sum_i \langle Z_i \rangle$ emerging only in the thermodynamic symmetry-broken limit).
   - $h > 1.0$: Paramagnetic phase (disordered, symmetric under $X$).
 
 ### B. Anisotropic Heisenberg Model (XXZ)
@@ -123,7 +123,7 @@ In each scale-reduction round, source qubits act as control on sink qubits; sour
 | **`expressive_shared_line`** | **Expressive (6)** | **Shared** | **1D Line** | **27** | **Primary System QCNN** |
 | `light_shared_line` | Light (3) | Shared | 1D Line | 18 | Baseline & Negative Result |
 | `light_shared_ring` | Light (3) | Shared | 1D Periodic Ring | 18 | Periodic Boundary Baseline |
-| `light_unshared_line` | Light (3) | Unshared per pair | 1D Line | 54 | Over-parameterized Baseline |
+| `light_unshared_line` | Light (3) | Unshared per pair | 1D Line | 54 | Unshared Light Baseline |
 
 ---
 
@@ -178,10 +178,11 @@ A major scientific integrity issue in quantum machine learning literature is com
 
 The repository highlights the critical architectural divergence between minimal and expressive QCNNs:
 
-- **`light_shared_line` Failure Mode:** Because TFIM ferromagnet ground states at small $h$ approach $|00\dots0\rangle + |11\dots1\rangle$ (or product states in $Z$), the 3-parameter light convolution lacks sufficient rotation degrees of freedom across shared stages, frequently converging to a flat saddle point where $p \approx 0.5$ for all states.
-- **`expressive_shared_line` Resolution:** The 6-parameter unitaries decouple local phase alignments from cross-qubit entangling gates, breaking the saddle point and achieving robust convergence.
+- **`light_shared_line` Failure Mode:** On these datasets, the 3-parameter light convolution exhibits limited block expressivity and an architecture-task mismatch, frequently converging to flat output predictions where $p \approx 0.5$ across all phase states.
+- **Structural and Inductive Bias Significance:** The architecture sweep shows that simply increasing parameter count is insufficient: `light_unshared_line` uses 54 parameters but remains substantially weaker than `expressive_shared_line` with 27. This indicates that gate/block structure and inductive bias (e.g., local rotations coupled with $R_{XX}$ and $R_{ZZ}$ entangling generators), rather than total parameter count alone, are essential for these tasks.
+- **Optimization Scope:** While the expressive block achieves robust convergence, the exact optimization mechanisms (e.g., whether flat outputs arise from saddle points, landscape traps, or gradient vanishing) are not definitively established by these sweeps.
 
-Documenting `light_shared_line` as an explicit negative result prevents readers from reproducing failed QCNN setups while demonstrating where the parameter threshold for quantum phase classification lies.
+Documenting `light_shared_line` as an explicit negative result prevents readers from reproducing ineffective ansatz choices while highlighting the role of block-level expressivity over raw parameter count.
 
 ---
 
@@ -345,7 +346,7 @@ Projects/
 │   └── qcnn/
 │       ├── architecture.py         # Param counts, convolution/pooling unitaries
 │       ├── evaluate.py             # Exact statevector prediction & BCE loss
-│       └── train.py                # L-BFGS-B optimizer & stratified split engine
+│       └── train.py                # COBYLA optimizer & stratified split engine
 ├── results/
 │   ├── architectures/              # Architecture sweep CSVs
 │   ├── baselines/                  # Classical & VQC benchmark outputs
@@ -357,7 +358,7 @@ Projects/
 │   ├── report/                     # Automated Markdown research report
 │   └── statistics/                 # Seed statistics & sample efficiency data
 ├── scripts/                        # Phased reproducible runner scripts (01-21)
-├── tests/                          # Pytest verification suite (25 unit tests)
+├── tests/                          # Pytest verification suite (26 unit tests)
 ├── pyproject.toml                  # Package configuration & dependencies
 └── README.md                       # Master research documentation
 ```

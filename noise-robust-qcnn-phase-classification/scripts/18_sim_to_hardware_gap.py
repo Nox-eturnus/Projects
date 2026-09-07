@@ -28,7 +28,7 @@ def main():
     }
     Path("results/hardware/sim_to_hardware_gap.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
-    print("Simulation-to-hardware gap analysis PASSED")
+    print("Simulation-to-hardware gap analysis completed")
 
 
 if __name__ == "__main__":

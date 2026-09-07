@@ -47,7 +47,7 @@ def main():
     (out / "hardware4_comparison.json").write_text(json.dumps(comparison, indent=2), encoding="utf-8")
     print("Light model summary:", json.dumps(summary, indent=2))
     print("N=4 architecture comparison:", json.dumps(comparison, indent=2))
-    print("Hardware-scale model preparation PASSED")
+    print("Hardware-scale model preparation completed")
 
 
 if __name__ == "__main__":

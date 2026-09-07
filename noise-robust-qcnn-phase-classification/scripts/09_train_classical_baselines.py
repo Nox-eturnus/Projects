@@ -54,7 +54,7 @@ def main():
     frame = pd.DataFrame(rows)
     frame.to_csv(out / "classical_baselines.csv", index=False)
     print(frame.to_string(index=False))
-    print("Classical baseline suite PASSED")
+    print("Classical baseline suite completed")
 
 
 if __name__ == "__main__":

@@ -40,8 +40,11 @@ def main():
     hardware_gap = _json(
         "results/hardware/sim_to_hardware_gap.json"
     )
+    hw_jobs = _json(
+        "results/hardware/hardware_jobs.json"
+    )
 
-    if hardware_gap is not None:
+    if hardware_gap is not None and hw_jobs is not None:
         hardware_status = (
             "Real-QPU hardware-transfer outputs are present."
         )
@@ -58,24 +61,49 @@ def main():
     primary_arch = cfg.get("qcnn", {}).get("architecture", "expressive_shared_line")
     n_qubits = int(cfg.get("n_qubits", 8))
 
-    tfim_ideal = _json("results/ideal/tfim_ideal_summary.json") or {}
-    primary_params = tfim_ideal.get("parameters", 27)
+    tfim_ideal = _json("results/ideal/tfim_ideal_summary.json")
+    primary_params = (
+        tfim_ideal.get("parameters") if isinstance(tfim_ideal, dict) else None
+    )
+    primary_params_str = (
+        f"{primary_params} variational parameters"
+        if primary_params is not None
+        else "parameters: Not available"
+    )
 
-    # Dynamic lookup for light_shared_line baseline params
+    # Dynamic lookup for light_shared_line baseline params (fail-closed if missing)
     arch_sweep_p = Path("results/architectures/architecture_sweep.csv")
-    light_params = 18
+    light_params = None
     if arch_sweep_p.exists():
         sweep_df = pd.read_csv(arch_sweep_p)
         match = sweep_df[sweep_df["architecture"] == "light_shared_line"]
-        if not match.empty:
+        if not match.empty and "parameters" in match.columns:
             light_params = int(match.iloc[0]["parameters"])
+    light_params_str = (
+        f"{light_params} variational parameters"
+        if light_params is not None
+        else "parameters: Not available"
+    )
 
-    # Dynamic lookup for hardware demonstration
-    hw_jobs = _json("results/hardware/hardware_jobs.json") or {}
-    hw_summary = _json("results/hardware/hardware4_summary.json") or {}
-    hw_backend = hw_jobs.get("backend", "ibm_fez")
-    hw_arch = hw_jobs.get("architecture", hw_summary.get("architecture", "light_shared_line"))
-    hw_n_qubits = hw_summary.get("n_qubits", 4)
+    # Dynamic lookup for hardware demonstration (fail-closed if missing)
+    hw_summary = _json("results/hardware/hardware4_summary.json")
+    hw_backend = (
+        hw_jobs.get("backend") if isinstance(hw_jobs, dict) else None
+    )
+    hw_arch = (
+        hw_jobs.get("architecture")
+        if isinstance(hw_jobs, dict) and hw_jobs.get("architecture")
+        else (hw_summary.get("architecture") if isinstance(hw_summary, dict) else None)
+    )
+    hw_n_qubits = (
+        hw_summary.get("n_qubits")
+        if isinstance(hw_summary, dict) and hw_summary.get("n_qubits")
+        else (hw_jobs.get("n_qubits") if isinstance(hw_jobs, dict) else None)
+    )
+
+    hw_backend_str = f"`{hw_backend}`" if hw_backend else "Not available"
+    hw_arch_str = f"`{hw_arch}`" if hw_arch else "Not available"
+    hw_qubits_str = f"$N={hw_n_qubits}$" if hw_n_qubits else "qubits: Not available"
 
     sections.append(
         "# Noise-Robust QCNN for Quantum Phase and State Classification "
@@ -85,9 +113,9 @@ def main():
     sections.append(
         f"""
 ### Architecture & Provenance Summary
-- **Primary N={n_qubits} QCNN Architecture:** `{primary_arch}` ({primary_params} variational parameters across 3 scale-reduction rounds).
-- **Baseline / Negative Result Architecture:** `light_shared_line` ({light_params} variational parameters; demonstrated under-parameterization on product-like phase states).
-- **Physical Hardware Demonstration Architecture:** `{hw_arch}` executed at $N={hw_n_qubits}$ qubits on `{hw_backend}` (retaining valid real-device calibration and proof-of-hardware execution).
+- **Primary N={n_qubits} QCNN Architecture:** `{primary_arch}` ({primary_params_str} across 3 scale-reduction rounds).
+- **Baseline / Negative Result Architecture:** `light_shared_line` ({light_params_str}; demonstrated limited block expressivity / architecture-task mismatch on product-like phase states).
+- **Physical Hardware Demonstration Architecture:** {hw_arch_str} executed at {hw_qubits_str} qubits on {hw_backend_str} (retaining valid real-device calibration and proof-of-hardware execution).
 """
     )
 

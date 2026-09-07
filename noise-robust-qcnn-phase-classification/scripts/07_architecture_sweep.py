@@ -28,7 +28,7 @@ def main():
             print(row)
     out = Path("results/architectures"); out.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(out / "architecture_sweep.csv", index=False)
-    print("Architecture sweep PASSED")
+    print("Architecture sweep completed")
 
 
 if __name__ == "__main__":

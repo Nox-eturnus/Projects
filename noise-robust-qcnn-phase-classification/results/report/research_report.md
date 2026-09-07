@@ -2,7 +2,7 @@
 
 ### Architecture & Provenance Summary
 - **Primary N=8 QCNN Architecture:** `expressive_shared_line` (27 variational parameters across 3 scale-reduction rounds).
-- **Baseline / Negative Result Architecture:** `light_shared_line` (18 variational parameters; demonstrated under-parameterization on product-like phase states).
+- **Baseline / Negative Result Architecture:** `light_shared_line` (18 variational parameters; demonstrated limited block expressivity / architecture-task mismatch on product-like phase states).
 - **Physical Hardware Demonstration Architecture:** `light_shared_line` executed at $N=4$ qubits on `ibm_fez` (retaining valid real-device calibration and proof-of-hardware execution).
 
 ## Claim boundary

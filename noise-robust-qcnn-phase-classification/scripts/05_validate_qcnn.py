@@ -19,7 +19,7 @@ def main():
         assert shared == 6 * (n.bit_length() - 1)
     assert parameter_count(8, get_architecture("light_shared_line")) < parameter_count(8, get_architecture("light_unshared_line"))
     Path("results/architectures/raw_metrics.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
-    print("QCNN structure validation PASSED")
+    print("QCNN structure validation completed")
 
 
 if __name__ == "__main__":

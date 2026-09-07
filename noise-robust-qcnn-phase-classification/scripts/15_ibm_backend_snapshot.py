@@ -11,7 +11,7 @@ def main():
     out = Path("results/hardware"); out.mkdir(parents=True, exist_ok=True)
     (out / "backend_snapshot.json").write_text(json.dumps(snapshots, indent=2), encoding="utf-8")
     print(json.dumps(snapshots, indent=2))
-    print("IBM backend snapshot PASSED")
+    print("IBM backend snapshot completed")
 
 
 if __name__ == "__main__":

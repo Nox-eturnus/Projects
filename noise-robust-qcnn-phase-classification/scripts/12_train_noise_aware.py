@@ -39,7 +39,7 @@ def main():
     summary = {"training_seconds": result.seconds, **asdict(metrics)}
     (out / "tfim_noise_aware_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
-    print("Noise-aware training PASSED")
+    print("Noise-aware training completed")
 
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ def main():
     print("Qiskit Aer:", qiskit_aer.__version__)
     print("Qiskit IBM Runtime:", qiskit_ibm_runtime.__version__)
     print("PyYAML:", yaml.__version__)
-    print("Environment check PASSED")
+    print("Environment check completed")
 
 
 if __name__ == "__main__":

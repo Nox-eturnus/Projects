@@ -17,7 +17,7 @@ def main():
         residual = np.linalg.norm(dense @ state - energy * state)
         assert residual < 1e-7
         print(name, "E0=", energy, "residual=", residual)
-    print("Hamiltonian validation PASSED")
+    print("Hamiltonian validation completed")
 
 
 if __name__ == "__main__":

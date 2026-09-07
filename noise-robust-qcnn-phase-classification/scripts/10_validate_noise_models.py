@@ -20,7 +20,7 @@ def main():
     print("noisy |1> readout:", noisy)
     assert ideal > 0.99
     assert noisy < ideal
-    print("Noise-model validation PASSED")
+    print("Noise-model validation completed")
 
 
 if __name__ == "__main__":

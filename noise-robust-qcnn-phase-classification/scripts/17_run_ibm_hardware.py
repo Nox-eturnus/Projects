@@ -39,7 +39,7 @@ def main():
     pd.DataFrame(rows).to_csv(out / "hardware_predictions.csv", index=False)
     (out / "hardware_jobs.json").write_text(json.dumps({"backend": backend.name, "architecture": "light_shared_line", "raw_job_id": raw_job, "mitigated_job_id": mit_job}, indent=2), encoding="utf-8")
     print(pd.DataFrame(rows).to_string(index=False))
-    print("IBM hardware execution PASSED")
+    print("IBM hardware execution completed")
 
 
 if __name__ == "__main__":

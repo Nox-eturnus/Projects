@@ -31,7 +31,7 @@ def main():
     pd.DataFrame(rows).to_csv(out / "device_noise_transfer.csv", index=False)
     pd.DataFrame(circuit_rows).to_csv(out / "device_noise_circuit_metrics.csv", index=False)
     print(pd.DataFrame(rows).to_string(index=False))
-    print("Device-derived noise transfer PASSED")
+    print("Device-derived noise transfer completed")
 
 
 if __name__ == "__main__":

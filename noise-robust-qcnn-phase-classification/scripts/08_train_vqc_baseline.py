@@ -33,7 +33,7 @@ def main():
         np.savez_compressed(out / f"{family}_vqc_model.npz", params=params, train=splits.train, validation=splits.validation, test=splits.test)
         print(row)
     pd.DataFrame(rows).to_csv(out / "vqc_baseline.csv", index=False)
-    print("VQC baseline PASSED")
+    print("VQC baseline completed")
 
 
 if __name__ == "__main__":

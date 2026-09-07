@@ -33,7 +33,7 @@ def main():
     summary = {"family": "tfim", "architecture": arch.name, "training_seconds": seconds, **raw_circuit_metrics(int(cfg["n_qubits"]), arch), **asdict(metrics)}
     (out / "tfim_ideal_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
-    print("Ideal TFIM QCNN training PASSED")
+    print("Ideal TFIM QCNN training completed")
 
 
 if __name__ == "__main__":
