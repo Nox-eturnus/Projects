@@ -1,0 +1,13 @@
+{
+  "n_qubits": 4,
+  "architecture": "expressive_shared_line",
+  "backend": "ibm_fez",
+  "parameters": 18,
+  "ideal_balanced_accuracy": 1.0,
+  "device_noise_balanced_accuracy": 1.0,
+  "raw_hardware_balanced_accuracy": 1.0,
+  "mitigated_hardware_balanced_accuracy": 1.0,
+  "mean_multisession_raw_ba": 0.8772,
+  "mean_multisession_mitigated_ba": 0.9571999999999999,
+  "status": "Multi-session calibration window benchmark completed across 4 execution stages."
+}

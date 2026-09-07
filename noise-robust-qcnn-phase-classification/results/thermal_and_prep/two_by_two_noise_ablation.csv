@@ -1,0 +1,5 @@
+input_state,qcnn_circuit,balanced_accuracy
+ideal,ideal,0.9545454545454546
+noisy,ideal,0.9545454545454546
+ideal,noisy,0.9090909090909092
+noisy,noisy,0.9090909090909092

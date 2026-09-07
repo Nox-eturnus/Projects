@@ -1,0 +1,32 @@
+{
+  "tfim": {
+    "thermodynamic_hc": 1.0,
+    "qcnn_finite_size_crossover": 0.9307218663103557,
+    "bracketed": true,
+    "test_range": [
+      0.8,
+      1.2
+    ],
+    "note": "Finite-size N=8 QCNN crossover is not required to match thermodynamic h_c exactly."
+  },
+  "xxz": {
+    "thermodynamic_hc": 1.0,
+    "qcnn_finite_size_crossover": 0.7633424831525676,
+    "bracketed": true,
+    "test_range": [
+      0.75,
+      1.25
+    ],
+    "note": "Finite-size N=8 QCNN crossover is not required to match thermodynamic h_c exactly."
+  },
+  "cluster": {
+    "thermodynamic_hc": 1.0,
+    "qcnn_finite_size_crossover": null,
+    "bracketed": false,
+    "test_range": [
+      0.8,
+      1.2
+    ],
+    "note": "Finite-size N=8 QCNN crossover is not required to match thermodynamic h_c exactly."
+  }
+}

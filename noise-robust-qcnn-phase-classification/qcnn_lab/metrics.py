@@ -13,6 +13,8 @@ class BinaryMetrics:
     f1: float
     roc_auc: float
     log_loss: float
+    brier_score: float
+    ece: float
 
 
 def binary_metrics(y_true: np.ndarray, p1: np.ndarray) -> BinaryMetrics:
@@ -20,13 +22,18 @@ def binary_metrics(y_true: np.ndarray, p1: np.ndarray) -> BinaryMetrics:
     p1 = np.clip(np.asarray(p1, dtype=float), 1e-7, 1 - 1e-7)
     y_pred = (p1 >= 0.5).astype(int)
     auc = float("nan") if len(np.unique(y_true)) < 2 else float(roc_auc_score(y_true, p1))
+    bs = float(np.mean((p1 - y_true) ** 2))
+    ece = expected_calibration_error(y_true, p1)
     return BinaryMetrics(
         accuracy=float(accuracy_score(y_true, y_pred)),
         balanced_accuracy=float(balanced_accuracy_score(y_true, y_pred)),
         f1=float(f1_score(y_true, y_pred, zero_division=0)),
         roc_auc=auc,
         log_loss=float(log_loss(y_true, np.column_stack([1 - p1, p1]), labels=[0, 1])),
+        brier_score=bs,
+        ece=float(ece),
     )
+
 
 
 def bootstrap_accuracy_ci(y_true: np.ndarray, p1: np.ndarray, *, n_boot: int = 2000, seed: int = 12345) -> tuple[float, float]:

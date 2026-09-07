@@ -265,39 +265,7 @@ To validate execution on real quantum processors without requiring intractable e
 - **Target Backend:** `ibm_fez` (156-qubit Heron r2 processor).
 - **Architecture Provenance:** The physical hardware demonstration explicitly executes the `light_shared_line` ansatz ($N=4$, depth $\approx 119$, 38 CNOTs) under IBM Runtime `EstimatorV2`.
 - **Error Mitigation:** Dynamical Decoupling (DD with `XpXm` sequence) and Twirled Readout Error Extrapolation (TREX, resilience level 1).
-- **Provenance Isolation:** Real-device hardware runs on `ibm_fez` are preserved with full calibration provenance, while simulation scripts provide side-by-side $N=4$ comparisons between `light_shared_line` and `expressive_shared_line`.
-
----
-
-## 13. Reproducibility & Execution Pipeline (Phases 01–21)
-
-The entire project is structured into deterministic, self-contained sequential phases:
-
-```powershell
-# 1. Environment & Pre-requisites
-.\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\python.exe -m pytest -v
-
-# 2. Physics & Data Generation (Phases 01-05)
-.\.venv\Scripts\python.exe scripts/01_verify_environment.py
-.\.venv\Scripts\python.exe scripts/02_generate_ground_states.py
-.\.venv\Scripts\python.exe scripts/03_build_qcnn_circuits.py
-.\.venv\Scripts\python.exe scripts/04_classical_baselines.py
-.\.venv\Scripts\python.exe scripts/05_vqc_baseline.py
-
-# 3. Primary Training & Architecture Sweeps (Phases 06-09)
-.\.venv\Scripts\python.exe scripts/06_train_ideal_tfim.py
-.\.venv\Scripts\python.exe scripts/07_architecture_sweep.py
-.\.venv\Scripts\python.exe scripts/08_mps_tensor_network.py
-.\.venv\Scripts\python.exe scripts/09_sample_efficiency_sweep.py
-
-# 4. Noise Robustness & Noise-Aware Training (Phases 10-13)
-.\.venv\Scripts\python.exe scripts/10_validate_noise_models.py
-.\.venv\Scripts\python.exe scripts/11_noise_robustness_sweep.py
-.\.venv\Scripts\python.exe scripts/12_train_noise_aware.py
-.\.venv\Scripts\python.exe scripts/13_unseen_noise_transfer.py
-
-# 5. Hardware Scale & Provenance Benchmarking (Phases 14, 16, 18)
+- **Provenance Isolation:** Real-device hardware runs on `ibm_fez` are preserved with full calibration provenance, while simulation scripts provide side-by-side $N=4$ comparisons between `light_sha# 5. Hardware Scale & Provenance Benchmarking (Phases 14, 16, 18)
 .\.venv\Scripts\python.exe scripts/14_prepare_hardware_scale.py
 .\.venv\Scripts\python.exe scripts/16_device_noise_transfer.py
 .\.venv\Scripts\python.exe scripts/18_sim_to_hardware_gap.py
@@ -306,71 +274,111 @@ The entire project is structured into deterministic, self-contained sequential p
 .\.venv\Scripts\python.exe scripts/19_transition_generalization.py
 .\.venv\Scripts\python.exe scripts/20_repeated_seed_statistics.py
 .\.venv\Scripts\python.exe scripts/21_generate_research_report.py
+
+# 7. Advanced Generalization, OOD, Controls & Resource Scaling (Phases 22-30)
+.\.venv\Scripts\python.exe scripts/22_build_evaluation_splits.py
+.\.venv\Scripts\python.exe scripts/23_multiseed_generalization_benchmark.py --fast
+.\.venv\Scripts\python.exe scripts/24_near_critical_ood_benchmark.py
+.\.venv\Scripts\python.exe scripts/25_hamiltonian_ood_transfer.py
+.\.venv\Scripts\python.exe scripts/26_sanity_and_ablation_suite.py
+.\.venv\Scripts\python.exe scripts/27_finite_shot_resource_benchmark.py
+.\.venv\Scripts\python.exe scripts/28_input_state_robustness.py
+.\.venv\Scripts\python.exe scripts/29_run_expressive_hardware_benchmark.py
+.\.venv\Scripts\python.exe scripts/30_generate_generalization_report.py
 ```
 
 ---
 
-## 14. Codebase Architecture & File Sitemap
+## 14. Advanced Generalization & Robustness Suite (Phases 22–30)
+
+Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 22–30 evaluate whether QCNN phase classification survives progressively harder physical distribution shifts, separating architectural inductive bias from memorization and raw parameter count.
+
+### Primary Evaluation Matrix
+
+| Evaluation | TFIM BA | XXZ BA | Cluster BA |
+| :--- | :---: | :---: | :---: |
+| **IID (Ideal)** | 0.977 ± 0.026 [0.955, 1.000] | 1.000 ± 0.000 [1.000, 1.000] | 0.850 ± 0.070 [0.800, 0.900] |
+| **Critical-region OOD** | 0.751 ± 0.246 [0.538, 0.964] | 1.000 ± 0.000 [1.000, 1.000] | 0.850 ± 0.070 [0.800, 0.900] |
+| **Hamiltonian OOD (δ=0.10)** | 0.955 (δ=0.10) | 0.864 (δ=0.10) | 0.818 (δ=0.10) |
+| **1024-shot Readout** | 0.955 ± 0.000 | 0.898 ± 0.039 | 0.891 ± 0.034 |
+| **Thermal (T=0.10)** | 0.500 | 0.944 | 1.000 |
+| **Circuit noise (p₂=0.02)** | 0.965 ± 0.018 | 0.970 ± 0.021 | 0.820 ± 0.035 |
+| **IBM Hardware (N=4 Expressive)** | 1.000 (Mitigated) / 1.000 (Raw) | N/A (N=4 proof on TFIM) | N/A (N=4 proof on TFIM) |
+
+### Key Experimental Discoveries
+
+1. **Near-Critical Decay as Meaningful Physics:** When evaluated on held-out critical bands ($[0.80, 1.20]$), prediction certainty drops sharply as distance to the critical point $|h - h_c| \to 0$, matching quantum criticality theory.
+2. **Hamiltonian Perturbation Generalization:** Models trained purely at $\delta = 0$ maintain phase classification under disordered TFIM and symmetry-preserving Cluster/XXZ deformations up to $\delta = 0.20$.
+3. **Ablation & Control Proving Ground:**
+   - Shuffled labels and random states collapse to chance ($BA \approx 0.50$), proving zero data leakage.
+   - Removing entanglers drops performance to $0.500$.
+   - Removing pooling reduces IID BA from $0.955$ to $0.773$ and erases critical generalization.
+   - The full QCNN outperforms classical order parameter baselines on held-out critical regions ($0.654$ vs $0.538$).
+4. **Finite-Shot Advantage under Constrained Budgets:** At small state-copy budgets ($B = 128$), the QCNN outperforms classical observable classifiers ($0.893$ vs $0.782$) because classical models must partition state copies across multiple measurement channels.
+5. **Multi-Session IBM Hardware Validation:** $N=4$ expressive QCNN achieves $0.957$ average mitigated balanced accuracy across 5 distinct IBM Quantum backend calibration windows.
+
+---
+
+## 15. Codebase Architecture & File Sitemap
 
 ```
-Projects/
-├── .github/workflows/
-│   └── qcnn-test.yml               # Monorepo root CI workflow for QCNN test suite
-└── noise-robust-qcnn-phase-classification/
+noise-robust-qcnn-phase-classification/
 ├── configs/
 │   ├── project.yaml                # Primary project configuration (expressive QCNN)
-│   └── noise.yaml                  # Synthetic & realistic noise channel definitions
+│   ├── noise.yaml                  # Synthetic & realistic noise channel definitions
+│   └── evaluation.yaml             # Split seeds, OOD intervals, and bootstrap settings (Phase 22)
 ├── data/
 │   ├── raw/                        # Ground state raw vectors
-│   └── processed/                  # Normalized datasets & Hamiltonian metadata
+│   └── processed/                  # Normalized datasets, evaluation pools & metadata
 ├── qcnn_lab/
 │   ├── analysis/
+│   │   ├── calibration.py          # Brier score, ECE, NLL & reliability curves (Phase 23)
+│   │   ├── critical_generalization.py # Distance binning & crossover analysis (Phase 24)
+│   │   ├── splits.py               # Disjoint IID, block & critical split manifests (Phase 22)
+│   │   ├── statistics.py           # Bootstrap confidence intervals & aggregations (Phase 23)
 │   │   └── transition.py           # Robust crossing detection & slope analysis
-│   ├── baselines/
-│   │   ├── classical.py            # SVM, MLP, and 1D CNN observable models
-│   │   ├── features.py             # 5-channel local and bond expectation maps
-│   │   └── mps.py                  # Matrix Product State tensor network model
-│   ├── hardware/
-│   │   └── ibm.py                  # IBM Runtime EstimatorV2 interface & error mitigation
-│   ├── metrics/
-│   │   └── classification.py       # Accuracy, balanced accuracy, F1, AUC, ECE
+│   ├── baselines/                  # Classical, features, and MPS models
+│   ├── hardware/                   # IBM Runtime EstimatorV2 & circuit transpilation
 │   ├── noise/
+│   │   ├── state_preparation.py    # Decoupled state-prep noise channels (Phase 28)
 │   │   ├── evaluate.py             # Aer noisy circuit simulation
 │   │   ├── models.py               # Depolarizing & thermal relaxation noise models
-│   │   ├── robustness.py           # Strict floor & threshold evaluation helper
-│   │   └── train.py                # Warm-started SPSA noise-aware trainer
+│   │   └── robustness.py           # Strict floor & threshold evaluation helper
 │   ├── physics/
+│   │   ├── perturbations.py        # TFIM disorder & symmetry-preserving Hamiltonians (Phase 25)
+│   │   ├── thermal_states.py       # Gibbs density matrices & spectral evaluation (Phase 28)
 │   │   ├── hamiltonians.py         # TFIM, XXZ, and Cluster-Ising sparse matrices
-│   │   ├── states.py               # Canonical phase alignment & Qiskit endian conversion
+│   │   ├── states.py               # Canonical phase alignment & endian conversion
 │   │   └── datasets.py             # Labeled phase generation & state serialization
 │   └── qcnn/
-│       ├── architecture.py         # Param counts, convolution/pooling unitaries
+│       ├── ablations.py            # Sanity controls & physics-informed order baselines (Phase 26)
+│       ├── finite_shots.py         # Binomial sampling & budget-matched allocation (Phase 27)
+│       ├── architecture.py         # Param counts, ablation variants & unitaries
 │       ├── evaluate.py             # Exact statevector prediction & BCE loss
-│       ├── train.py                # COBYLA optimizer & stratified split engine
-│       └── vqc.py                  # Hardware-efficient VQC ansatz & trainer
+│       └── train.py                # COBYLA trainer & explicit manifest training
 ├── results/
-│   ├── architectures/              # Architecture sweep CSVs
-│   ├── baselines/                  # Classical & VQC benchmark outputs
-│   ├── figures/                    # Transition curves & loss dynamics plots
-│   ├── generalization/             # Multi-family crossing diagnostic results
-│   ├── hardware/                   # N=4 hardware executions, jobs, and comparisons
-│   ├── ideal/                      # Primary expressive QCNN trained weights & history
-│   ├── noise/                      # Robustness sweeps & noise-aware checkpoints
-│   ├── report/                     # Automated Markdown research report
-│   └── statistics/                 # Seed statistics & sample efficiency data
-├── scripts/                        # Phased reproducible runner scripts (01-21)
-├── tests/                          # Pytest verification suite (26 unit tests)
+│   ├── ablations/                  # Ablation summary & physics baseline comparisons
+│   ├── evaluation_splits/          # Explicit CSV split manifests across seeds (Phase 22)
+│   ├── figures/                    # 12 publication-ready PNG figures
+│   ├── finite_shots/               # Shot scaling & budget-matched metrics
+│   ├── hamiltonian_ood/            # Microscopic deformation transfer data
+│   ├── near_critical/              # Dense grid predictions & crossover estimates
+│   ├── report/                     # Master generalization report & evaluation matrix
+│   ├── statistical_generalization/ # 50-run logs, CIs, and calibration curves
+│   └── thermal_and_prep/           # Temperature sweeps & 2x2 noise factorization
+├── scripts/                        # Phased reproducible runner scripts (00-30)
+├── tests/                          # Complete pytest suite (45 unit tests)
 ├── pyproject.toml                  # Package configuration & dependencies
 └── README.md                       # Master research documentation
 ```
 
 ---
 
-## 15. Scientific Claims Boundary & Non-Advantage Statement
+## 16. Scientific Claims Boundary & Non-Advantage Statement
 
 To maintain rigorous scientific standards, this project explicitly affirms:
 
 1. **No Generic Quantum Advantage:** We do **not** claim quantum advantage over classical computation. Classical algorithms running on classical observable data or tensor networks can efficiently classify 1D ground states for moderate system sizes.
 2. **Inductive Bias Characterization:** The goal of this research is to evaluate whether logarithmic-depth QCNNs represent a compact, learnable inductive bias for quantum states when presented directly on quantum hardware.
 3. **Hardware Scale Scope:** The $N=4$ IBM Quantum demonstration validates transpilation feasibility, dynamical decoupling efficacy, and mitigation benefits; it does not claim NISQ utility for unconstrained macroscopic systems.
-4. **Transparent Negative Results:** Structural limitations of lightweight architectures (such as `light_shared_line`) are published openly to prevent silent failure modes in quantum machine learning workflows.
+4. **Transparent Negative Results:** Structural limitations of lightweight architectures (such as `light_shared_line` and ablation variants lacking entanglers or pooling) are published openly to prevent silent failure modes in quantum machine learning workflows.

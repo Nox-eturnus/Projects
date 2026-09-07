@@ -1,0 +1,8 @@
+{
+  "title": "Noise-Robust QCNN Generalization Report",
+  "phases_covered": "Phases 22 to 30",
+  "status": "COMPLETED",
+  "headline_claim": "QCNN phase classification survives progressive distribution shifts, separating architectural inductive bias from memorization and parameter count.",
+  "matrix_path": "results/report/evaluation_matrix.csv",
+  "report_path": "results/report/generalization_report.md"
+}

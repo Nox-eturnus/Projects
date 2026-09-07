@@ -56,3 +56,35 @@ def train_ideal_qcnn(
     val_loss = binary_cross_entropy(labels[validation_idx], val_p)
     history.append({"evaluation": len(history), "validation_loss": val_loss, "success": bool(result.success), "message": str(result.message)})
     return params, history, perf_counter() - started
+
+
+def train_qcnn_from_manifest(
+    states: np.ndarray,
+    labels: np.ndarray,
+    n_qubits: int,
+    architecture: QCNNArchitecture,
+    manifest: any,
+    *,
+    maxiter: int = 120,
+    seed: int = 12345,
+) -> tuple[np.ndarray, list[dict], float]:
+    """Train QCNN using explicit indices from a split manifest DataFrame or SplitIndices."""
+    if hasattr(manifest, "train") and hasattr(manifest, "validation"):
+        train_idx, val_idx = manifest.train, manifest.validation
+    else:
+        import pandas as pd
+        if isinstance(manifest, pd.DataFrame):
+            train_idx = np.where(manifest["split"] == "train")[0]
+            val_idx = np.where(manifest["split"] == "validation")[0]
+        else:
+            raise TypeError(f"unsupported manifest type {type(manifest)}")
+    return train_ideal_qcnn(
+        states,
+        labels,
+        n_qubits,
+        architecture,
+        train_idx,
+        val_idx,
+        maxiter=maxiter,
+        seed=seed,
+    )

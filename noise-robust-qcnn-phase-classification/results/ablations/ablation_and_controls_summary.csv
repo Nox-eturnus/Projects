@@ -1,0 +1,8 @@
+model,family,parameters,two_qubit_gates,iid_ba,critical_ood_ba,hamiltonian_ood_ba
+Full Expressive QCNN,tfim,27,36,0.9545454545454546,0.6538461538461539,0.9545454545454546
+No Entanglement Ablation,tfim,21,0,0.5,0.5,0.5
+No Pooling Ablation,tfim,18,42,0.7727272727272727,0.5,0.7727272727272727
+Unshared Weights Ablation,tfim,87,36,0.9545454545454546,0.5,0.9545454545454546
+Shuffled Labels Control,tfim,27,36,0.9545454545454546,0.5,0.9545454545454546
+Random Quantum States Control,tfim,27,36,0.5083333333333333,0.5,0.5
+Physics Order Parameter,tfim,2,0,0.9545454545454546,0.5384615384615384,0.9545454545454546

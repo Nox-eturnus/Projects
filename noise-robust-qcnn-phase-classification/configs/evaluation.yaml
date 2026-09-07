@@ -1,0 +1,56 @@
+evaluation:
+  split_seeds: [11, 23, 37, 51, 71, 89, 101, 131, 151, 181]
+
+  iid:
+    train_fraction: 0.70
+    validation_fraction: 0.15
+    test_fraction: 0.15
+
+  critical_holdout:
+    tfim:
+      test_min: 0.80
+      test_max: 1.20
+
+    xxz:
+      test_min: 0.75
+      test_max: 1.25
+
+    cluster:
+      test_min: 0.80
+      test_max: 1.20
+
+  parameter_block:
+    tfim:
+      train_low_max: 0.55
+      val_low_min: 0.55
+      val_low_max: 0.65
+      test_low_min: 0.65
+      test_high_max: 1.38
+      val_high_min: 1.38
+      val_high_max: 1.50
+      train_high_min: 1.50
+    xxz:
+      train_low_max: 0.20
+      val_low_min: 0.20
+      val_low_max: 0.45
+      test_low_min: 0.45
+      test_high_max: 1.48
+      val_high_min: 1.48
+      val_high_max: 1.68
+      train_high_min: 1.68
+    cluster:
+      train_low_max: 0.45
+      val_low_min: 0.45
+      val_low_max: 0.58
+      test_low_min: 0.58
+      test_high_max: 1.45
+      val_high_min: 1.45
+      val_high_max: 1.58
+      train_high_min: 1.58
+
+  near_critical_grid:
+    points: 41
+
+  bootstrap:
+    repetitions: 2000
+    confidence: 0.95
