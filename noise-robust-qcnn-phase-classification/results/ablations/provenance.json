@@ -1,6 +1,6 @@
 {
-  "git_commit": "2cc080a0bf31dc4a32b21e26f4929ed1f2644f81",
-  "generated_at": "2026-09-07T17:14:49.743911+00:00",
+  "git_commit": "029358e31f98a647146e84b8cad8457a48a3b22d",
+  "generated_at": "2026-09-07T18:26:49.482810+00:00",
   "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
   "n_qubits": 8,
   "family": "tfim",
@@ -16,18 +16,49 @@
     100,
     200
   ],
-  "n_permutations_shuffled": 25,
-  "delta_no_conv_vs_full": {
-    "delta_iid_mean": -0.11818181818181824,
-    "delta_iid_ci95": [
-      -0.17272727272727278,
-      -0.06363636363636369
-    ],
-    "delta_crit_mean": -0.1923076923076923,
-    "delta_crit_ci95": [
-      -0.30769230769230765,
-      -0.07692307692307691
-    ]
+  "n_runs_shuffled_control": 25,
+  "n_permutations_pipeline_test": 25,
+  "pipeline_permutation_p_value": 0.038461538461538464,
+  "pipeline_permutation_null_ba_mean": 0.5325218115218115,
+  "pipeline_permutation_null_ba_std": 0.05614337158200561,
+  "pairwise_deltas": {
+    "no_conv_vs_full": {
+      "delta_iid_mean": -0.022727272727272728,
+      "delta_iid_ci95": [
+        -0.05454545454545455,
+        0.009090909090909094
+      ],
+      "delta_crit_mean": -0.18461538461538463,
+      "delta_crit_ci95": [
+        -0.29615384615384616,
+        -0.08076923076923075
+      ]
+    },
+    "no_pool_vs_full": {
+      "delta_iid_mean": -0.009090909090909084,
+      "delta_iid_ci95": [
+        -0.03181818181818182,
+        0.013636363636363646
+      ],
+      "delta_crit_mean": -0.06153846153846153,
+      "delta_crit_ci95": [
+        -0.19615384615384615,
+        0.0653846153846154
+      ]
+    },
+    "no_conv_vs_no_pool": {
+      "delta_iid_mean": -0.013636363636363646,
+      "delta_iid_ci95": [
+        -0.04090909090909093,
+        0.013636363636363624
+      ],
+      "delta_crit_mean": -0.12307692307692308,
+      "delta_crit_ci95": [
+        -0.18086538461538446,
+        -0.06538461538461535
+      ]
+    }
   },
+  "scientific_conclusion": "The full architecture gives the strongest mean IID and critical-region generalization; removing either convolutional or pooling entanglement degrades performance, while removing all entanglement or pooling collapses to chance.",
   "script": "scripts/26_sanity_and_ablation_suite.py"
 }

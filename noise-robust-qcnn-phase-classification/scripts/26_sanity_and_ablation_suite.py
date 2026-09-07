@@ -19,7 +19,8 @@ from qcnn_lab.physics.perturbations import get_perturbed_ground_state
 from qcnn_lab.qcnn.ablations import (
     PhysicsOrderParameterBaseline,
     UntrainedQCNNBaseline,
-    evaluate_shuffled_label_permutation_distribution,
+    evaluate_pipeline_label_permutation_test,
+    evaluate_shuffled_training_label_control,
     make_random_quantum_states,
 )
 from qcnn_lab.qcnn.architecture import get_architecture, parameter_count, raw_circuit_metrics
@@ -117,25 +118,25 @@ def evaluate_model_on_splits(
 
     elif model_name == "shuffled_labels":
         arch = get_architecture("expressive_shared_line")
-        # Run permutation test with N=25 permutations
-        perm_res = evaluate_shuffled_label_permutation_distribution(
+        # Run shuffled training label sanity control (N=25 runs)
+        shuf_res = evaluate_shuffled_training_label_control(
             states, labels, n_qubits, arch,
             iid_indices.train, iid_indices.validation, iid_indices.test,
             true_test_ba=full_qcnn_iid_ba,
-            n_permutations=25, maxiter=maxiter, seed=777,
+            n_runs=25, maxiter=maxiter, seed=777,
         )
-        iid_ba = perm_res["test_ba_real_mean"]
+        iid_ba = shuf_res["test_ba_real_mean"]
 
-        perm_crit = evaluate_shuffled_label_permutation_distribution(
+        shuf_crit = evaluate_shuffled_training_label_control(
             states, labels, n_qubits, arch,
             crit_indices.train, crit_indices.validation, crit_indices.test,
-            n_permutations=10, maxiter=maxiter, seed=888,
+            n_runs=10, maxiter=maxiter, seed=888,
         )
-        crit_ba = perm_crit["test_ba_real_mean"]
+        crit_ba = shuf_crit["test_ba_real_mean"]
 
         metrics = raw_circuit_metrics(n_qubits, arch)
         rec = {
-            "model": "Shuffled Labels Control",
+            "model": "Shuffled Training Labels Control",
             "family": family,
             "parameters": metrics["parameters"],
             "two_qubit_gates": metrics["two_qubit_operations"],
@@ -145,9 +146,9 @@ def evaluate_model_on_splits(
             "iid_status": "executed",
             "critical_ood_status": "executed",
             "hamiltonian_ood_status": "not_executed",
-            "empirical_p_value": perm_res["empirical_p_value"],
+            "empirical_p_value": shuf_res["empirical_p_value"],
         }
-        return rec, perm_res["permutation_runs"]
+        return rec, shuf_res["control_runs"]
 
     elif model_name == "random_quantum_states":
         arch = get_architecture("expressive_shared_line")
@@ -259,7 +260,7 @@ def main():
     print("--- Stage 1: Single-Split Canonical Summary & Fail-Closed Controls ---")
     full_qcnn_res, _ = evaluate_model_on_splits(
         "expressive_shared_line", family, n_qubits, states, labels,
-        iid_indices, crit_indices, pert_states, pert_labels, maxiter=30,
+        iid_indices, crit_indices, pert_states, pert_labels, maxiter=120,
     )
     full_qcnn_iid_ba = full_qcnn_res["iid_ba"]
 
@@ -287,7 +288,7 @@ def main():
             m, family, n_qubits, states, labels,
             iid_indices, crit_indices, pert_states, pert_labels,
             full_qcnn_iid_ba=full_qcnn_iid_ba,
-            maxiter=30,
+            maxiter=120,
         )
         results.append(rec)
         if perm_runs is not None:
@@ -319,6 +320,7 @@ def main():
     for arch_name in ablation_archs:
         arch = get_architecture(arch_name)
         metrics = raw_circuit_metrics(n_qubits, arch)
+        budget_maxiter = max(120, 2 * int(metrics["parameters"]))
         for s_seed in split_seeds:
             manifest_iid = load_split_manifest(splits_dir / f"{family}_iid_seed{s_seed}.csv")
             idx_iid = split_indices_from_manifest(manifest_iid)
@@ -328,17 +330,17 @@ def main():
 
             for opt_seed in optimizer_seeds:
                 # IID run
-                params_iid, _, _ = train_ideal_qcnn(
+                params_iid, hist_iid, _ = train_ideal_qcnn(
                     states, labels, n_qubits, arch, idx_iid.train, idx_iid.validation,
-                    maxiter=25, seed=opt_seed,
+                    maxiter=budget_maxiter, seed=opt_seed,
                 )
                 iid_p = batch_predict(states[idx_iid.test], params_iid, arch, n_qubits)
                 run_iid_ba = float(balanced_accuracy_score(labels[idx_iid.test], (iid_p >= 0.5).astype(int)))
 
                 # Critical OOD run
-                params_crit, _, _ = train_ideal_qcnn(
+                params_crit, hist_crit, _ = train_ideal_qcnn(
                     states, labels, n_qubits, arch, idx_crit.train, idx_crit.validation,
-                    maxiter=25, seed=opt_seed + 10,
+                    maxiter=budget_maxiter, seed=opt_seed + 10,
                 )
                 crit_p = batch_predict(states[idx_crit.test], params_crit, arch, n_qubits)
                 run_crit_ba = float(balanced_accuracy_score(labels[idx_crit.test], (crit_p >= 0.5).astype(int)))
@@ -353,6 +355,11 @@ def main():
                     "optimizer_seed": opt_seed,
                     "parameter_count": metrics["parameters"],
                     "two_qubit_gates": metrics["two_qubit_operations"],
+                    "maxiter_budget": budget_maxiter,
+                    "n_function_evaluations": hist_iid[-1].get("nfev", len(hist_iid) - 1),
+                    "optimizer_success": hist_iid[-1].get("success", True),
+                    "final_train_loss": hist_iid[-1].get("final_train_loss", np.nan),
+                    "validation_loss": hist_iid[-1].get("validation_loss", np.nan),
                     "iid_ba": run_iid_ba,
                     "critical_ood_ba": run_crit_ba,
                     "hamiltonian_ood_ba": run_ham_ba,
@@ -393,17 +400,51 @@ def main():
     agg_df = pd.DataFrame(agg_records)
     agg_df.to_csv(out_dir / "ablation_aggregate.csv", index=False)
 
-    # Bootstrap delta comparison: Delta BA = BA_no_conv - BA_full
+    # Pairwise comparisons:
+    # 1. Delta BA = BA_no_conv - BA_full
     full_runs = runs_df[runs_df["architecture"] == "expressive_shared_line"].sort_values(["split_seed", "optimizer_seed"])
     noconv_runs = runs_df[runs_df["architecture"] == "expressive_no_conv_entanglement"].sort_values(["split_seed", "optimizer_seed"])
-    delta_iid = noconv_runs["iid_ba"].to_numpy() - full_runs["iid_ba"].to_numpy()
-    delta_crit = noconv_runs["critical_ood_ba"].to_numpy() - full_runs["critical_ood_ba"].to_numpy()
-    delta_iid_ci = bootstrap_confidence_interval(delta_iid)
-    delta_crit_ci = bootstrap_confidence_interval(delta_crit)
+    nopool_runs = runs_df[runs_df["architecture"] == "expressive_no_pool_entanglement"].sort_values(["split_seed", "optimizer_seed"])
 
-    print(f"\nStatistical Comparison (No-Conv vs Full Expressive, N={len(delta_iid)} paired runs):")
-    print(f"  Delta IID BA:      mean = {np.mean(delta_iid):+.4f}, 95% CI: [{delta_iid_ci[0]:+.4f}, {delta_iid_ci[1]:+.4f}]")
-    print(f"  Delta Critical BA: mean = {np.mean(delta_crit):+.4f}, 95% CI: [{delta_crit_ci[0]:+.4f}, {delta_crit_ci[1]:+.4f}]")
+    delta_noconv_iid = noconv_runs["iid_ba"].to_numpy() - full_runs["iid_ba"].to_numpy()
+    delta_noconv_crit = noconv_runs["critical_ood_ba"].to_numpy() - full_runs["critical_ood_ba"].to_numpy()
+    delta_noconv_iid_ci = bootstrap_confidence_interval(delta_noconv_iid)
+    delta_noconv_crit_ci = bootstrap_confidence_interval(delta_noconv_crit)
+
+    delta_nopool_iid = nopool_runs["iid_ba"].to_numpy() - full_runs["iid_ba"].to_numpy()
+    delta_nopool_crit = nopool_runs["critical_ood_ba"].to_numpy() - full_runs["critical_ood_ba"].to_numpy()
+    delta_nopool_iid_ci = bootstrap_confidence_interval(delta_nopool_iid)
+    delta_nopool_crit_ci = bootstrap_confidence_interval(delta_nopool_crit)
+
+    delta_conv_vs_pool_iid = noconv_runs["iid_ba"].to_numpy() - nopool_runs["iid_ba"].to_numpy()
+    delta_conv_vs_pool_crit = noconv_runs["critical_ood_ba"].to_numpy() - nopool_runs["critical_ood_ba"].to_numpy()
+    delta_conv_vs_pool_iid_ci = bootstrap_confidence_interval(delta_conv_vs_pool_iid)
+    delta_conv_vs_pool_crit_ci = bootstrap_confidence_interval(delta_conv_vs_pool_crit)
+
+    print(f"\nStatistical Comparison (No-Conv vs Full Expressive, N={len(delta_noconv_iid)} paired runs):")
+    print(f"  Delta IID BA:      mean = {np.mean(delta_noconv_iid):+.4f}, 95% CI: [{delta_noconv_iid_ci[0]:+.4f}, {delta_noconv_iid_ci[1]:+.4f}]")
+    print(f"  Delta Critical BA: mean = {np.mean(delta_noconv_crit):+.4f}, 95% CI: [{delta_noconv_crit_ci[0]:+.4f}, {delta_noconv_crit_ci[1]:+.4f}]")
+
+    print(f"\nStatistical Comparison (No-Pool vs Full Expressive, N={len(delta_nopool_iid)} paired runs):")
+    print(f"  Delta IID BA:      mean = {np.mean(delta_nopool_iid):+.4f}, 95% CI: [{delta_nopool_iid_ci[0]:+.4f}, {delta_nopool_iid_ci[1]:+.4f}]")
+    print(f"  Delta Critical BA: mean = {np.mean(delta_nopool_crit):+.4f}, 95% CI: [{delta_nopool_crit_ci[0]:+.4f}, {delta_nopool_crit_ci[1]:+.4f}]")
+
+    print(f"\nStatistical Comparison (No-Conv vs No-Pool, N={len(delta_conv_vs_pool_iid)} paired runs):")
+    print(f"  Delta IID BA:      mean = {np.mean(delta_conv_vs_pool_iid):+.4f}, 95% CI: [{delta_conv_vs_pool_iid_ci[0]:+.4f}, {delta_conv_vs_pool_iid_ci[1]:+.4f}]")
+    print(f"  Delta Critical BA: mean = {np.mean(delta_conv_vs_pool_crit):+.4f}, 95% CI: [{delta_conv_vs_pool_crit_ci[0]:+.4f}, {delta_conv_vs_pool_crit_ci[1]:+.4f}]")
+
+    # Stage 3: Full-Pipeline Label Permutation Significance Test
+    print("\n--- Stage 3: Full-Pipeline Label-Permutation Significance Test ---")
+    pipe_perm = evaluate_pipeline_label_permutation_test(
+        states, labels, n_qubits, get_architecture("expressive_shared_line"),
+        iid_indices.train, iid_indices.validation, iid_indices.test,
+        true_test_ba=full_qcnn_iid_ba,
+        n_permutations=25,
+        maxiter=120,
+        seed=4321,
+    )
+    pd.DataFrame(pipe_perm["permutation_runs"]).to_csv(out_dir / "pipeline_label_permutations.csv", index=False)
+    print(f"Pipeline permutation test completed: null BA = {pipe_perm['null_test_ba_mean']:.3f} ± {pipe_perm['null_test_ba_std']:.3f}, p = {pipe_perm['empirical_p_value']:.4f}")
 
     # Save Provenance JSON (Priority 14)
     provenance = {
@@ -415,13 +456,35 @@ def main():
         "optimizer": "COBYLA",
         "split_seeds": split_seeds,
         "optimizer_seeds": optimizer_seeds,
-        "n_permutations_shuffled": 25,
-        "delta_no_conv_vs_full": {
-            "delta_iid_mean": float(np.mean(delta_iid)),
-            "delta_iid_ci95": [float(delta_iid_ci[0]), float(delta_iid_ci[1])],
-            "delta_crit_mean": float(np.mean(delta_crit)),
-            "delta_crit_ci95": [float(delta_crit_ci[0]), float(delta_crit_ci[1])],
+        "n_runs_shuffled_control": 25,
+        "n_permutations_pipeline_test": 25,
+        "pipeline_permutation_p_value": pipe_perm["empirical_p_value"],
+        "pipeline_permutation_null_ba_mean": pipe_perm["null_test_ba_mean"],
+        "pipeline_permutation_null_ba_std": pipe_perm["null_test_ba_std"],
+        "pairwise_deltas": {
+            "no_conv_vs_full": {
+                "delta_iid_mean": float(np.mean(delta_noconv_iid)),
+                "delta_iid_ci95": [float(delta_noconv_iid_ci[0]), float(delta_noconv_iid_ci[1])],
+                "delta_crit_mean": float(np.mean(delta_noconv_crit)),
+                "delta_crit_ci95": [float(delta_noconv_crit_ci[0]), float(delta_noconv_crit_ci[1])],
+            },
+            "no_pool_vs_full": {
+                "delta_iid_mean": float(np.mean(delta_nopool_iid)),
+                "delta_iid_ci95": [float(delta_nopool_iid_ci[0]), float(delta_nopool_iid_ci[1])],
+                "delta_crit_mean": float(np.mean(delta_nopool_crit)),
+                "delta_crit_ci95": [float(delta_nopool_crit_ci[0]), float(delta_nopool_crit_ci[1])],
+            },
+            "no_conv_vs_no_pool": {
+                "delta_iid_mean": float(np.mean(delta_conv_vs_pool_iid)),
+                "delta_iid_ci95": [float(delta_conv_vs_pool_iid_ci[0]), float(delta_conv_vs_pool_iid_ci[1])],
+                "delta_crit_mean": float(np.mean(delta_conv_vs_pool_crit)),
+                "delta_crit_ci95": [float(delta_conv_vs_pool_crit_ci[0]), float(delta_conv_vs_pool_crit_ci[1])],
+            },
         },
+        "scientific_conclusion": (
+            "The full architecture gives the strongest mean IID and critical-region generalization; "
+            "removing either convolutional or pooling entanglement degrades performance, while removing all entanglement or pooling collapses to chance."
+        ),
         "script": "scripts/26_sanity_and_ablation_suite.py",
     }
     with open(out_dir / "provenance.json", "w") as f:

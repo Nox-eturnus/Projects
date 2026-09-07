@@ -115,7 +115,7 @@ class UntrainedQCNNBaseline:
         return (probs >= 0.5).astype(int)
 
 
-def evaluate_shuffled_label_permutation_distribution(
+def evaluate_shuffled_training_label_control(
     states: np.ndarray,
     labels: np.ndarray,
     n_qubits: int,
@@ -125,20 +125,20 @@ def evaluate_shuffled_label_permutation_distribution(
     test_idx: np.ndarray,
     *,
     true_test_ba: float | None = None,
-    n_permutations: int = 25,
+    n_runs: int = 25,
+    n_permutations: int | None = None,
     maxiter: int = 25,
     seed: int = 12345,
 ) -> dict[str, Any]:
-    """Evaluate classifier performance over an ensemble of random label permutations.
+    """Evaluate classifier performance when training strictly on randomly shuffled training targets.
 
-    Measures:
-    1. memorization (train BA on shuffled labels)
-    2. out-of-sample generalization (test BA on true labels)
-    3. test Brier score
-    4. empirical permutation p-value: p = (1 + #{BA_perm >= BA_real}) / (1 + N_perm)
+    This serves as a sanity control measuring whether the optimizer memorizes noise or whether
+    training on scrambled targets generalizes to genuine held-out ground truth.
     """
+    if n_permutations is not None:
+        n_runs = n_permutations
     records = []
-    for k in range(n_permutations):
+    for k in range(n_runs):
         opt_seed = seed + 1000 + k * 31
         shuffled_train_y = make_shuffled_labels_data(labels[train_idx], seed=seed + k * 17)
         y_copy = labels.copy()
@@ -164,7 +164,7 @@ def evaluate_shuffled_label_permutation_distribution(
         test_bs = float(brier_score(labels[test_idx], test_p))
 
         records.append({
-            "permutation_id": k + 1,
+            "run_id": k + 1,
             "optimizer_seed": opt_seed,
             "train_ba_shuffled": train_ba_shuf,
             "train_ba_real": train_ba_real,
@@ -181,13 +181,85 @@ def evaluate_shuffled_label_permutation_distribution(
         p_value = float((count_ge + 1) / (len(test_bas) + 1))
 
     return {
-        "n_permutations": n_permutations,
+        "n_runs": n_runs,
         "train_ba_shuffled_mean": float(np.mean(train_shuf_bas)),
         "train_ba_shuffled_std": float(np.std(train_shuf_bas, ddof=1)) if len(train_shuf_bas) > 1 else 0.0,
         "test_ba_real_mean": float(np.mean(test_bas)),
         "test_ba_real_std": float(np.std(test_bas, ddof=1)) if len(test_bas) > 1 else 0.0,
         "empirical_p_value": p_value,
         "true_test_ba": true_test_ba,
+        "control_runs": records,
+    }
+
+
+# Backwards compatibility alias
+evaluate_shuffled_label_permutation_distribution = evaluate_shuffled_training_label_control
+
+
+def evaluate_pipeline_label_permutation_test(
+    states: np.ndarray,
+    labels: np.ndarray,
+    n_qubits: int,
+    architecture: QCNNArchitecture,
+    train_idx: np.ndarray,
+    val_idx: np.ndarray,
+    test_idx: np.ndarray,
+    *,
+    true_test_ba: float,
+    n_permutations: int = 50,
+    maxiter: int = 25,
+    seed: int = 12345,
+) -> dict[str, Any]:
+    """Conduct a rigorous pipeline-level label-permutation significance test for H0: states and labels are unrelated.
+
+    Under each permutation k:
+        y^(k) = pi_k(y) across the entire dataset.
+        y^(k)_train, y^(k)_val, y^(k)_test are partitioned from y^(k).
+        QCNN is trained on permuted train/val and evaluated against y^(k)_test.
+    The empirical p-value is computed as:
+        p = (1 + #{BA_perm_test >= BA_true_test}) / (1 + N_permutations)
+    """
+    rng = np.random.default_rng(seed)
+    records = []
+    n_samples = len(labels)
+
+    for k in range(n_permutations):
+        opt_seed = seed + 2000 + k * 37
+        perm = rng.permutation(n_samples)
+        y_perm = labels[perm]
+
+        params, _, _ = train_ideal_qcnn(
+            states,
+            y_perm,
+            n_qubits,
+            architecture,
+            train_idx,
+            val_idx,
+            maxiter=maxiter,
+            seed=opt_seed,
+        )
+
+        test_p = batch_predict(states[test_idx], params, architecture, n_qubits)
+        test_ba_perm = float(balanced_accuracy_score(y_perm[test_idx], (test_p >= 0.5).astype(int)))
+        test_bs = float(brier_score(y_perm[test_idx], test_p))
+
+        records.append({
+            "permutation_id": k + 1,
+            "optimizer_seed": opt_seed,
+            "test_ba_permuted": test_ba_perm,
+            "test_brier": test_bs,
+        })
+
+    perm_test_bas = [r["test_ba_permuted"] for r in records]
+    count_ge = sum(1 for ba in perm_test_bas if ba >= true_test_ba)
+    p_value = float((count_ge + 1) / (len(perm_test_bas) + 1))
+
+    return {
+        "n_permutations": n_permutations,
+        "null_test_ba_mean": float(np.mean(perm_test_bas)),
+        "null_test_ba_std": float(np.std(perm_test_bas, ddof=1)) if len(perm_test_bas) > 1 else 0.0,
+        "true_test_ba": true_test_ba,
+        "empirical_p_value": p_value,
         "permutation_runs": records,
     }
 

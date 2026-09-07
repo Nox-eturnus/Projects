@@ -54,7 +54,16 @@ def train_ideal_qcnn(
     params = np.asarray(result.x, dtype=float)
     val_p = batch_predict(states[validation_idx], params, architecture, n_qubits)
     val_loss = binary_cross_entropy(labels[validation_idx], val_p)
-    history.append({"evaluation": len(history), "validation_loss": val_loss, "success": bool(result.success), "message": str(result.message)})
+    final_train_loss = history[-1]["train_loss"] if history else float(result.fun)
+    nfev = int(getattr(result, "nfev", len(history)))
+    history.append({
+        "evaluation": len(history),
+        "validation_loss": val_loss,
+        "final_train_loss": final_train_loss,
+        "nfev": nfev,
+        "success": bool(result.success),
+        "message": str(result.message),
+    })
     return params, history, perf_counter() - started
 
 

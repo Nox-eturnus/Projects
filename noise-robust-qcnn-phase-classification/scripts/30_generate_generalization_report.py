@@ -187,21 +187,42 @@ def main():
     hw_runs = "0"
     active_hw = hw_summary if (hw_summary is not None and hw_summary.get("is_physical_hardware", False)) else surrogate_hw
 
+    req_hw_fields = [
+        "test_correct",
+        "test_sample_count",
+        "accuracy_ci95_low",
+        "accuracy_ci95_high",
+        "raw_job_id",
+        "mitigated_job_id",
+        "mitigated_hardware_balanced_accuracy",
+        "raw_hardware_balanced_accuracy",
+    ]
+
     if active_hw is not None:
         is_real = active_hw.get("is_physical_hardware", False)
-        mit_ba = active_hw.get("mitigated_hardware_balanced_accuracy", 0.0)
-        raw_ba = active_hw.get("raw_hardware_balanced_accuracy", 0.0)
         if is_real:
-            job_id = active_hw.get("raw_job_id", "N/A")
-            k = active_hw.get("test_correct", 10)
-            n_hw = active_hw.get("test_sample_count", 10)
-            ci_low = active_hw.get("accuracy_ci95_low", 0.692)
-            ci_high = active_hw.get("accuracy_ci95_high", 1.0)
-            hw_tfim_val = f"{k}/{n_hw} correct [95% CI: {ci_low:.3f}, {ci_high:.3f}] ({mit_ba:.3f} Mit / {raw_ba:.3f} Raw) [Job: {job_id[:8]}]"
-            hw_source = "results/hardware/expressive_hardware_summary.json"
-            hw_runs = f"n = {n_hw} states (1 session)"
+            if not all(k in active_hw and active_hw[k] is not None for k in req_hw_fields):
+                hw_tfim_val = "N/A — incomplete physical-hardware provenance"
+                hw_source = "results/hardware/expressive_hardware_summary.json"
+                hw_runs = "0"
+            else:
+                job_id = str(active_hw["raw_job_id"])
+                k = int(active_hw["test_correct"])
+                n_hw = int(active_hw["test_sample_count"])
+                ci_low = float(active_hw["accuracy_ci95_low"])
+                ci_high = float(active_hw["accuracy_ci95_high"])
+                mit_ba = float(active_hw["mitigated_hardware_balanced_accuracy"])
+                raw_ba = float(active_hw["raw_hardware_balanced_accuracy"])
+                hw_tfim_val = f"{k}/{n_hw} correct [95% CI: {ci_low:.3f}, {ci_high:.3f}] ({mit_ba:.3f} Mit / {raw_ba:.3f} Raw) [Job: {job_id[:8]}]"
+                hw_source = "results/hardware/expressive_hardware_summary.json"
+                hw_runs = f"n = {n_hw} states (1 session)"
         else:
-            hw_tfim_val = f"{mit_ba:.3f} (Mitigated) / {raw_ba:.3f} (Raw) [Analytical surrogate, not physical QPU]"
+            mit_ba = active_hw.get("mitigated_hardware_balanced_accuracy")
+            raw_ba = active_hw.get("raw_hardware_balanced_accuracy")
+            if mit_ba is None or raw_ba is None:
+                hw_tfim_val = "N/A — incomplete surrogate provenance"
+            else:
+                hw_tfim_val = f"{mit_ba:.3f} (Mitigated) / {raw_ba:.3f} (Raw) [Analytical surrogate, not physical QPU]"
             hw_source = "results/hardware/surrogate_hardware_summary.json"
             hw_runs = "1 simulation"
 
@@ -286,9 +307,9 @@ def main():
     report_lines.extend([
         "",
         "> **Key Findings & Inductive Bias Analysis**:",
-        "> - **Random State Control**: Classifying Haar-random / unstructured quantum states provides a negative sanity control consistent with chance-level generalization ($BA \\approx 0.42$), confirming absence of label leakage.",
-        "> - **Shuffled-Label Permutation Control**: Permutation controls yield test performance substantially below true-label performance, supporting that generalization depends on the genuine state-label relationship rather than training label memorization.",
-        "> - **Disentangling Entanglement**: Hierarchical pooling entanglement contributes more strongly than explicit convolutional entanglers in the preliminary TFIM ablation; multi-seed aggregate confirmation is documented in `ablation_aggregate.csv`.",
+        "> - **Random State Control**: Classifying Haar-random / unstructured quantum states provides a negative sanity control consistent with chance-level generalization ($BA \\approx 0.42$), consistent with no obvious label leakage through the random-state control.",
+        "> - **Shuffled-Training-Label Control**: Training on randomly shuffled targets yielded mean true-label test BA $0.549 \\pm 0.388$, but the control distribution was broad and the current empirical comparison was not significant ($p \\approx 0.308$). A full-pipeline permutation test is documented separately.",
+        "> - **Disentangling Entanglement**: The full architecture gives the strongest mean IID and critical-region generalization; removing either convolutional or pooling entanglement degrades performance, while removing all entanglement or pooling collapses to chance.",
         "",
         "---",
         "",
@@ -297,16 +318,21 @@ def main():
     ])
 
     if hw_summary is not None and hw_summary.get("is_physical_hardware", False):
-        k = hw_summary.get("test_correct", 10)
-        n_hw = hw_summary.get("test_sample_count", 10)
-        ci_low = hw_summary.get("accuracy_ci95_low", 0.692)
-        ci_high = hw_summary.get("accuracy_ci95_high", 1.0)
-        report_lines.append(f"- **Execution Mode**: Physical QPU Hardware (`{hw_summary.get('backend')}`)")
-        report_lines.append(f"- **Observed Result**: {k}/{n_hw} held-out TFIM states correctly classified ({hw_summary.get('mitigated_hardware_balanced_accuracy', 1.0) * 100:.1f}%)")
-        report_lines.append(f"- **Exact Binomial Uncertainty**: 95% Clopper-Pearson CI = [{ci_low:.3f}, {ci_high:.3f}]")
-        report_lines.append(f"- **Job IDs**: Raw `{hw_summary.get('raw_job_id')}`, Mitigated `{hw_summary.get('mitigated_job_id')}`")
-        report_lines.append(f"- **Circuit Telemetry**: Transpiled depth = {hw_summary.get('transpiled_depth_mitigated', 18)}, 2Q gates = {hw_summary.get('two_qubit_count_mitigated', 8)}")
-        report_lines.append("- **Multi-Session Status**: `multi_session_hardware_complete = false` (multi-session calibration across multiple cooling windows is pending).")
+        if not all(k in hw_summary and hw_summary[k] is not None for k in req_hw_fields):
+            report_lines.append("- **Hardware Status**: N/A — incomplete physical-hardware provenance.")
+        else:
+            k = int(hw_summary["test_correct"])
+            n_hw = int(hw_summary["test_sample_count"])
+            ci_low = float(hw_summary["accuracy_ci95_low"])
+            ci_high = float(hw_summary["accuracy_ci95_high"])
+            mit_ba = float(hw_summary["mitigated_hardware_balanced_accuracy"])
+            backend = hw_summary.get("backend", "ibm_fez")
+            report_lines.append(f"- **Execution Mode**: Physical QPU Hardware (`{backend}`)")
+            report_lines.append(f"- **Observed Result**: {k}/{n_hw} held-out TFIM states correctly classified ({mit_ba * 100:.1f}%)")
+            report_lines.append(f"- **Exact Binomial Uncertainty**: 95% Clopper-Pearson CI = [{ci_low:.3f}, {ci_high:.3f}]")
+            report_lines.append(f"- **Job IDs**: Raw `{hw_summary['raw_job_id']}`, Mitigated `{hw_summary['mitigated_job_id']}`")
+            report_lines.append(f"- **Circuit Telemetry**: Transpiled depth = {hw_summary.get('transpiled_depth_mitigated', 18)}, 2Q gates = {hw_summary.get('two_qubit_count_mitigated', 8)}")
+            report_lines.append("- **Multi-Session Status**: `multi_session_hardware_complete = false` (multi-session calibration across multiple cooling windows is pending).")
     elif surrogate_hw is not None:
         report_lines.append("- **Execution Mode**: Analytical Surrogate Simulation (`surrogate_hardware_summary.json`)")
         report_lines.append(f"- **Mode Provenance**: {surrogate_hw.get('notes', 'Analytical surrogate study.')}")
@@ -323,7 +349,7 @@ def main():
         "",
         "- **TFIM Near-Critical Crossover**: TFIM displays clear distance-dependent generalization and a bracketed finite-size crossover ($h \\approx 0.931$ vs thermodynamic $h_c=1.0$), while XXZ and Cluster highlight the boundary of near-critical zero-shot generalization ($BA \\approx 0.50$ in the critical holdout).",
         "- **Thermal Fragility vs Robustness**: Thermal sensitivity is strongly phase-family dependent: TFIM classification collapses rapidly under thermal fluctuations ($BA \\to 0.50$ by $T=0.10$), whereas XXZ and Cluster remain robust ($BA \\ge 0.94$) under the tested finite-temperature Gibbs states.",
-        "- **Measurement Resource Tradeoffs**: QCNN maintains an advantage at low measurement budgets in TFIM ($B \\le 256$), while classical models with commuting Pauli observables match or exceed QCNN performance on Cluster and at larger budgets ($B \\ge 1024$).",
+        "- **Measurement Resource Tradeoffs**: Under matched inference state-copy budgets, the QCNN shows a slightly higher mean BA than the two-observable classical comparator only for low-budget TFIM, while the physics-informed classical comparator outperforms it across the tested XXZ and Cluster budgets. This matches inference measurement resources, not total training resources (the classical model is trained using exact expectation values).",
     ])
 
     report_text = "\n".join(report_lines)

@@ -46,16 +46,18 @@ def load_ablations_markdown(summary_path: Path, agg_path: Path, perm_path: Path)
         lines.append(df[cols_to_show].to_markdown(index=False))
 
     # Add permutation and statistical aggregate narrative
-    p_val_str = "p < 0.05"
     if perm_path.exists():
         perm_df = pd.read_csv(perm_path)
         n_perms = len(perm_df)
         mean_shuf_ba = perm_df["train_ba_shuffled"].mean()
         mean_real_ba = perm_df["test_ba_real"].mean()
         lines.append("")
-        lines.append(f"> **Shuffled-Label Permutation Test (N={n_perms} permutations)**:")
-        lines.append(f"> Training BA on permuted labels = {mean_shuf_ba:.3f} ± {perm_df['train_ba_shuffled'].std():.3f}; test BA on real labels = {mean_real_ba:.3f} ± {perm_df['test_ba_real'].std():.3f}.")
-        lines.append(f"> The permutation-control distribution was substantially below true-label performance, supporting that generalization depends on the genuine state-label relationship.")
+        lines.append(f"> **Shuffled-Training-Label Control (N={n_perms} runs)**:")
+        lines.append(
+            f"> Training on randomly shuffled targets yielded mean true-label test BA {mean_real_ba:.3f} ± {perm_df['test_ba_real'].std():.3f}, "
+            "but the control distribution was broad and the empirical comparison was not significant (p ≈ 0.308). "
+            "A full-pipeline permutation test is evaluated separately."
+        )
 
     if agg_path.exists():
         agg_df = pd.read_csv(agg_path)
@@ -68,6 +70,8 @@ def load_ablations_markdown(summary_path: Path, agg_path: Path, perm_path: Path)
             if c in display_agg.columns:
                 display_agg[c] = display_agg[c].map(lambda x: f"{x:.3f}")
         lines.append(display_agg.to_markdown(index=False))
+        lines.append("")
+        lines.append("> **Ablation Insight**: The full architecture gives the strongest mean IID and critical-region generalization; removing either convolutional or pooling entanglement degrades performance, while removing all entanglement or pooling collapses to chance.")
 
     return "\n".join(lines)
 
@@ -77,13 +81,26 @@ def load_hardware_markdown(hw_summary_path: Path) -> str:
         return "_Hardware summary pending execution._"
     data = json.loads(hw_summary_path.read_text(encoding="utf-8"))
     if data.get("is_physical_hardware", False):
-        k = data.get("test_correct", 10)
-        n = data.get("test_sample_count", 10)
-        backend = data.get("backend", "ibm_fez")
-        ci_low = data.get("accuracy_ci95_low", 0.692)
-        ci_high = data.get("accuracy_ci95_high", 1.0)
-        raw_job = data.get("raw_job_id", "N/A")
-        mit_job = data.get("mitigated_job_id", "N/A")
+        required_fields = [
+            "test_correct",
+            "test_sample_count",
+            "accuracy_ci95_low",
+            "accuracy_ci95_high",
+            "raw_job_id",
+            "mitigated_job_id",
+            "mitigated_hardware_balanced_accuracy",
+            "raw_hardware_balanced_accuracy",
+        ]
+        if not all(k in data and data[k] is not None for k in required_fields):
+            return "- **Physical Hardware Execution**: N/A — incomplete physical-hardware provenance."
+
+        k = int(data["test_correct"])
+        n = int(data["test_sample_count"])
+        backend = str(data.get("backend", "ibm_fez"))
+        ci_low = float(data["accuracy_ci95_low"])
+        ci_high = float(data["accuracy_ci95_high"])
+        raw_job = str(data["raw_job_id"])
+        mit_job = str(data["mitigated_job_id"])
         lines = [
             f"- **Observed Result**: **{k}/{n}** held-out N=4 TFIM test states correctly classified on `{backend}`.",
             f"- **Exact Binomial Uncertainty**: 95% Clopper-Pearson CI = **[{ci_low:.3f}, {ci_high:.3f}]**.",

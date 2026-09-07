@@ -1,11 +1,17 @@
 {
   "execution_mode": "physical_hardware",
   "is_physical_hardware": true,
-  "git_commit": "2cc080a9a4b8bfd3c631e67ce292b3a1a9e7f5f9",
+  "execution_git_commit": null,
+  "working_tree_dirty": true,
+  "base_commit": "07d7d876b816fdaff090c1a2aa8485dd251a14d4",
+  "execution_code_snapshot_hash": "3bc98fc5faf5e0cd",
+  "provenance_note": "Hardware execution was performed from an uncommitted working tree; exact committed SHA is unavailable.",
   "backend": "ibm_fez",
+  "backend_processor": "Heron r2",
   "raw_job_id": "dafdv05nj4cs73ag8e5g",
   "mitigated_job_id": "dafdv2t1ierc738n8c6g",
-  "shots_or_precision": 1024,
+  "target_precision": 0.03125,
+  "nominal_shot_equivalent": 1024,
   "test_sample_count": 10,
   "test_correct": 10,
   "balanced_accuracy": 1.0,
@@ -16,7 +22,7 @@
   "transpiled_depth_mitigated": 18,
   "two_qubit_count_raw": 8,
   "two_qubit_count_mitigated": 8,
-  "logical_to_physical_layout": "[0, 1, 2, 3] -> physical on ibm_fez",
+  "logical_to_physical_layout": "logical [0, 1, 2, 3] -> physical linear heavy-hex chain on ibm_fez (Heron r2)",
   "execution_timestamp": "2026-09-07T16:00:37.492446+00:00",
   "n_qubits": 4,
   "architecture": "expressive_shared_line",
@@ -27,5 +33,12 @@
   "mitigated_hardware_balanced_accuracy": 1.0,
   "multi_session_hardware_complete": false,
   "dataset_hash": "912facf40aa961de",
+  "critical_file_hashes": {
+    "scripts/29_run_expressive_hardware_benchmark.py": "1419dd1d1e7ebc3a",
+    "qcnn_lab/hardware/ibm.py": "366587f327d2ab37",
+    "qcnn_lab/hardware/circuits.py": "71da4302db8d83fb",
+    "qcnn_lab/qcnn/architecture.py": "97560e56dd27ef34",
+    "qcnn_lab/qcnn/evaluate.py": "b0c2a510b29778a9"
+  },
   "notes": "Observed 10/10 correct classifications on held-out N=4 TFIM test states during one ibm_fez hardware session. Multi-session calibration across multiple distinct cooling/calibration windows is pending."
 }

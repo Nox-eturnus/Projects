@@ -228,7 +228,7 @@ def test_training_changes_predictions():
     test_idx = np.array([6, 7])
 
     trained_params, _, _ = train_ideal_qcnn(
-        states, labels, n_qubits, arch, train_idx, val_idx, maxiter=20, seed=42
+        states, labels, n_qubits, arch, train_idx, val_idx, maxiter=30, seed=42
     )
 
     # Weights must have moved
@@ -242,25 +242,44 @@ def test_training_changes_predictions():
 
 
 def test_shuffled_labels_reduce_generalization():
-    """Verify that permuting training labels degrades out-of-sample test generalization."""
+    """Verify that training on randomly permuted targets materially degrades true-label generalization."""
+    from qcnn_lab.physics.hamiltonians import tfim_hamiltonian
+    from qcnn_lab.physics.states import ground_state
+
+    # Construct clean 4-qubit toy dataset: 4 ferromagnet (h <= 0.35) vs 4 paramagnet (h >= 1.7)
+    states, labels = [], []
+    for h in [0.2, 0.25, 0.3, 0.35]:
+        _, gs = ground_state(tfim_hamiltonian(4, h=h))
+        states.append(gs)
+        labels.append(0)
+    for h in [1.7, 1.8, 1.9, 2.0]:
+        _, gs = ground_state(tfim_hamiltonian(4, h=h))
+        states.append(gs)
+        labels.append(1)
+
+    states = np.asarray(states)
+    labels = np.asarray(labels, dtype=int)
+    train_idx = np.array([0, 1, 4, 5])
+    val_idx = np.array([2, 6])
+    test_idx = np.array([3, 7])
+
     arch = get_architecture("expressive_shared_line")
-    n_qubits = 4
-    states, labels = make_random_quantum_states(12, n_qubits=n_qubits, seed=777)
-    train_idx = np.arange(8)
-    val_idx = np.array([8, 9])
-    test_idx = np.array([10, 11])
+    params, _, _ = train_ideal_qcnn(states, labels, 4, arch, train_idx, val_idx, maxiter=40, seed=42)
+    test_p = batch_predict(states[test_idx], params, arch, 4)
+    true_ba = float(balanced_accuracy_score(labels[test_idx], (test_p >= 0.5).astype(int)))
+    assert true_ba == 1.0
 
     res = evaluate_shuffled_label_permutation_distribution(
-        states, labels, n_qubits, arch,
+        states, labels, 4, arch,
         train_idx, val_idx, test_idx,
-        true_test_ba=1.0,
-        n_permutations=5,
-        maxiter=15,
-        seed=100,
+        true_test_ba=true_ba,
+        n_permutations=10,
+        maxiter=30,
+        seed=123,
     )
-    assert "permutation_runs" in res
-    assert len(res["permutation_runs"]) == 5
-    assert res["empirical_p_value"] is not None
+    # Shuffled training labels must yield lower true-label generalization than the genuine model
+    assert res["test_ba_real_mean"] < true_ba
+    assert "control_runs" in res or "permutation_runs" in res
 
 
 def test_unexecuted_control_metrics_are_nan():
@@ -285,7 +304,7 @@ def test_unexecuted_control_metrics_are_nan():
 
     rec_rand, _ = evaluate_model_on_splits(
         "random_quantum_states", "tfim", 4, states, labels,
-        idx, idx, pert_st, pert_lbl, maxiter=10
+        idx, idx, pert_st, pert_lbl, maxiter=30
     )
     assert np.isnan(rec_rand["critical_ood_ba"])
     assert np.isnan(rec_rand["hamiltonian_ood_ba"])
@@ -294,7 +313,7 @@ def test_unexecuted_control_metrics_are_nan():
 
     rec_shuf, _ = evaluate_model_on_splits(
         "shuffled_labels", "tfim", 4, states, labels,
-        idx, idx, pert_st, pert_lbl, maxiter=10
+        idx, idx, pert_st, pert_lbl, maxiter=30
     )
     assert np.isnan(rec_shuf["hamiltonian_ood_ba"])
     assert rec_shuf["hamiltonian_ood_status"] == "not_executed"
@@ -321,6 +340,11 @@ def test_physical_summary_requires_job_ids():
             assert data.get("test_correct") == 10
             assert data.get("accuracy_ci95_low") == 0.6915
             assert data.get("accuracy_ci95_high") == 1.0
+            assert data.get("target_precision") == 0.03125
+            assert data.get("nominal_shot_equivalent") == 1024
+            assert data.get("execution_git_commit") is None
+            assert data.get("working_tree_dirty") is True
+            assert data.get("base_commit") == "07d7d876b816fdaff090c1a2aa8485dd251a14d4"
 
 
 def test_grouped_observables_basis_contract():
@@ -330,3 +354,13 @@ def test_grouped_observables_basis_contract():
     assert n_bases == 2
     assert feats.shape == (3, 2)
     assert np.all((feats >= -1.0) & (feats <= 1.0))
+
+
+def test_grouped_observables_high_shot_convergence():
+    """Verify that finite-shot physical basis observables converge to exact expectation values as B -> infinity."""
+    states, _ = make_random_quantum_states(2, n_qubits=4, seed=123)
+    for fam in ["tfim", "xxz", "cluster"]:
+        exact_feats, _ = extract_grouped_classical_features(states, fam, 4, budget=None)
+        finite_feats, _ = extract_grouped_classical_features(states, fam, 4, budget=50000, seed=42)
+        max_diff = np.max(np.abs(exact_feats - finite_feats))
+        assert max_diff < 0.03, f"{fam} finite-shot grouped observable did not converge to exact expectation value!"

@@ -1,0 +1,37 @@
+{
+  "git_commit": "029358e31f98a647146e84b8cad8457a48a3b22d",
+  "generated_at": "2026-09-07T19:11:00.249119+00:00",
+  "execution_mode": "full",
+  "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "n_qubits": 8,
+  "optimizer": "COBYLA",
+  "families": [
+    "tfim",
+    "xxz",
+    "cluster"
+  ],
+  "split_types": [
+    "iid",
+    "parameter_block",
+    "critical_holdout"
+  ],
+  "split_design": {
+    "critical_holdout": {
+      "n_partitions": 10,
+      "n_optimizer_seeds": 5,
+      "total_runs": 150
+    },
+    "iid": {
+      "n_partitions": 10,
+      "n_optimizer_seeds": 5,
+      "total_runs": 150
+    },
+    "parameter_block": {
+      "n_partitions": 1,
+      "n_optimizer_seeds": 10,
+      "total_runs": 30
+    }
+  },
+  "total_runs_recorded": 330,
+  "script": "scripts/23_multiseed_generalization_benchmark.py"
+}

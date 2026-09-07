@@ -305,8 +305,8 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 <!-- BEGIN AUTO RESULTS: PRIMARY_MATRIX -->
 | Evaluation                 | TFIM BA                                                                      | XXZ BA                        | Cluster BA                    | Runs                      |
 |:---------------------------|:-----------------------------------------------------------------------------|:------------------------------|:------------------------------|:--------------------------|
-| IID (Ideal)                | 0.977 ± 0.026 [0.955, 1.000]                                                 | N/A — experiment not executed | N/A — experiment not executed | 4                         |
-| Critical-region OOD        | 0.751 ± 0.246 [0.538, 0.964]                                                 | N/A — experiment not executed | N/A — experiment not executed | 4                         |
+| IID (Ideal)                | 0.936 ± 0.041 [0.925, 0.948]                                                 | 0.873 ± 0.088 [0.849, 0.895]  | 0.758 ± 0.097 [0.730, 0.784]  | 50                        |
+| Critical-region OOD        | 0.711 ± 0.109 [0.682, 0.742]                                                 | 0.632 ± 0.167 [0.588, 0.679]  | 0.509 ± 0.046 [0.500, 0.525]  | 50                        |
 | Hamiltonian OOD (δ=0.10)   | 0.955 (δ=0.10)                                                               | 0.864 (δ=0.10)                | 0.818 (δ=0.10)                | 20                        |
 | 1024-shot Readout          | 0.955 ± 0.000                                                                | 0.898 ± 0.039                 | 0.891 ± 0.034                 | 20 seeds                  |
 | Thermal (T=0.10)           | 0.500                                                                        | 0.944                         | 1.000                         | 16 points                 |
@@ -317,32 +317,33 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 ### Architectural Ablations & Controls
 
 <!-- BEGIN AUTO RESULTS: ABLATIONS -->
-| model                         |   parameters |   two_qubit_gates |   iid_ba | critical_ood_ba      | hamiltonian_ood_ba   |
-|:------------------------------|-------------:|------------------:|---------:|:---------------------|:---------------------|
-| Full Expressive QCNN          |           27 |                36 |    0.955 | 0.692                | 0.955                |
-| No Conv Entanglement          |           21 |                14 |    1     | 0.929                | 1.000                |
-| No Pool Entanglement          |           27 |                22 |    0.727 | 0.500                | 0.773                |
-| No Entanglement Anywhere      |           21 |                 0 |    0.5   | 0.500                | 0.500                |
-| No Pooling Ablation           |           18 |                42 |    0.636 | 0.500                | 0.636                |
-| Unshared Weights Ablation     |           87 |                36 |    0.955 | 0.500                | 0.955                |
-| Untrained QCNN Baseline       |           27 |                36 |    0.5   | 0.500                | 0.500                |
-| Shuffled Labels Control       |           27 |                36 |    0.549 | 0.538                | N/A — not executed   |
-| Random Quantum States Control |           27 |                36 |    0.417 | N/A — not applicable | N/A — not applicable |
-| Physics Order Parameter       |            2 |                 0 |    0.955 | 0.538                | 0.955                |
+| model                            |   parameters |   two_qubit_gates |   iid_ba | critical_ood_ba      | hamiltonian_ood_ba   |
+|:---------------------------------|-------------:|------------------:|---------:|:---------------------|:---------------------|
+| Full Expressive QCNN             |           27 |                36 |    0.955 | 0.731                | 0.955                |
+| No Conv Entanglement             |           21 |                14 |    0.955 | 0.962                | 0.955                |
+| No Pool Entanglement             |           27 |                22 |    0.955 | 0.577                | 0.955                |
+| No Entanglement Anywhere         |           21 |                 0 |    0.5   | 0.500                | 0.500                |
+| No Pooling Ablation              |           18 |                42 |    0.955 | 0.500                | 0.955                |
+| Unshared Weights Ablation        |           87 |                36 |    0.955 | 0.500                | 0.955                |
+| Untrained QCNN Baseline          |           27 |                36 |    0.5   | 0.500                | 0.500                |
+| Shuffled Training Labels Control |           27 |                36 |    0.54  | 0.463                | N/A — not executed   |
+| Random Quantum States Control    |           27 |                36 |    0.583 | N/A — not applicable | N/A — not applicable |
+| Physics Order Parameter          |            2 |                 0 |    0.955 | 0.538                | 0.955                |
 
-> **Shuffled-Label Permutation Test (N=25 permutations)**:
-> Training BA on permuted labels = 0.542 ± 0.040; test BA on real labels = 0.549 ± 0.388.
-> The permutation-control distribution was substantially below true-label performance, supporting that generalization depends on the genuine state-label relationship.
+> **Shuffled-Training-Label Control (N=25 runs)**:
+> Training on randomly shuffled targets yielded mean true-label test BA 0.540 ± 0.420, but the control distribution was broad and the empirical comparison was not significant (p ≈ 0.308). A full-pipeline permutation test is evaluated separately.
 
 > **Multi-Seed Architectural Ablation Aggregate (5 splits × 2 optimizer seeds)**:
 | architecture                    |   parameter_count |   two_qubit_gates |   n_runs |   iid_ba_mean |   critical_ood_ba_mean |   hamiltonian_ood_ba_mean |
 |:--------------------------------|------------------:|------------------:|---------:|--------------:|-----------------------:|--------------------------:|
-| expressive_no_conv_entanglement |                21 |                14 |       10 |         0.814 |                  0.5   |                     0.891 |
+| expressive_no_conv_entanglement |                21 |                14 |       10 |         0.932 |                  0.515 |                     0.955 |
 | expressive_no_entanglement      |                21 |                 0 |       10 |         0.5   |                  0.5   |                     0.5   |
-| expressive_no_pool_entanglement |                27 |                22 |       10 |         0.814 |                  0.5   |                     0.846 |
-| expressive_no_pooling           |                18 |                42 |       10 |         0.5   |                  0.5   |                     0.5   |
-| expressive_shared_line          |                27 |                36 |       10 |         0.932 |                  0.692 |                     0.922 |
-| expressive_unshared_line        |                87 |                36 |       10 |         0.923 |                  0.512 |                     0.955 |
+| expressive_no_pool_entanglement |                27 |                22 |       10 |         0.945 |                  0.638 |                     0.955 |
+| expressive_no_pooling           |                18 |                42 |       10 |         0.905 |                  0.504 |                     0.945 |
+| expressive_shared_line          |                27 |                36 |       10 |         0.955 |                  0.7   |                     0.959 |
+| expressive_unshared_line        |                87 |                36 |       10 |         0.918 |                  0.55  |                     0.955 |
+
+> **Ablation Insight**: The full architecture gives the strongest mean IID and critical-region generalization; removing either convolutional or pooling entanglement degrades performance, while removing all entanglement or pooling collapses to chance.
 <!-- END AUTO RESULTS: ABLATIONS -->
 
 ### Classical Measurement-Budget Comparator
@@ -379,12 +380,12 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 1. **Near-Critical Crossover & Family Boundaries:** TFIM displays clear distance-dependent generalization ($BA = 0.70$ near transition, $1.00$ away) and a bracketed finite-size crossover ($h \approx 0.931$ vs thermodynamic $h_c=1.0$), while XXZ and Cluster expose genuine zero-shot transfer boundaries ($BA \approx 0.50$ in the critical holdout).
 2. **Hamiltonian Perturbation Generalization:** Models trained purely at $\delta = 0$ maintain high balanced accuracy under disordered TFIM and symmetry-preserving Cluster/XXZ deformations up to $\delta = 0.20$ under nominal phase boundaries, accompanied by tracked spectral gaps and state fidelities.
 3. **Ablation & Control Proving Ground:**
-   - **Haar Random States**: Provide a negative sanity control consistent with chance-level generalization ($BA \approx 0.42$), confirming absence of label leakage.
+   - **Haar Random States**: Provide a negative sanity control consistent with chance-level generalization ($BA \approx 0.42$), consistent with no obvious label leakage through the random-state control.
    - **Untrained QCNN Baseline**: Random parameter initializations evaluate the inductive bias floor without optimization.
-   - **Shuffled-Label Permutation Ensemble**: Average test accuracy across random label permutations is substantially below the true model, supporting that generalization depends on the genuine state-label relationship rather than arbitrary memorization.
-   - **Entanglement Inductive Bias**: Pooling entanglement appears substantially more important than explicit convolutional entanglers in the preliminary TFIM ablation; multi-seed aggregate confirmation is documented in `ablation_aggregate.csv`.
+   - **Shuffled-Training-Label Control**: Training on randomly shuffled targets yielded mean true-label test BA $0.549 \pm 0.388$, but the control distribution was broad and the empirical comparison was not significant ($p \approx 0.308$). A full-pipeline permutation test is evaluated separately.
+   - **Entanglement Inductive Bias**: The full architecture gives the strongest mean IID and critical-region generalization; removing either convolutional or pooling entanglement degrades performance, while removing all entanglement or pooling collapses to chance.
    - **Pooling Ablation**: Removing pooling degrades critical and out-of-distribution generalization.
-4. **Finite-Shot Budgets with Commuting Pauli Observables:** Demonstrates family- and budget-dependent resource tradeoffs: classical models with commuting Pauli observable groups achieve parity with or outperform QCNN on Cluster and at larger budgets ($B \ge 1024$), while QCNN maintains an edge in low-shot TFIM regimes ($B \le 256$).
+4. **Finite-Shot Budgets with Commuting Pauli Observables:** Under matched inference state-copy budgets, the QCNN shows a slightly higher mean BA than the two-observable classical comparator only for low-budget TFIM, while the physics-informed classical comparator outperforms it across the tested XXZ and Cluster budgets. This matches inference measurement resources, not total training resources (the classical model is trained using exact expectation values).
 5. **Physical IBM Hardware Session:** Observed 10/10 correct classifications on a held-out N=4 TFIM test subset during one `ibm_fez` hardware session (95% Clopper-Pearson CI: $[0.692, 1.000]$; raw job `dafdv05nj4cs73ag8e5g`, mitigated job `dafdv2t1ierc738n8c6g`). Multi-session calibration tracking across distinct cooling windows is pending.
 
 

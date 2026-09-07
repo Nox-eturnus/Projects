@@ -168,7 +168,7 @@ def main():
     agg_df.to_csv(out_dir / "aggregate.csv", index=False)
     (out_dir / "confidence_intervals.json").write_text(json.dumps(ci_dict, indent=2), encoding="utf-8")
 
-    # Save Provenance JSON (Priority 14)
+    # Save Provenance JSON (Moderate 2)
     import subprocess
     def get_commit():
         try:
@@ -178,19 +178,26 @@ def main():
 
     from datetime import datetime, timezone
     import sys
+
+    split_design = {}
+    for s_type, grp in runs_df.groupby("split_type"):
+        split_design[s_type] = {
+            "n_partitions": int(grp["split_seed"].nunique()),
+            "n_optimizer_seeds": int(grp["optimizer_seed"].nunique()),
+            "total_runs": int(len(grp)),
+        }
+
     provenance = {
         "git_commit": get_commit(),
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "execution_mode": "fast" if args.fast else "full",
         "python_version": sys.version,
         "n_qubits": n_qubits,
         "optimizer": "COBYLA",
         "families": families,
         "split_types": split_types,
-        "split_design": {
-            "iid": {"n_partitions": 10, "n_optimizer_seeds": 5, "total_runs": 50},
-            "critical_holdout": {"n_partitions": 10, "n_optimizer_seeds": 5, "total_runs": 50},
-            "parameter_block": {"n_partitions": 1, "n_optimizer_seeds": 10, "canonical_split_seed": 11, "total_runs": 10},
-        },
+        "split_design": split_design,
+        "total_runs_recorded": len(runs_df),
         "script": "scripts/23_multiseed_generalization_benchmark.py",
     }
     with open(out_dir / "provenance.json", "w") as f:
