@@ -36,13 +36,22 @@ def train_ideal_qcnn(
     train_idx: np.ndarray,
     validation_idx: np.ndarray,
     *,
-    maxiter: int = 120,
+    maxiter: int | None = None,
     seed: int = 12345,
+    max_budget_ceiling: int = 1000,
+    enable_continuation: bool = True,
 ) -> tuple[np.ndarray, list[dict], float]:
     rng = np.random.default_rng(seed)
-    x0 = rng.normal(0.0, 0.15, size=parameter_count(n_qubits, architecture))
+    p_count = parameter_count(n_qubits, architecture)
+    x0 = rng.normal(0.0, 0.15, size=p_count)
     history: list[dict] = []
     started = perf_counter()
+
+    # Convergence policy: initial budget scales with parameter count
+    if maxiter is not None:
+        initial_budget = int(maxiter)
+    else:
+        initial_budget = max(300, 5 * p_count)
 
     def objective(x: np.ndarray) -> float:
         p = batch_predict(states[train_idx], x, architecture, n_qubits)
@@ -50,19 +59,73 @@ def train_ideal_qcnn(
         history.append({"evaluation": len(history), "train_loss": loss})
         return loss
 
-    result = minimize(objective, x0, method="COBYLA", options={"maxiter": int(maxiter), "rhobeg": 0.25, "tol": 1e-4})
+    total_budget = initial_budget
+    result = minimize(
+        objective,
+        x0,
+        method="COBYLA",
+        options={"maxiter": int(initial_budget), "rhobeg": 0.25, "tol": 1e-4},
+    )
+
+    nfev = int(getattr(result, "nfev", len(history)))
+    eval_limit_reached = bool(nfev >= initial_budget)
+    scipy_success = bool(result.success)
+    msg = str(result.message)
+
+    # Compute trajectory diagnostics
+    initial_loss = float(history[0]["train_loss"]) if history else float("nan")
+    best_loss = float(min(h["train_loss"] for h in history)) if history else float("nan")
+    final_loss = float(history[-1]["train_loss"]) if history else float(result.fun)
+    loss_imp = initial_loss - final_loss
+    last_10 = history[-10:] if len(history) >= 10 else history
+    last_10_imp = float(last_10[0]["train_loss"] - last_10[-1]["train_loss"]) if len(last_10) > 1 else 0.0
+
+    # Optional continuation if evaluation-limited and still actively improving
+    if enable_continuation and eval_limit_reached and last_10_imp > 1e-3 and total_budget < max_budget_ceiling:
+        cont_budget = min(max_budget_ceiling - total_budget, initial_budget)
+        if cont_budget > 20:
+            total_budget += cont_budget
+            result = minimize(
+                objective,
+                result.x,
+                method="COBYLA",
+                options={"maxiter": int(cont_budget), "rhobeg": 0.05, "tol": 1e-4},
+            )
+            nfev = len(history)
+            eval_limit_reached = bool(nfev >= total_budget)
+            scipy_success = bool(result.success)
+            msg = str(result.message)
+            best_loss = float(min(h["train_loss"] for h in history))
+            final_loss = float(history[-1]["train_loss"])
+            loss_imp = initial_loss - final_loss
+            last_10 = history[-10:] if len(history) >= 10 else history
+            last_10_imp = float(last_10[0]["train_loss"] - last_10[-1]["train_loss"]) if len(last_10) > 1 else 0.0
+
+    plateau_detected = bool(last_10_imp < 1e-4)
+
     params = np.asarray(result.x, dtype=float)
     val_p = batch_predict(states[validation_idx], params, architecture, n_qubits)
-    val_loss = binary_cross_entropy(labels[validation_idx], val_p)
-    final_train_loss = history[-1]["train_loss"] if history else float(result.fun)
-    nfev = int(getattr(result, "nfev", len(history)))
+    val_loss = float(binary_cross_entropy(labels[validation_idx], val_p))
+
+    # Comprehensive optimizer telemetry
     history.append({
         "evaluation": len(history),
         "validation_loss": val_loss,
-        "final_train_loss": final_train_loss,
+        "final_train_loss": final_loss,
+        "initial_train_loss": initial_loss,
+        "best_train_loss": best_loss,
+        "loss_improvement": loss_imp,
+        "last_10_eval_improvement": last_10_imp,
         "nfev": nfev,
-        "success": bool(result.success),
-        "message": str(result.message),
+        "maxiter_budget": total_budget,
+        "success": bool(scipy_success or plateau_detected),
+        "scipy_optimizer_success": bool(scipy_success),
+        "optimizer_success": bool(scipy_success or plateau_detected),
+        "message": msg,
+        "optimizer_message": msg,
+        "termination_reason": msg,
+        "evaluation_limit_reached": eval_limit_reached,
+        "convergence_plateau_detected": plateau_detected,
     })
     return params, history, perf_counter() - started
 

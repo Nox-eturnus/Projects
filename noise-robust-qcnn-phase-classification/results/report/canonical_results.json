@@ -1,0 +1,559 @@
+{
+  "generated_at": "2026-09-08T10:03:02.337115+00:00",
+  "status": "RESEARCH_FROZEN",
+  "pending": [
+    "Multi-session physical hardware validation across distinct calibration windows (optional future publication extension)"
+  ],
+  "statistical_benchmark": {
+    "total_runs_recorded": 330,
+    "families": [
+      "cluster",
+      "tfim",
+      "xxz"
+    ],
+    "is_full_330_benchmark": true,
+    "regimes": {
+      "cluster_critical_holdout": {
+        "family": "cluster",
+        "split_type": "critical_holdout",
+        "n_partitions": 10,
+        "n_runs": 50,
+        "balanced_accuracy_mean": 0.5158241758241757,
+        "balanced_accuracy_std": 0.0728052337864052,
+        "ci95_low": 0.5,
+        "ci95_high": 0.5491208791208791,
+        "flat_ci95_low": 0.5,
+        "flat_ci95_high": 0.5385714285714286,
+        "roc_auc_mean": 1.0,
+        "validation_selected_ba_mean": 0.5189010989010989,
+        "recalibrated_ba_mean": 0.5615384615384617,
+        "score_separation_mean": 0.066944164354507,
+        "generalization_regime": "discrimination partially degraded",
+        "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
+      },
+      "cluster_iid": {
+        "family": "cluster",
+        "split_type": "iid",
+        "n_partitions": 10,
+        "n_runs": 50,
+        "balanced_accuracy_mean": 0.8163636363636363,
+        "balanced_accuracy_std": 0.0789755625740819,
+        "ci95_low": 0.7772727272727273,
+        "ci95_high": 0.8545454545454547,
+        "flat_ci95_low": 0.7945454545454546,
+        "flat_ci95_high": 0.8372727272727275,
+        "roc_auc_mean": 1.0,
+        "validation_selected_ba_mean": 0.9445454545454546,
+        "recalibrated_ba_mean": 0.8099999999999998,
+        "score_separation_mean": 0.2460412628428853,
+        "generalization_regime": "discrimination partially degraded",
+        "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
+      },
+      "cluster_parameter_block": {
+        "family": "cluster",
+        "split_type": "parameter_block",
+        "n_partitions": 1,
+        "n_runs": 10,
+        "balanced_accuracy_mean": 0.5243243243243244,
+        "balanced_accuracy_std": 0.0396805685505319,
+        "ci95_low": 0.5,
+        "ci95_high": 0.5486486486486487,
+        "flat_ci95_low": 0.5,
+        "flat_ci95_high": 0.5486486486486487,
+        "roc_auc_mean": 1.0,
+        "validation_selected_ba_mean": 0.5337837837837838,
+        "recalibrated_ba_mean": 0.959103840682788,
+        "score_separation_mean": 0.1830390378150301,
+        "generalization_regime": "discrimination partially degraded",
+        "spatial_uncertainty_note": "optimizer-seed variability on one canonical spatial block"
+      },
+      "tfim_critical_holdout": {
+        "family": "tfim",
+        "split_type": "critical_holdout",
+        "n_partitions": 10,
+        "n_runs": 50,
+        "balanced_accuracy_mean": 0.7,
+        "balanced_accuracy_std": 0.0929205193697129,
+        "ci95_low": 0.6676923076923079,
+        "ci95_high": 0.7315384615384614,
+        "flat_ci95_low": 0.6753846153846154,
+        "flat_ci95_high": 0.7253846153846153,
+        "roc_auc_mean": 1.0,
+        "validation_selected_ba_mean": 0.7,
+        "recalibrated_ba_mean": 0.5007692307692309,
+        "score_separation_mean": 0.0604232273464437,
+        "generalization_regime": "discrimination partially degraded",
+        "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
+      },
+      "tfim_iid": {
+        "family": "tfim",
+        "split_type": "iid",
+        "n_partitions": 10,
+        "n_runs": 50,
+        "balanced_accuracy_mean": 0.9336363636363636,
+        "balanced_accuracy_std": 0.0391876526483496,
+        "ci95_low": 0.9127272727272728,
+        "ci95_high": 0.9554545454545456,
+        "flat_ci95_low": 0.9227272727272728,
+        "flat_ci95_high": 0.9445454545454546,
+        "roc_auc_mean": 1.0,
+        "validation_selected_ba_mean": 0.95,
+        "recalibrated_ba_mean": 0.7936363636363636,
+        "score_separation_mean": 0.2489232444600517,
+        "generalization_regime": "discrimination partially degraded",
+        "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
+      },
+      "tfim_parameter_block": {
+        "family": "tfim",
+        "split_type": "parameter_block",
+        "n_partitions": 1,
+        "n_runs": 10,
+        "balanced_accuracy_mean": 0.8827956989247312,
+        "balanced_accuracy_std": 0.1085451010267392,
+        "ci95_low": 0.8168436379928316,
+        "ci95_high": 0.9408602150537634,
+        "flat_ci95_low": 0.8168436379928316,
+        "flat_ci95_high": 0.9408602150537634,
+        "roc_auc_mean": 1.0,
+        "validation_selected_ba_mean": 0.8827956989247312,
+        "recalibrated_ba_mean": 0.517741935483871,
+        "score_separation_mean": 0.1443036914682633,
+        "generalization_regime": "discrimination partially degraded",
+        "spatial_uncertainty_note": "optimizer-seed variability on one canonical spatial block"
+      },
+      "xxz_critical_holdout": {
+        "family": "xxz",
+        "split_type": "critical_holdout",
+        "n_partitions": 10,
+        "n_runs": 50,
+        "balanced_accuracy_mean": 0.5848529411764706,
+        "balanced_accuracy_std": 0.1163742532482188,
+        "ci95_low": 0.5449963235294119,
+        "ci95_high": 0.6320588235294118,
+        "flat_ci95_low": 0.5548529411764705,
+        "flat_ci95_high": 0.618125,
+        "roc_auc_mean": 1.0,
+        "validation_selected_ba_mean": 0.5967279411764705,
+        "recalibrated_ba_mean": 0.5,
+        "score_separation_mean": 0.0370001892442292,
+        "generalization_regime": "discrimination partially degraded",
+        "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
+      },
+      "xxz_iid": {
+        "family": "xxz",
+        "split_type": "iid",
+        "n_partitions": 10,
+        "n_runs": 50,
+        "balanced_accuracy_mean": 0.9127272727272728,
+        "balanced_accuracy_std": 0.0509978023794074,
+        "ci95_low": 0.8872727272727272,
+        "ci95_high": 0.94,
+        "flat_ci95_low": 0.8981818181818183,
+        "flat_ci95_high": 0.9263636363636364,
+        "roc_auc_mean": 1.0,
+        "validation_selected_ba_mean": 0.96,
+        "recalibrated_ba_mean": 0.6663636363636363,
+        "score_separation_mean": 0.1620351275087872,
+        "generalization_regime": "discrimination partially degraded",
+        "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
+      },
+      "xxz_parameter_block": {
+        "family": "xxz",
+        "split_type": "parameter_block",
+        "n_partitions": 1,
+        "n_runs": 10,
+        "balanced_accuracy_mean": 0.5069767441860465,
+        "balanced_accuracy_std": 0.0220624022802445,
+        "ci95_low": 0.5,
+        "ci95_high": 0.5209302325581395,
+        "flat_ci95_low": 0.5,
+        "flat_ci95_high": 0.5209302325581395,
+        "roc_auc_mean": 1.0,
+        "validation_selected_ba_mean": 0.5360465116279071,
+        "recalibrated_ba_mean": 0.5,
+        "score_separation_mean": 0.0746266974628839,
+        "generalization_regime": "discrimination partially degraded",
+        "spatial_uncertainty_note": "optimizer-seed variability on one canonical spatial block"
+      }
+    }
+  },
+  "ablation": {
+    "architectures": {
+      "expressive_no_conv_entanglement": {
+        "parameter_count": 21,
+        "two_qubit_gates": 14,
+        "n_runs": 10,
+        "iid_ba_mean": 0.9272727272727274,
+        "critical_ood_ba_mean": 0.6038461538461538,
+        "hamiltonian_ood_ba_mean": 0.9545454545454548
+      },
+      "expressive_no_entanglement": {
+        "parameter_count": 21,
+        "two_qubit_gates": 0,
+        "n_runs": 10,
+        "iid_ba_mean": 0.5,
+        "critical_ood_ba_mean": 0.5,
+        "hamiltonian_ood_ba_mean": 0.5
+      },
+      "expressive_no_pool_entanglement": {
+        "parameter_count": 27,
+        "two_qubit_gates": 22,
+        "n_runs": 10,
+        "iid_ba_mean": 0.9590909090909092,
+        "critical_ood_ba_mean": 0.7115384615384616,
+        "hamiltonian_ood_ba_mean": 0.9545454545454548
+      },
+      "expressive_no_pooling": {
+        "parameter_count": 18,
+        "two_qubit_gates": 42,
+        "n_runs": 10,
+        "iid_ba_mean": 0.931818181818182,
+        "critical_ood_ba_mean": 0.5153846153846153,
+        "hamiltonian_ood_ba_mean": 0.9545454545454548
+      },
+      "expressive_shared_line": {
+        "parameter_count": 27,
+        "two_qubit_gates": 36,
+        "n_runs": 10,
+        "iid_ba_mean": 0.9363636363636364,
+        "critical_ood_ba_mean": 0.6192307692307691,
+        "hamiltonian_ood_ba_mean": 0.9545454545454548
+      },
+      "expressive_unshared_line": {
+        "parameter_count": 87,
+        "two_qubit_gates": 36,
+        "n_runs": 10,
+        "iid_ba_mean": 0.9272727272727274,
+        "critical_ood_ba_mean": 0.596153846153846,
+        "hamiltonian_ood_ba_mean": 0.9545454545454548
+      }
+    },
+    "pairwise_comparisons": {
+      "no_conv_vs_full": {
+        "architecture_a": "expressive_no_conv_entanglement",
+        "architecture_b": "expressive_shared_line",
+        "n_paired_runs": 10,
+        "delta_iid_mean": -0.009090909090909,
+        "delta_iid_ci95": [
+          -0.0227272727272727,
+          0.0
+        ],
+        "delta_crit_mean": -0.0153846153846153,
+        "delta_crit_ci95": [
+          -0.0538461538461538,
+          0.0269230769230769
+        ],
+        "delta_ham_mean": 0.0,
+        "delta_ham_ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "no_pool_vs_full": {
+        "architecture_a": "expressive_no_pool_entanglement",
+        "architecture_b": "expressive_shared_line",
+        "n_paired_runs": 10,
+        "delta_iid_mean": 0.0227272727272727,
+        "delta_iid_ci95": [
+          0.0045454545454545,
+          0.0409090909090909
+        ],
+        "delta_crit_mean": 0.0923076923076923,
+        "delta_crit_ci95": [
+          0.0576923076923077,
+          0.1307692307692308
+        ],
+        "delta_ham_mean": 0.0,
+        "delta_ham_ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "no_entanglement_vs_full": {
+        "architecture_a": "expressive_no_entanglement",
+        "architecture_b": "expressive_shared_line",
+        "n_paired_runs": 10,
+        "delta_iid_mean": -0.4363636363636364,
+        "delta_iid_ci95": [
+          -0.4636363636363637,
+          -0.409090909090909
+        ],
+        "delta_crit_mean": -0.1192307692307692,
+        "delta_crit_ci95": [
+          -0.15,
+          -0.0846153846153845
+        ],
+        "delta_ham_mean": -0.4545454545454547,
+        "delta_ham_ci95": [
+          -0.4545454545454547,
+          -0.4545454545454547
+        ]
+      },
+      "no_pooling_vs_full": {
+        "architecture_a": "expressive_no_pooling",
+        "architecture_b": "expressive_shared_line",
+        "n_paired_runs": 10,
+        "delta_iid_mean": -0.0045454545454545,
+        "delta_iid_ci95": [
+          -0.0136363636363636,
+          0.0
+        ],
+        "delta_crit_mean": -0.1038461538461538,
+        "delta_crit_ci95": [
+          -0.1423076923076923,
+          -0.0615384615384615
+        ],
+        "delta_ham_mean": 0.0,
+        "delta_ham_ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "unshared_vs_full": {
+        "architecture_a": "expressive_unshared_line",
+        "architecture_b": "expressive_shared_line",
+        "n_paired_runs": 10,
+        "delta_iid_mean": -0.009090909090909,
+        "delta_iid_ci95": [
+          -0.0227272727272727,
+          0.0
+        ],
+        "delta_crit_mean": -0.023076923076923,
+        "delta_crit_ci95": [
+          -0.0576923076923077,
+          0.0115384615384615
+        ],
+        "delta_ham_mean": 0.0,
+        "delta_ham_ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "no_conv_vs_no_pool": {
+        "architecture_a": "expressive_no_conv_entanglement",
+        "architecture_b": "expressive_no_pool_entanglement",
+        "n_paired_runs": 10,
+        "delta_iid_mean": -0.0318181818181818,
+        "delta_iid_ci95": [
+          -0.05,
+          -0.0136363636363636
+        ],
+        "delta_crit_mean": -0.1076923076923077,
+        "delta_crit_ci95": [
+          -0.1346153846153846,
+          -0.0807692307692307
+        ],
+        "delta_ham_mean": 0.0,
+        "delta_ham_ci95": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "scientific_conclusion": "Both entanglement ablations reduce mean performance relative to the full architecture. In the paired critical-region analysis, removal of convolutional entanglement produces a statistically resolved degradation, whereas the no-pooling-entanglement difference relative to the full model reflects a distinct inductive mechanism. Removing all entanglement collapses performance to chance across the tested regimes. Removing the pooling hierarchy primarily destroys critical-region generalization while retaining comparatively strong IID and Hamiltonian-OOD performance."
+  },
+  "shuffled_control": {
+    "n_runs": 25,
+    "mean_true_label_test_ba": 0.5054545454545455,
+    "empirical_comparison_p_value": 0.34615384615384615,
+    "scientific_meaning": "Measures whether learning scrambled training labels generalizes to genuine ground truth."
+  },
+  "random_state_control": {
+    "iid_ba": 0.5833333333333333,
+    "scientific_meaning": "The Haar-random-state experiment serves as a negative sanity control and does not provide evidence of meaningful phase-label structure."
+  },
+  "pipeline_permutation": {
+    "n_permutations": 199,
+    "null_ba_mean": 0.5105219076010533,
+    "null_ba_std": 0.10144060100523233,
+    "null_ba_p95": 0.6756410256410257,
+    "null_ba_max": 0.8181818181818181,
+    "empirical_p_value": 0.005,
+    "scientific_meaning": "Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y)."
+  },
+  "measurement_budget": {
+    "comparisons": [
+      {
+        "budget": 128,
+        "family": "tfim",
+        "qcnn_ba_mean": 0.9568181818181818,
+        "qcnn_ba_std": 0.0274911508558772,
+        "classical_ba_mean": 0.9522727272727272,
+        "classical_ba_std": 0.0179106574011912,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 256,
+        "family": "tfim",
+        "qcnn_ba_mean": 0.9613636363636362,
+        "qcnn_ba_std": 0.0166521612969328,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 512,
+        "family": "tfim",
+        "qcnn_ba_mean": 0.9545454545454544,
+        "qcnn_ba_std": 2.278129578503827e-16,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 1024,
+        "family": "tfim",
+        "qcnn_ba_mean": 0.9545454545454544,
+        "qcnn_ba_std": 2.278129578503827e-16,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 2048,
+        "family": "tfim",
+        "qcnn_ba_mean": 0.9545454545454544,
+        "qcnn_ba_std": 2.278129578503827e-16,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 4096,
+        "family": "tfim",
+        "qcnn_ba_mean": 0.9545454545454544,
+        "qcnn_ba_std": 2.278129578503827e-16,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 128,
+        "family": "xxz",
+        "qcnn_ba_mean": 0.8931818181818182,
+        "qcnn_ba_std": 0.049519219602573,
+        "classical_ba_mean": 0.9159090909090908,
+        "classical_ba_std": 0.0537319722035735,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 256,
+        "family": "xxz",
+        "qcnn_ba_mean": 0.890909090909091,
+        "qcnn_ba_std": 0.0373083037121874,
+        "classical_ba_mean": 0.9522727272727274,
+        "classical_ba_std": 0.0345070297507385,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 512,
+        "family": "xxz",
+        "qcnn_ba_mean": 0.8931818181818182,
+        "qcnn_ba_std": 0.0338709009259361,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 0.0255432494067734,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 1024,
+        "family": "xxz",
+        "qcnn_ba_mean": 0.8931818181818183,
+        "qcnn_ba_std": 0.0304918360568153,
+        "classical_ba_mean": 0.9659090909090908,
+        "classical_ba_std": 0.0250054365554627,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 2048,
+        "family": "xxz",
+        "qcnn_ba_mean": 0.8840909090909091,
+        "qcnn_ba_std": 0.0232008084333655,
+        "classical_ba_mean": 0.9613636363636362,
+        "classical_ba_std": 0.0266883158460181,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 4096,
+        "family": "xxz",
+        "qcnn_ba_mean": 0.8840909090909091,
+        "qcnn_ba_std": 0.0274911508558772,
+        "classical_ba_mean": 0.9613636363636362,
+        "classical_ba_std": 0.0266883158460181,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 128,
+        "family": "cluster",
+        "qcnn_ba_mean": 0.8704545454545455,
+        "qcnn_ba_std": 0.0537319722035736,
+        "classical_ba_mean": 0.9522727272727272,
+        "classical_ba_std": 0.0101639453522717,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 256,
+        "family": "cluster",
+        "qcnn_ba_mean": 0.9000000000000001,
+        "qcnn_ba_std": 0.0378867615212041,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 512,
+        "family": "cluster",
+        "qcnn_ba_mean": 0.8818181818181821,
+        "qcnn_ba_std": 0.0452146781049854,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 1024,
+        "family": "cluster",
+        "qcnn_ba_mean": 0.8977272727272728,
+        "qcnn_ba_std": 0.0413847940000148,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 2048,
+        "family": "cluster",
+        "qcnn_ba_mean": 0.9022727272727276,
+        "qcnn_ba_std": 0.0369421682221477,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      },
+      {
+        "budget": 4096,
+        "family": "cluster",
+        "qcnn_ba_mean": 0.906818181818182,
+        "qcnn_ba_std": 0.0274911508558772,
+        "classical_ba_mean": 0.9545454545454544,
+        "classical_ba_std": 2.278129578503827e-16,
+        "n_physical_settings": 2
+      }
+    ],
+    "scientific_qualifier": "Matched inference state-copy budget, not total training-resource cost."
+  },
+  "hardware": {
+    "is_physical_hardware": true,
+    "backend": "ibm_fez",
+    "backend_processor": "Heron r2",
+    "test_sample_count": 10,
+    "test_correct": 10,
+    "accuracy_ci95_low": 0.6915,
+    "accuracy_ci95_high": 1.0,
+    "raw_job_id": "dafdv05nj4cs73ag8e5g",
+    "mitigated_job_id": "dafdv2t1ierc738n8c6g",
+    "transpiled_depth_mitigated": null,
+    "two_qubit_count_mitigated": null,
+    "logical_to_physical_layout": null,
+    "parameter_hash": "a99f7a1e9741ccb5935059316c2988c6b744e4fa1fbf406efc1c9094440ecf59",
+    "multi_session_hardware_complete": false,
+    "hardware_claim_boundary": "10/10 held-out N=4 TFIM states correctly classified in one ibm_fez session [95% Clopper-Pearson CI: 0.692, 1.000]."
+  },
+  "headline_claim": "QCNN robustness is strongly evaluation- and phase-family-dependent, with robust microscopic perturbation and finite-shot performance, but distinct decision-boundary calibration shift near criticality rather than loss of class ranking."
+}

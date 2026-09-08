@@ -128,44 +128,66 @@ def main():
             "qcnn_lab/qcnn/architecture.py",
             "qcnn_lab/qcnn/evaluate.py",
         ]
-        file_hashes = {}
+        from qcnn_lab.provenance import compute_file_hashes, get_git_provenance, hash_parameter_vector
+        file_hashes = compute_file_hashes(critical_files, full_sha256=True)
         h_all = hashlib.sha256()
         for f in critical_files:
             p = Path(f)
             if p.exists():
-                c = p.read_bytes()
-                file_hashes[f] = hashlib.sha256(c).hexdigest()[:16]
-                h_all.update(c)
-        code_snapshot_hash = h_all.hexdigest()[:16]
+                h_all.update(p.read_bytes())
+        code_snapshot_hash = h_all.hexdigest()
 
         ds_path = data_dir / "tfim_states.npz"
-        dataset_hash = hashlib.sha256(ds_path.read_bytes()).hexdigest()[:16] if ds_path.exists() else "unknown"
+        dataset_hash = hashlib.sha256(ds_path.read_bytes()).hexdigest() if ds_path.exists() else "unknown"
 
-        # Check git status
-        git_commit = None
-        working_dirty = True
-        try:
-            status_res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
-            working_dirty = bool(status_res.stdout.strip())
-            commit_res = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
-            if not working_dirty:
-                git_commit = commit_res.stdout.strip()
-        except Exception:
-            pass
+        git_prov = get_git_provenance()
+        git_commit = git_prov["execution_git_commit"]
+        working_dirty = git_prov["working_tree_dirty"]
+        base_commit = git_prov["base_commit"]
+
+        # Parse metrics list correctly
+        def _summarize_metrics(m_list):
+            if isinstance(m_list, list) and len(m_list) > 0:
+                d = [int(m["depth"]) for m in m_list if "depth" in m]
+                q = [int(m["two_qubit_operations"]) for m in m_list if "two_qubit_operations" in m]
+                return {
+                    "depth_median": int(np.median(d)) if d else None,
+                    "depth_min": int(np.min(d)) if d else None,
+                    "depth_max": int(np.max(d)) if d else None,
+                    "two_qubit_median": int(np.median(q)) if q else None,
+                    "two_qubit_min": int(np.min(q)) if q else None,
+                    "two_qubit_max": int(np.max(q)) if q else None,
+                }
+            elif isinstance(m_list, dict):
+                return {
+                    "depth_median": m_list.get("transpiled_depth"),
+                    "depth_min": m_list.get("transpiled_depth"),
+                    "depth_max": m_list.get("transpiled_depth"),
+                    "two_qubit_median": m_list.get("two_qubit_count"),
+                    "two_qubit_min": m_list.get("two_qubit_count"),
+                    "two_qubit_max": m_list.get("two_qubit_count"),
+                }
+            return {"depth_median": None, "depth_min": None, "depth_max": None, "two_qubit_median": None, "two_qubit_min": None, "two_qubit_max": None}
+
+        raw_summary = _summarize_metrics(raw_metrics)
+        mit_summary = _summarize_metrics(mit_metrics)
+
+        # Dynamic backend processor query
+        backend_processor = getattr(backend, "processor_type", {}).get("family", None) if hasattr(backend, "processor_type") else None
 
         execution_meta = {
             "execution_mode": "physical_hardware",
             "is_physical_hardware": True,
             "execution_git_commit": git_commit,
             "working_tree_dirty": working_dirty,
-            "base_commit": "07d7d876b816fdaff090c1a2aa8485dd251a14d4",
+            "base_commit": base_commit,
             "execution_code_snapshot_hash": code_snapshot_hash,
             "provenance_note": (
                 "Hardware execution was performed from an uncommitted working tree; exact committed SHA is unavailable."
                 if git_commit is None else "Executed from clean commit."
             ),
             "backend": backend_name,
-            "backend_processor": "Heron r2",
+            "backend_processor": backend_processor,
             "raw_job_id": raw_job_id,
             "mitigated_job_id": mit_job_id,
             "target_precision": float(1.0 / np.sqrt(args.shots)),
@@ -176,12 +198,16 @@ def main():
             "accuracy_ci95_low": ci_low,
             "accuracy_ci95_high": ci_high,
             "transpiler_seed": 12345,
-            "transpiled_depth_raw": raw_metrics.get("transpiled_depth", 18) if isinstance(raw_metrics, dict) else 18,
-            "transpiled_depth_mitigated": mit_metrics.get("transpiled_depth", 18) if isinstance(mit_metrics, dict) else 18,
-            "two_qubit_count_raw": raw_metrics.get("two_qubit_count", 8) if isinstance(raw_metrics, dict) else 8,
-            "two_qubit_count_mitigated": mit_metrics.get("two_qubit_count", 8) if isinstance(mit_metrics, dict) else 8,
-            "logical_to_physical_layout": f"logical [0, 1, 2, 3] -> physical linear heavy-hex chain on {backend_name} (Heron r2)",
+            "transpiled_depth_raw": raw_summary["depth_median"],
+            "transpiled_depth_mitigated": mit_summary["depth_median"],
+            "two_qubit_count_raw": raw_summary["two_qubit_median"],
+            "two_qubit_count_mitigated": mit_summary["two_qubit_median"],
+            "transpiled_metrics_raw": raw_summary,
+            "transpiled_metrics_mitigated": mit_summary,
+            "logical_to_physical_layout": None,
+            "layout_provenance": "queried from isa.layout when available",
             "dataset_hash": dataset_hash,
+            "parameter_hash": hash_parameter_vector(params, full_sha256=True),
             "critical_file_hashes": file_hashes,
             "multi_session_hardware_complete": False,
             "execution_timestamp": datetime.now(timezone.utc).isoformat(),

@@ -25,7 +25,8 @@ from qcnn_lab.physics.perturbations import (
 from qcnn_lab.physics.thermal_states import compute_thermal_density_matrix
 from qcnn_lab.qcnn.ablations import (
     UntrainedQCNNBaseline,
-    evaluate_shuffled_label_permutation_distribution,
+    evaluate_pipeline_label_permutation_test,
+    evaluate_shuffled_training_label_control,
     make_random_quantum_states,
     make_shuffled_labels_data,
 )
@@ -269,11 +270,11 @@ def test_shuffled_labels_reduce_generalization():
     true_ba = float(balanced_accuracy_score(labels[test_idx], (test_p >= 0.5).astype(int)))
     assert true_ba == 1.0
 
-    res = evaluate_shuffled_label_permutation_distribution(
+    res = evaluate_shuffled_training_label_control(
         states, labels, 4, arch,
         train_idx, val_idx, test_idx,
         true_test_ba=true_ba,
-        n_permutations=10,
+        n_runs=10,
         maxiter=30,
         seed=123,
     )
@@ -364,3 +365,131 @@ def test_grouped_observables_high_shot_convergence():
         finite_feats, _ = extract_grouped_classical_features(states, fam, 4, budget=50000, seed=42)
         max_diff = np.max(np.abs(exact_feats - finite_feats))
         assert max_diff < 0.03, f"{fam} finite-shot grouped observable did not converge to exact expectation value!"
+
+
+# --- RESEARCH-FREEZE REGRESSION TESTS (AUDIT ITEMS 31-36) ---
+
+def test_optimizer_telemetry_completeness():
+    """Verify that train_ideal_qcnn returns full convergence telemetry schema (Item 31)."""
+    arch = get_architecture("expressive_shared_line")
+    states, labels = make_random_quantum_states(6, n_qubits=4, seed=42)
+    train_idx = np.array([0, 1, 2, 3])
+    val_idx = np.array([4, 5])
+
+    params, history, sec = train_ideal_qcnn(
+        states, labels, 4, arch, train_idx, val_idx, maxiter=20, seed=123
+    )
+    last = history[-1]
+    required_telemetry = [
+        "maxiter_budget",
+        "nfev",
+        "optimizer_success",
+        "scipy_optimizer_success",
+        "optimizer_message",
+        "final_train_loss",
+        "validation_loss",
+        "initial_train_loss",
+        "best_train_loss",
+        "loss_improvement",
+        "last_10_eval_improvement",
+        "evaluation_limit_reached",
+        "convergence_plateau_detected",
+    ]
+    for field in required_telemetry:
+        assert field in last, f"Telemetry field '{field}' missing from optimizer history!"
+
+
+def test_report_generator_no_numerical_defaults():
+    """Verify that report generator helpers enforce fail-closed behavior without hardcoded defaults (Item 32)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("mod30", Path("scripts/30_generate_generalization_report.py"))
+    mod30 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod30)
+    require_fields = mod30.require_fields
+
+    # Incomplete artifact must fail validation
+    incomplete_data = {"test_correct": 10, "test_sample_count": None}
+    valid, missing = require_fields(incomplete_data, ["test_correct", "test_sample_count", "raw_job_id"], "test_art")
+    assert not valid
+    assert "test_sample_count" in missing
+    assert "raw_job_id" in missing
+
+
+def test_hardware_telemetry_schema():
+    """Verify that hardware metric lists correctly aggregate without type errors (Item 33)."""
+    raw_metric_list = [
+        {"depth": 16, "two_qubit_operations": 8},
+        {"depth": 20, "two_qubit_operations": 10},
+        {"depth": 18, "two_qubit_operations": 8},
+    ]
+    depths = [int(m["depth"]) for m in raw_metric_list]
+    two_q = [int(m["two_qubit_operations"]) for m in raw_metric_list]
+    assert np.median(depths) == 18.0
+    assert np.min(depths) == 16
+    assert np.max(depths) == 20
+    assert np.median(two_q) == 8.0
+
+
+def test_pipeline_permutation_semantics():
+    """Verify that full-pipeline permutation test permutes labels across the entire dataset (Item 35)."""
+    arch = get_architecture("expressive_shared_line")
+    states, labels = make_random_quantum_states(8, n_qubits=4, seed=42)
+    train_idx = np.array([0, 1, 2, 3])
+    val_idx = np.array([4, 5])
+    test_idx = np.array([6, 7])
+
+    res = evaluate_pipeline_label_permutation_test(
+        states, labels, 4, arch,
+        train_idx, val_idx, test_idx,
+        true_test_ba=1.0,
+        n_permutations=5,
+        maxiter=15,
+        seed=999,
+    )
+    assert res["n_permutations"] == 5
+    assert len(res["permutation_runs"]) == 5
+    assert "null_ba_p95" in res
+    assert "null_ba_max" in res
+    assert 0.0 <= res["empirical_p_value"] <= 1.0
+
+
+def test_hierarchical_bootstrap_contract():
+    """Verify that hierarchical bootstrap returns valid confidence intervals respecting partitions (Item 7)."""
+    import pandas as pd
+    from qcnn_lab.analysis.statistics import hierarchical_bootstrap
+
+    # Create dummy DataFrame with 3 spatial partitions, each having 5 optimizer seeds
+    rows = []
+    for s_seed in [11, 23, 37]:
+        for opt_seed in [100, 200, 300, 400, 500]:
+            rows.append({
+                "split_seed": s_seed,
+                "optimizer_seed": opt_seed,
+                "balanced_accuracy": 0.80 + 0.02 * (s_seed % 3) + 0.01 * (opt_seed % 5),
+            })
+    df = pd.DataFrame(rows)
+    low, high = hierarchical_bootstrap(df, partition_col="split_seed", optimizer_col="optimizer_seed", value_col="balanced_accuracy", n_boot=200)
+    assert low <= df["balanced_accuracy"].mean() <= high
+    assert 0.70 <= low <= 0.90
+
+
+def test_threshold_selection_contract():
+    """Verify that validation threshold selection finds optimal t* in (0, 1) and does not peek at test (Item 5)."""
+    from qcnn_lab.analysis.thresholds import find_optimal_threshold, evaluate_at_threshold
+
+    # Uncalibrated probabilities: true label 1 has p in [0.35, 0.45], true label 0 has p in [0.10, 0.20]
+    y_val = np.array([0, 0, 1, 1])
+    p_val = np.array([0.15, 0.20, 0.38, 0.42])
+
+    # Fixed 0.5 threshold fails completely
+    fixed_res = evaluate_at_threshold(y_val, p_val, threshold=0.5)
+    assert fixed_res["balanced_accuracy"] == 0.5
+
+    # Validation threshold finder identifies shifted boundary
+    t_star = find_optimal_threshold(y_val, p_val)
+    assert 0.20 < t_star <= 0.38
+
+    # Adjusted threshold yields perfect accuracy
+    adj_res = evaluate_at_threshold(y_val, p_val, threshold=t_star)
+    assert adj_res["balanced_accuracy"] == 1.0
+

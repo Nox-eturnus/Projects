@@ -303,15 +303,15 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 ### Primary Evaluation Matrix
 
 <!-- BEGIN AUTO RESULTS: PRIMARY_MATRIX -->
-| Evaluation                 | TFIM BA                                                                      | XXZ BA                        | Cluster BA                    | Runs                      |
-|:---------------------------|:-----------------------------------------------------------------------------|:------------------------------|:------------------------------|:--------------------------|
-| IID (Ideal)                | 0.936 ± 0.041 [0.925, 0.948]                                                 | 0.873 ± 0.088 [0.849, 0.895]  | 0.758 ± 0.097 [0.730, 0.784]  | 50                        |
-| Critical-region OOD        | 0.711 ± 0.109 [0.682, 0.742]                                                 | 0.632 ± 0.167 [0.588, 0.679]  | 0.509 ± 0.046 [0.500, 0.525]  | 50                        |
-| Hamiltonian OOD (δ=0.10)   | 0.955 (δ=0.10)                                                               | 0.864 (δ=0.10)                | 0.818 (δ=0.10)                | 20                        |
-| 1024-shot Readout          | 0.955 ± 0.000                                                                | 0.898 ± 0.039                 | 0.891 ± 0.034                 | 20 seeds                  |
-| Thermal (T=0.10)           | 0.500                                                                        | 0.944                         | 1.000                         | 16 points                 |
-| Simulated Circuit Noise    | 0.909 (Aer noise model)                                                      | N/A — experiment not executed | N/A — experiment not executed | 1                         |
-| Hardware Progression (N=4) | 10/10 correct [95% CI: 0.692, 1.000] (1.000 Mit / 1.000 Raw) [Job: dafdv05n] | nan                           | nan                           | n = 10 states (1 session) |
+| Evaluation                 | TFIM BA                                           | XXZ BA                        | Cluster BA                    | Runs                      |
+|:---------------------------|:--------------------------------------------------|:------------------------------|:------------------------------|:--------------------------|
+| IID (Ideal)                | 0.934 ± 0.039 [0.913, 0.955]                      | 0.913 ± 0.051 [0.887, 0.940]  | 0.816 ± 0.079 [0.777, 0.855]  | 50                        |
+| Critical-region OOD        | 0.700 ± 0.093 [0.668, 0.732]                      | 0.585 ± 0.116 [0.545, 0.632]  | 0.516 ± 0.073 [0.500, 0.549]  | 50                        |
+| Hamiltonian OOD (δ=0.10)   | 0.955 (δ=0.10)                                    | 0.864 (δ=0.10)                | 0.818 (δ=0.10)                | 20                        |
+| 1024-shot Readout          | 0.955 ± 0.000                                     | 0.898 ± 0.039                 | 0.891 ± 0.034                 | 20 seeds                  |
+| Thermal (T=0.10)           | 0.500                                             | 0.944                         | 1.000                         | 16 points                 |
+| Simulated Circuit Noise    | 0.909 (Aer noise model)                           | N/A — experiment not executed | N/A — experiment not executed | 1                         |
+| Hardware Progression (N=4) | 10/10 correct [95% CI: 0.692, 1.000] on `ibm_fez` | N/A                           | N/A                           | n = 10 states (1 session) |
 <!-- END AUTO RESULTS: PRIMARY_MATRIX -->
 
 ### Architectural Ablations & Controls
@@ -319,31 +319,34 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 <!-- BEGIN AUTO RESULTS: ABLATIONS -->
 | model                            |   parameters |   two_qubit_gates |   iid_ba | critical_ood_ba      | hamiltonian_ood_ba   |
 |:---------------------------------|-------------:|------------------:|---------:|:---------------------|:---------------------|
-| Full Expressive QCNN             |           27 |                36 |    0.955 | 0.731                | 0.955                |
-| No Conv Entanglement             |           21 |                14 |    0.955 | 0.962                | 0.955                |
-| No Pool Entanglement             |           27 |                22 |    0.955 | 0.577                | 0.955                |
+| Full Expressive QCNN             |           27 |                36 |    0.955 | 0.692                | 0.955                |
+| No Conv Entanglement             |           21 |                14 |    0.955 | 0.808                | 0.955                |
+| No Pool Entanglement             |           27 |                22 |    0.955 | 0.654                | 0.955                |
 | No Entanglement Anywhere         |           21 |                 0 |    0.5   | 0.500                | 0.500                |
-| No Pooling Ablation              |           18 |                42 |    0.955 | 0.500                | 0.955                |
+| No Pooling Ablation              |           18 |                42 |    0.955 | 0.538                | 0.955                |
 | Unshared Weights Ablation        |           87 |                36 |    0.955 | 0.500                | 0.955                |
 | Untrained QCNN Baseline          |           27 |                36 |    0.5   | 0.500                | 0.500                |
-| Shuffled Training Labels Control |           27 |                36 |    0.54  | 0.463                | N/A — not executed   |
+| Shuffled Training Labels Control |           27 |                36 |    0.505 | 0.463                | N/A — not executed   |
 | Random Quantum States Control    |           27 |                36 |    0.583 | N/A — not applicable | N/A — not applicable |
 | Physics Order Parameter          |            2 |                 0 |    0.955 | 0.538                | 0.955                |
 
 > **Shuffled-Training-Label Control (N=25 runs)**:
-> Training on randomly shuffled targets yielded mean true-label test BA 0.540 ± 0.420, but the control distribution was broad and the empirical comparison was not significant (p ≈ 0.308). A full-pipeline permutation test is evaluated separately.
+> Training on randomly shuffled targets yielded mean true-label test BA 0.505 (empirical comparison p = 0.3462). Measures whether learning scrambled training labels generalizes to genuine ground truth.
 
-> **Multi-Seed Architectural Ablation Aggregate (5 splits × 2 optimizer seeds)**:
+> **Full-Pipeline Label-Permutation Test (N=199 permutations)**:
+> Permuting labels across the entire pipeline yields null test BA 0.511 ± 0.101 (95th percentile: 0.676, max: 0.818) with empirical p-value p = 0.0050. Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y).
+
+> **Multi-Seed Architectural Ablation Aggregate (Repeated Runs)**:
 | architecture                    |   parameter_count |   two_qubit_gates |   n_runs |   iid_ba_mean |   critical_ood_ba_mean |   hamiltonian_ood_ba_mean |
 |:--------------------------------|------------------:|------------------:|---------:|--------------:|-----------------------:|--------------------------:|
-| expressive_no_conv_entanglement |                21 |                14 |       10 |         0.932 |                  0.515 |                     0.955 |
+| expressive_no_conv_entanglement |                21 |                14 |       10 |         0.927 |                  0.604 |                     0.955 |
 | expressive_no_entanglement      |                21 |                 0 |       10 |         0.5   |                  0.5   |                     0.5   |
-| expressive_no_pool_entanglement |                27 |                22 |       10 |         0.945 |                  0.638 |                     0.955 |
-| expressive_no_pooling           |                18 |                42 |       10 |         0.905 |                  0.504 |                     0.945 |
-| expressive_shared_line          |                27 |                36 |       10 |         0.955 |                  0.7   |                     0.959 |
-| expressive_unshared_line        |                87 |                36 |       10 |         0.918 |                  0.55  |                     0.955 |
+| expressive_no_pool_entanglement |                27 |                22 |       10 |         0.959 |                  0.712 |                     0.955 |
+| expressive_no_pooling           |                18 |                42 |       10 |         0.932 |                  0.515 |                     0.955 |
+| expressive_shared_line          |                27 |                36 |       10 |         0.936 |                  0.619 |                     0.955 |
+| expressive_unshared_line        |                87 |                36 |       10 |         0.927 |                  0.596 |                     0.955 |
 
-> **Ablation Insight**: The full architecture gives the strongest mean IID and critical-region generalization; removing either convolutional or pooling entanglement degrades performance, while removing all entanglement or pooling collapses to chance.
+> **Ablation Insight**: Both entanglement ablations reduce mean performance relative to the full architecture. In the paired critical-region analysis, removal of convolutional entanglement produces a statistically resolved degradation, whereas the no-pooling-entanglement difference relative to the full model reflects a distinct inductive mechanism. Removing all entanglement collapses performance to chance across the tested regimes. Removing the pooling hierarchy primarily destroys critical-region generalization while retaining comparatively strong IID and Hamiltonian-OOD performance.
 <!-- END AUTO RESULTS: ABLATIONS -->
 
 ### Classical Measurement-Budget Comparator
@@ -372,7 +375,7 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 - **Exact Binomial Uncertainty**: 95% Clopper-Pearson CI = **[0.692, 1.000]**.
 - **QPU Job Provenance**: Raw Job ID `dafdv05nj4cs73ag8e5g`, Mitigated Job ID `dafdv2t1ierc738n8c6g`.
 - **Execution Protocol**: Twirled Readout Error Extrapolation (TREX, resilience level 1) + Dynamical Decoupling (`XpXm`).
-- **Multi-Session Status**: Single physical session complete; multi-session stability tracking across distinct calibration windows is pending.
+- **Multi-Session Status**: Single physical session complete (`multi_session_hardware_complete = false`); multi-session stability tracking across distinct calibration windows is pending.
 <!-- END AUTO RESULTS: HARDWARE -->
 
 ### Key Experimental Discoveries

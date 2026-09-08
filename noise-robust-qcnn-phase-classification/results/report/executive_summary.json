@@ -1,12 +1,11 @@
 {
   "title": "Noise-Robust QCNN Generalization Report",
-  "phases_covered": "Phases 22 to 30",
-  "status": "ADVANCED_BENCHMARK_PRELIMINARY",
-  "headline_claim": "QCNN robustness is strongly evaluation- and phase-family-dependent, with strong Hamiltonian-perturbation and finite-shot performance but substantial degradation near criticality and under TFIM thermal mixing.",
+  "status": "RESEARCH_FROZEN",
+  "headline_claim": "QCNN robustness is strongly evaluation- and phase-family-dependent, with robust microscopic perturbation and finite-shot performance, but distinct decision-boundary calibration shift near criticality rather than loss of class ranking.",
   "pending": [
-    "Full 10x5 statistical benchmark across all families",
-    "Multi-session physical hardware validation across distinct calibration windows"
+    "Multi-session physical hardware validation across distinct calibration windows (optional future publication extension)"
   ],
   "matrix_path": "results/report/evaluation_matrix.csv",
-  "report_path": "results/report/generalization_report.md"
+  "report_path": "results/report/generalization_report.md",
+  "canonical_results_path": "results/report/canonical_results.json"
 }

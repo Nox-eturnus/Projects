@@ -1,12 +1,10 @@
-"""Programmatic README synchronization from committed result artifacts.
+"""Programmatic README synchronization strictly derived from canonical results JSON.
 
 Reads:
+- results/report/canonical_results.json
 - results/report/evaluation_matrix.csv
 - results/ablations/ablation_and_controls_summary.csv
 - results/ablations/ablation_aggregate.csv
-- results/ablations/shuffled_label_permutations.csv
-- results/finite_shots/budget_matched_comparison.csv
-- results/hardware/expressive_hardware_summary.json
 
 Replaces marked HTML blocks in README.md:
 <!-- BEGIN AUTO RESULTS: PRIMARY_MATRIX --> ... <!-- END AUTO RESULTS: PRIMARY_MATRIX -->
@@ -24,112 +22,132 @@ import numpy as np
 import pandas as pd
 
 
+def load_canonical_results(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 def load_primary_matrix_markdown(matrix_path: Path) -> str:
     if not matrix_path.exists():
         return "_Evaluation matrix pending execution._"
-    df = pd.read_csv(matrix_path)
+    df = pd.read_csv(matrix_path, keep_default_na=False)
+    df = df.fillna("N/A")
     cols = [c for c in ["Evaluation", "TFIM BA", "XXZ BA", "Cluster BA", "Runs"] if c in df.columns]
     return df[cols].to_markdown(index=False)
 
 
-def load_ablations_markdown(summary_path: Path, agg_path: Path, perm_path: Path) -> str:
+def load_ablations_markdown(summary_path: Path, agg_path: Path, canonical: dict | None) -> str:
     lines = []
     if summary_path.exists():
-        df = pd.read_csv(summary_path)
+        df = pd.read_csv(summary_path, keep_default_na=False)
         for col, stat_col in [("iid_ba", "iid_status"), ("critical_ood_ba", "critical_ood_status"), ("hamiltonian_ood_ba", "hamiltonian_ood_status")]:
             if col in df.columns and stat_col in df.columns:
                 df[col] = df.apply(
-                    lambda r: f"N/A — {str(r[stat_col]).replace('_', ' ')}" if pd.isna(r[col]) else (f"{r[col]:.3f}" if isinstance(r[col], (int, float)) else str(r[col])),
+                    lambda r: f"N/A — {str(r[stat_col]).replace('_', ' ')}" if pd.isna(r[col]) or r[col] == "" or str(r[col]).lower() == "nan" else (f"{float(r[col]):.3f}" if isinstance(r[col], (int, float)) or (isinstance(r[col], str) and r[col].replace('.', '', 1).isdigit()) else str(r[col])),
                     axis=1,
                 )
         cols_to_show = [c for c in ["model", "parameters", "two_qubit_gates", "iid_ba", "critical_ood_ba", "hamiltonian_ood_ba"] if c in df.columns]
-        lines.append(df[cols_to_show].to_markdown(index=False))
+        lines.append(df[cols_to_show].fillna("N/A").to_markdown(index=False))
 
-    # Add permutation and statistical aggregate narrative
-    if perm_path.exists():
-        perm_df = pd.read_csv(perm_path)
-        n_perms = len(perm_df)
-        mean_shuf_ba = perm_df["train_ba_shuffled"].mean()
-        mean_real_ba = perm_df["test_ba_real"].mean()
+    if canonical is not None:
+        shuf = canonical.get("shuffled_control", {})
+        perm = canonical.get("pipeline_permutation", {})
+        ablation = canonical.get("ablation", {})
+
         lines.append("")
-        lines.append(f"> **Shuffled-Training-Label Control (N={n_perms} runs)**:")
+        lines.append(f"> **Shuffled-Training-Label Control (N={shuf.get('n_runs', 'N/A')} runs)**:")
+        shuf_ba_str = f"{shuf.get('mean_true_label_test_ba'):.3f}" if shuf.get('mean_true_label_test_ba') is not None and not np.isnan(shuf.get('mean_true_label_test_ba', np.nan)) else "N/A"
+        shuf_p_str = f"{shuf.get('empirical_comparison_p_value'):.4f}" if shuf.get('empirical_comparison_p_value') is not None and not np.isnan(shuf.get('empirical_comparison_p_value', np.nan)) else "N/A"
         lines.append(
-            f"> Training on randomly shuffled targets yielded mean true-label test BA {mean_real_ba:.3f} ± {perm_df['test_ba_real'].std():.3f}, "
-            "but the control distribution was broad and the empirical comparison was not significant (p ≈ 0.308). "
-            "A full-pipeline permutation test is evaluated separately."
+            f"> Training on randomly shuffled targets yielded mean true-label test BA {shuf_ba_str} (empirical comparison p = {shuf_p_str}). "
+            f"{shuf.get('scientific_meaning', '')}"
+        )
+
+        lines.append("")
+        lines.append(f"> **Full-Pipeline Label-Permutation Test (N={perm.get('n_permutations', 'N/A')} permutations)**:")
+        null_mean = f"{perm.get('null_ba_mean'):.3f}" if perm.get('null_ba_mean') is not None and not np.isnan(perm.get('null_ba_mean', np.nan)) else "N/A"
+        null_std = f"{perm.get('null_ba_std'):.3f}" if perm.get('null_ba_std') is not None and not np.isnan(perm.get('null_ba_std', np.nan)) else "N/A"
+        null_p95 = f"{perm.get('null_ba_p95'):.3f}" if perm.get('null_ba_p95') is not None and not np.isnan(perm.get('null_ba_p95', np.nan)) else "N/A"
+        null_max = f"{perm.get('null_ba_max'):.3f}" if perm.get('null_ba_max') is not None and not np.isnan(perm.get('null_ba_max', np.nan)) else "N/A"
+        perm_p = f"{perm.get('empirical_p_value'):.4f}" if perm.get('empirical_p_value') is not None and not np.isnan(perm.get('empirical_p_value', np.nan)) else "N/A"
+        lines.append(
+            f"> Permuting labels across the entire pipeline yields null test BA {null_mean} ± {null_std} "
+            f"(95th percentile: {null_p95}, max: {null_max}) with empirical p-value p = {perm_p}. "
+            f"{perm.get('scientific_meaning', '')}"
         )
 
     if agg_path.exists():
-        agg_df = pd.read_csv(agg_path)
+        agg_df = pd.read_csv(agg_path, keep_default_na=False)
         lines.append("")
-        lines.append("> **Multi-Seed Architectural Ablation Aggregate (5 splits × 2 optimizer seeds)**:")
+        lines.append("> **Multi-Seed Architectural Ablation Aggregate (Repeated Runs)**:")
         cols = ["architecture", "parameter_count", "two_qubit_gates", "n_runs", "iid_ba_mean", "critical_ood_ba_mean", "hamiltonian_ood_ba_mean"]
         avail_cols = [c for c in cols if c in agg_df.columns]
         display_agg = agg_df[avail_cols].copy()
         for c in ["iid_ba_mean", "critical_ood_ba_mean", "hamiltonian_ood_ba_mean"]:
             if c in display_agg.columns:
-                display_agg[c] = display_agg[c].map(lambda x: f"{x:.3f}")
-        lines.append(display_agg.to_markdown(index=False))
+                display_agg[c] = display_agg[c].map(lambda x: f"{float(x):.3f}" if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit()) else str(x))
+        lines.append(display_agg.fillna("N/A").to_markdown(index=False))
+
+    if canonical is not None and "ablation" in canonical:
         lines.append("")
-        lines.append("> **Ablation Insight**: The full architecture gives the strongest mean IID and critical-region generalization; removing either convolutional or pooling entanglement degrades performance, while removing all entanglement or pooling collapses to chance.")
+        lines.append(f"> **Ablation Insight**: {canonical['ablation'].get('scientific_conclusion', '')}")
 
     return "\n".join(lines)
 
 
-def load_hardware_markdown(hw_summary_path: Path) -> str:
-    if not hw_summary_path.exists():
+def load_hardware_markdown(canonical: dict | None) -> str:
+    if canonical is None or "hardware" not in canonical:
         return "_Hardware summary pending execution._"
-    data = json.loads(hw_summary_path.read_text(encoding="utf-8"))
-    if data.get("is_physical_hardware", False):
-        required_fields = [
-            "test_correct",
-            "test_sample_count",
-            "accuracy_ci95_low",
-            "accuracy_ci95_high",
-            "raw_job_id",
-            "mitigated_job_id",
-            "mitigated_hardware_balanced_accuracy",
-            "raw_hardware_balanced_accuracy",
-        ]
-        if not all(k in data and data[k] is not None for k in required_fields):
+    hw = canonical["hardware"]
+    if hw.get("is_physical_hardware", False):
+        backend = hw.get("backend")
+        k = hw.get("test_correct")
+        n = hw.get("test_sample_count")
+        ci_low = hw.get("accuracy_ci95_low")
+        ci_high = hw.get("accuracy_ci95_high")
+        raw_job = hw.get("raw_job_id")
+        mit_job = hw.get("mitigated_job_id")
+
+        if any(v is None for v in [backend, k, n, ci_low, ci_high, raw_job, mit_job]):
             return "- **Physical Hardware Execution**: N/A — incomplete physical-hardware provenance."
 
-        k = int(data["test_correct"])
-        n = int(data["test_sample_count"])
-        backend = str(data.get("backend", "ibm_fez"))
-        ci_low = float(data["accuracy_ci95_low"])
-        ci_high = float(data["accuracy_ci95_high"])
-        raw_job = str(data["raw_job_id"])
-        mit_job = str(data["mitigated_job_id"])
         lines = [
             f"- **Observed Result**: **{k}/{n}** held-out N=4 TFIM test states correctly classified on `{backend}`.",
             f"- **Exact Binomial Uncertainty**: 95% Clopper-Pearson CI = **[{ci_low:.3f}, {ci_high:.3f}]**.",
             f"- **QPU Job Provenance**: Raw Job ID `{raw_job}`, Mitigated Job ID `{mit_job}`.",
-            f"- **Execution Protocol**: Twirled Readout Error Extrapolation (TREX, resilience level 1) + Dynamical Decoupling (`XpXm`).",
-            "- **Multi-Session Status**: Single physical session complete; multi-session stability tracking across distinct calibration windows is pending.",
+            "- **Execution Protocol**: Twirled Readout Error Extrapolation (TREX, resilience level 1) + Dynamical Decoupling (`XpXm`).",
+            "- **Multi-Session Status**: Single physical session complete (`multi_session_hardware_complete = false`); multi-session stability tracking across distinct calibration windows is pending.",
         ]
         return "\n".join(lines)
     else:
-        return f"- **Surrogate Status**: Analytical surrogate simulation (`{data.get('backend')}`)."
+        return "- **Surrogate Status**: Analytical surrogate simulation."
 
 
-def load_budget_markdown(budget_path: Path) -> str:
-    if not budget_path.exists():
+def load_budget_markdown(canonical: dict | None) -> str:
+    if canonical is None or "measurement_budget" not in canonical:
         return "_Measurement budget comparison pending execution._"
-    df = pd.read_csv(budget_path)
+    items = canonical["measurement_budget"].get("comparisons", [])
+    if not items:
+        return "_Measurement budget comparison pending execution._"
+
     budgets_to_show = [128, 512, 2048, 4096]
-    sub = df[df["budget"].isin(budgets_to_show)].copy()
+    sub = [r for r in items if r.get("budget") in budgets_to_show]
+
     lines = [
         "| Budget ($B$) | Family | QCNN Mean BA | Classical Pauli Mean BA | Settings |",
         "| :---: | :---: | :---: | :---: | :---: |",
     ]
-    for _, r in sub.iterrows():
-        b = int(r["budget"])
+    for r in sub:
+        b = r["budget"]
         fam = str(r["family"]).upper()
-        q_ba = f"{r['qcnn_ba_mean']:.3f} ± {r['qcnn_ba_std']:.3f}"
-        c_ba = f"{r['classical_ba_mean']:.3f} ± {r['classical_ba_std']:.3f}"
-        n_set = int(r.get("n_physical_settings", 2))
-        lines.append(f"| {b} | {fam} | {q_ba} | {c_ba} | {n_set} bases |")
+        q_ba = f"{r['qcnn_ba_mean']:.3f} ± {r['qcnn_ba_std']:.3f}" if pd.notna(r.get("qcnn_ba_mean")) else "N/A"
+        c_ba = f"{r['classical_ba_mean']:.3f} ± {r['classical_ba_std']:.3f}" if pd.notna(r.get("classical_ba_mean")) else "N/A"
+        n_set = str(r["n_physical_settings"]) + " bases" if r.get("n_physical_settings") is not None else "N/A"
+        lines.append(f"| {b} | {fam} | {q_ba} | {c_ba} | {n_set} |")
     return "\n".join(lines)
 
 
@@ -146,26 +164,30 @@ def main():
     if not readme_path.exists():
         raise FileNotFoundError("README.md not found in current directory.")
 
+    canonical_path = Path("results/report/canonical_results.json")
+    canonical = load_canonical_results(canonical_path)
+
+    report_dir = Path("results/report")
+    ablation_dir = Path("results/ablations")
+
+    primary_md = load_primary_matrix_markdown(report_dir / "evaluation_matrix.csv")
+    ablations_md = load_ablations_markdown(
+        ablation_dir / "ablation_and_controls_summary.csv",
+        ablation_dir / "ablation_aggregate.csv",
+        canonical,
+    )
+    hardware_md = load_hardware_markdown(canonical)
+    budget_md = load_budget_markdown(canonical)
+
     content = readme_path.read_text(encoding="utf-8")
 
-    # Generate blocks
-    primary_matrix = load_primary_matrix_markdown(Path("results/report/evaluation_matrix.csv"))
-    ablations = load_ablations_markdown(
-        Path("results/ablations/ablation_and_controls_summary.csv"),
-        Path("results/ablations/ablation_aggregate.csv"),
-        Path("results/ablations/shuffled_label_permutations.csv"),
-    )
-    hardware = load_hardware_markdown(Path("results/hardware/expressive_hardware_summary.json"))
-    budget = load_budget_markdown(Path("results/finite_shots/budget_matched_comparison.csv"))
-
-    # Update content
-    content = replace_block(content, "PRIMARY_MATRIX", primary_matrix)
-    content = replace_block(content, "ABLATIONS", ablations)
-    content = replace_block(content, "HARDWARE", hardware)
-    content = replace_block(content, "BUDGET", budget)
+    content = replace_block(content, "PRIMARY_MATRIX", primary_md)
+    content = replace_block(content, "ABLATIONS", ablations_md)
+    content = replace_block(content, "HARDWARE", hardware_md)
+    content = replace_block(content, "BUDGET", budget_md)
 
     readme_path.write_text(content, encoding="utf-8")
-    print("README.md synchronized successfully from result artifacts.")
+    print("README.md synchronized successfully from canonical results.")
 
 
 if __name__ == "__main__":

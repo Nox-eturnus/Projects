@@ -1,10 +1,29 @@
 {
-  "git_commit": "029358e31f98a647146e84b8cad8457a48a3b22d",
-  "generated_at": "2026-09-07T19:11:00.249119+00:00",
+  "git_provenance": {
+    "execution_git_commit": null,
+    "base_commit": "5c5a2f551b4faaafa5731e73820a0d49fc8b1f00",
+    "working_tree_dirty": true
+  },
+  "git_commit": "5c5a2f551b4faaafa5731e73820a0d49fc8b1f00",
+  "base_commit": "5c5a2f551b4faaafa5731e73820a0d49fc8b1f00",
+  "working_tree_dirty": true,
+  "input_file_hashes": {
+    "configs/project.yaml": "47520107dad1ed4499c6a95675ea685cff6bffdb75d429702ecdfb21f18fb44a",
+    "configs/evaluation.yaml": "cd74efb14accf60b29dfac34176ffa41d1f45759816ed3ae499ac3505814ac41",
+    "data/processed/tfim_eval_states.npz": "e9cd47b6a0aa8ad468a861d319131f419a99293020763d5263dcb54356ee47ac",
+    "data/processed/xxz_eval_states.npz": "cf5c4c9e658b23f3869040bc486e9fc7957b349b6cb00d31d29ebc922018608a",
+    "data/processed/cluster_eval_states.npz": "21336338d74ce654d0209eab7a19e1ad3919b533bdb04a243c305413eabb659c",
+    "qcnn_lab/qcnn/architecture.py": "97560e56dd27ef34edccddbcbf059e76fbd677c9d987f3209d44c9d2acf3fe70",
+    "qcnn_lab/qcnn/train.py": "22623fb3d562efeba5d3025e29e5e1a4f1b5dfc9be1e115278a6e9c7216c8b7d",
+    "qcnn_lab/qcnn/evaluate.py": "eba31312e1ff6789ae9a9814ca5ecad5989ff25f089ba8d7c0eb122a0156b736",
+    "scripts/23_multiseed_generalization_benchmark.py": "bc542ca7a4317f7903077e9da5b8124dd39ecd4080c884b117a5c0a1e1e02c2a"
+  },
+  "generated_at": "2026-09-08T09:52:30.792889+00:00",
   "execution_mode": "full",
   "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
   "n_qubits": 8,
   "optimizer": "COBYLA",
+  "maxiter": 150,
   "families": [
     "tfim",
     "xxz",
@@ -33,5 +52,7 @@
     }
   },
   "total_runs_recorded": 330,
+  "sample_predictions_path": "results/statistical_generalization/test_predictions.csv",
+  "threshold_selection_protocol": "validation-only argmax BA(t) in (0, 1) evaluated on test set",
   "script": "scripts/23_multiseed_generalization_benchmark.py"
 }
