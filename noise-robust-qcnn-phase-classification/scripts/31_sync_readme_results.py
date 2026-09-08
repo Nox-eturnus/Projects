@@ -44,6 +44,8 @@ def load_primary_matrix_markdown(matrix_path: Path) -> str:
 def load_ablations_markdown(summary_path: Path, agg_path: Path, canonical: dict | None) -> str:
     lines = []
     if summary_path.exists():
+        lines.append("> **Single-Split Reference Evaluations & Controls**")
+        lines.append(">")
         df = pd.read_csv(summary_path, keep_default_na=False)
         for col, stat_col in [("iid_ba", "iid_status"), ("critical_ood_ba", "critical_ood_status"), ("hamiltonian_ood_ba", "hamiltonian_ood_status")]:
             if col in df.columns and stat_col in df.columns:
@@ -90,7 +92,11 @@ def load_ablations_markdown(summary_path: Path, agg_path: Path, canonical: dict 
     if agg_path.exists():
         agg_df = pd.read_csv(agg_path, keep_default_na=False)
         lines.append("")
-        lines.append("> **Multi-Seed Architectural Ablation Aggregate (Repeated Runs)**:")
+        lines.append("> **Multi-Seed Architectural Ablation Aggregate (Repeated Runs)**")
+        lines.append(">")
+        lines.append("> Architectural conclusions below are based on the repeated multi-seed aggregate; "
+                     "the preceding table is the canonical single-split reference/control evaluation.")
+        lines.append(">")
         cols = ["architecture", "parameter_count", "two_qubit_gates", "n_runs", "iid_ba_mean", "critical_ood_ba_mean", "hamiltonian_ood_ba_mean"]
         avail_cols = [c for c in cols if c in agg_df.columns]
         display_agg = agg_df[avail_cols].copy()

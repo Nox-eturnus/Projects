@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.metrics import balanced_accuracy_score
 
 from qcnn_lab.analysis.splits import load_split_manifest, split_indices_from_manifest
-from qcnn_lab.analysis.statistics import bootstrap_confidence_interval, hierarchical_paired_bootstrap
+from qcnn_lab.analysis.statistics import hierarchical_bootstrap, hierarchical_paired_bootstrap
 from qcnn_lab.config import load_yaml
 from qcnn_lab.physics.perturbations import get_perturbed_ground_state
 from qcnn_lab.qcnn.ablations import (
@@ -456,12 +456,15 @@ def main():
     runs_df = pd.DataFrame(ablation_runs)
     runs_df.to_csv(out_dir / "ablation_runs.csv", index=False)
 
-    # Aggregate statistics
+    # Aggregate statistics (partition-aware hierarchical CIs, consistent
+    # with the benchmark and pairwise analyses — not flat bootstraps).
+    # Architecture order is alphabetical (groupby default) with fixed seeds
+    # so committed statistics are exactly reproducible and re-verifiable.
     agg_records = []
-    for arch_name, grp in runs_df.groupby("architecture"):
-        iid_ci = bootstrap_confidence_interval(grp["iid_ba"].to_numpy())
-        crit_ci = bootstrap_confidence_interval(grp["critical_ood_ba"].to_numpy())
-        ham_ci = bootstrap_confidence_interval(grp["hamiltonian_ood_ba"].to_numpy())
+    for arch_idx, (arch_name, grp) in enumerate(sorted(runs_df.groupby("architecture"), key=lambda kv: kv[0])):
+        iid_ci = hierarchical_bootstrap(grp, partition_col="split_seed", optimizer_col="optimizer_seed", value_col="iid_ba", seed=7777 + arch_idx)
+        crit_ci = hierarchical_bootstrap(grp, partition_col="split_seed", optimizer_col="optimizer_seed", value_col="critical_ood_ba", seed=7777 + arch_idx)
+        ham_ci = hierarchical_bootstrap(grp, partition_col="split_seed", optimizer_col="optimizer_seed", value_col="hamiltonian_ood_ba", seed=7777 + arch_idx)
 
         agg_records.append({
             "architecture": arch_name,

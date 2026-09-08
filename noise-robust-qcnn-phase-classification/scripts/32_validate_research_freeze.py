@@ -183,7 +183,31 @@ def main():
     except ImportError as e:
         check(False, f"hierarchical_paired_bootstrap importable ({e})")
 
-    # Fixed-split permutation test: verify PROCEDURE, not outcome.
+    # Aggregate per-architecture CIs must likewise match an independent
+    # hierarchical recomputation (same alphabetical order and fixed seeds
+    # as Phase 26), so the aggregate table cannot silently drift to flat
+    # bootstrap intervals.
+    try:
+        from qcnn_lab.analysis.statistics import hierarchical_bootstrap
+        _agg_csv = ablation_dir / "ablation_aggregate.csv"
+        check(_agg_csv.exists(), "Ablation aggregate CSV exists")
+        _agg_df = pd.read_csv(_agg_csv)
+        for _arch_idx, _arch_name in enumerate(sorted(df_ablation["architecture"].unique())):
+            _grp = df_ablation[df_ablation["architecture"] == _arch_name]
+            _arow = _agg_df[_agg_df["architecture"] == _arch_name]
+            check(len(_arow) == 1, f"Aggregate row present for {_arch_name}")
+            for _suffix, _mcol in (("iid_ba", "iid_ba"), ("critical_ood_ba", "critical_ood_ba"),
+                                   ("hamiltonian_ood_ba", "hamiltonian_ood_ba")):
+                _lo, _hi = hierarchical_bootstrap(
+                    _grp, partition_col="split_seed", optimizer_col="optimizer_seed",
+                    value_col=_mcol, seed=7777 + _arch_idx)
+                _slo = float(_arow.iloc[0][f"{_suffix}_ci95_low"])
+                _shi = float(_arow.iloc[0][f"{_suffix}_ci95_high"])
+                check(abs(_lo - _slo) < 1e-9 and abs(_hi - _shi) < 1e-9,
+                      f"Hierarchical aggregate CI reproduced for {_arch_name} {_suffix} "
+                      f"([{_lo:+.4f}, {_hi:+.4f}])")
+    except ImportError as e:
+        check(False, f"hierarchical_bootstrap importable ({e})")
     # Valid results include non-significant p-values; we check
     #   0 <= p <= 1, n >= 199, and reported_p == (1 + exceedances) / (1 + n).
     pipe_csv = ablation_dir / "pipeline_label_permutations.csv"

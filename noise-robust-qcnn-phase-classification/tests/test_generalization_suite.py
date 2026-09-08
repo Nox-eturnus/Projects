@@ -432,20 +432,32 @@ def test_hardware_telemetry_schema():
 
 def test_pipeline_permutation_semantics():
     """Verify that fixed-split permutation test permutes labels across the entire dataset (Item 35)."""
+    import warnings
     arch = get_architecture("expressive_shared_line")
-    states, labels = make_random_quantum_states(8, n_qubits=4, seed=42)
+    states, _ = make_random_quantum_states(8, n_qubits=4, seed=42)
+    # Deterministic labels with both classes in every split (avoids
+    # single-class metric warnings and SciPy MAXFUN warnings via maxiter=40).
+    labels = np.array([0, 0, 1, 1, 0, 1, 0, 1], dtype=int)
     train_idx = np.array([0, 1, 2, 3])
     val_idx = np.array([4, 5])
     test_idx = np.array([6, 7])
 
-    res = evaluate_pipeline_label_permutation_test(
-        states, labels, 4, arch,
-        train_idx, val_idx, test_idx,
-        true_test_ba=1.0,
-        n_permutations=5,
-        maxiter=15,
-        seed=999,
-    )
+    # Random global permutations can still draw single-class 2-sample test
+    # splits; those sklearn warnings are expected tiny-split behavior, not
+    # a defect under test, so they are filtered for this test only.
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message=".*single label was found.*", category=UserWarning)
+        warnings.filterwarnings(
+            "ignore", message=".*y_pred contains classes not in y_true.*", category=UserWarning)
+        res = evaluate_pipeline_label_permutation_test(
+            states, labels, 4, arch,
+            train_idx, val_idx, test_idx,
+            true_test_ba=1.0,
+            n_permutations=5,
+            maxiter=40,
+            seed=999,
+        )
     assert res["n_permutations"] == 5
     assert len(res["permutation_runs"]) == 5
     assert "null_ba_p95" in res

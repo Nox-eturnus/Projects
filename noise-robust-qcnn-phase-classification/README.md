@@ -317,6 +317,8 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 ### Architectural Ablations & Controls
 
 <!-- BEGIN AUTO RESULTS: ABLATIONS -->
+> **Single-Split Reference Evaluations & Controls**
+>
 | model                            |   parameters |   two_qubit_gates |   iid_ba | critical_ood_ba      | hamiltonian_ood_ba   |
 |:---------------------------------|-------------:|------------------:|---------:|:---------------------|:---------------------|
 | Full Expressive QCNN             |           27 |                36 |    0.955 | 0.615                | 0.955                |
@@ -336,7 +338,10 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 > **Fixed-Split Full-Dataset Label Permutation Test (N=199 permutations)**:
 > 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050 (the resolution floor 0.0050 of this permutation run). Null test BA 0.511 ± 0.102 (95th percentile: 0.676, max: 0.818). Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y). Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.
 
-> **Multi-Seed Architectural Ablation Aggregate (Repeated Runs)**:
+> **Multi-Seed Architectural Ablation Aggregate (Repeated Runs)**
+>
+> Architectural conclusions below are based on the repeated multi-seed aggregate; the preceding table is the canonical single-split reference/control evaluation.
+>
 | architecture                    |   parameter_count |   two_qubit_gates |   n_runs |   iid_ba_mean |   critical_ood_ba_mean |   hamiltonian_ood_ba_mean |
 |:--------------------------------|------------------:|------------------:|---------:|--------------:|-----------------------:|--------------------------:|
 | expressive_no_conv_entanglement |                21 |                14 |       10 |         0.927 |                  0.604 |                     0.955 |
