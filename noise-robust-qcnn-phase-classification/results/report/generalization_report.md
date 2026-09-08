@@ -9,7 +9,7 @@ To ensure scientific integrity, the evaluation enforces a **strict fail-closed r
 Performance is benchmarked across a staircase of distribution shifts:
 
 1. **IID Ideal**: Exact statevectors with standard stratified splits.
-2. **Multi-Split x Multi-Optimizer (Research-Frozen, 330 runs)**: 10 independent spatial partitions for IID and critical holdouts crossed with 5 optimizer seeds, and 1 canonical spatial block crossed with 10 optimizer seeds. Reports hierarchical partition-aware 95% bootstrap confidence intervals, validation-tuned threshold diagnostics, and class-conditional score distributions.
+2. **Multi-Split x Multi-Optimizer (ADVANCED_BENCHMARK_PRELIMINARY, 330 runs)**: 10 independent spatial partitions for IID and critical holdouts crossed with 5 optimizer seeds, and 1 canonical spatial block crossed with 10 optimizer seeds. Reports hierarchical partition-aware 95% bootstrap confidence intervals, validation-tuned threshold diagnostics, and class-conditional score distributions.
 3. **Critical-Region OOD**: Models trained strictly outside $[0.80, 1.20]$ and evaluated on dense unseen states across the phase transition.
 4. **Hamiltonian OOD / Microscopic Perturbation**: Models trained at zero disorder ($\delta=0$) evaluated on disordered and symmetry-preserving Hamiltonians ($\delta > 0$) under nominal phase boundaries.
 5. **Finite-Shot Readout & Classical Observables**: Readout evaluated under finite measurement shots ($S \in [128, 8192]$) and compared against classical models using genuine commuting Pauli observable groups under matched state-copy budgets.
@@ -39,14 +39,14 @@ Performance is benchmarked across a staircase of distribution shifts:
 
 A key scientific discovery of this investigation is that several out-of-distribution regimes exhibiting near-chance Balanced Accuracy ($BA \approx 0.50$) nevertheless retain near-perfect ranking discrimination ($\text{ROC-AUC} \approx 1.0$):
 
-- **CLUSTER (critical_holdout)**: Fixed threshold BA = `0.516`, Validation-selected threshold BA = `0.519` (ROC-AUC = `1.000`, score separation = `+0.067`). **Classification**: `discrimination partially degraded`.
-- **CLUSTER (parameter_block)**: Fixed threshold BA = `0.524`, Validation-selected threshold BA = `0.534` (ROC-AUC = `1.000`, score separation = `+0.183`). **Classification**: `discrimination partially degraded`.
-- **TFIM (critical_holdout)**: Fixed threshold BA = `0.700`, Validation-selected threshold BA = `0.700` (ROC-AUC = `1.000`, score separation = `+0.060`). **Classification**: `discrimination partially degraded`.
-- **TFIM (parameter_block)**: Fixed threshold BA = `0.883`, Validation-selected threshold BA = `0.883` (ROC-AUC = `1.000`, score separation = `+0.144`). **Classification**: `discrimination partially degraded`.
-- **XXZ (critical_holdout)**: Fixed threshold BA = `0.585`, Validation-selected threshold BA = `0.597` (ROC-AUC = `1.000`, score separation = `+0.037`). **Classification**: `discrimination partially degraded`.
-- **XXZ (parameter_block)**: Fixed threshold BA = `0.507`, Validation-selected threshold BA = `0.536` (ROC-AUC = `1.000`, score separation = `+0.075`). **Classification**: `discrimination partially degraded`.
+- **CLUSTER (critical_holdout)**: Fixed threshold BA = `0.516`, Validation-selected threshold BA = `0.519` (ROC-AUC = `1.000`, score separation = `+0.067`). **Classification**: `ranking preserved but classification degraded`.
+- **CLUSTER (parameter_block)**: Fixed threshold BA = `0.524`, Validation-selected threshold BA = `0.534` (ROC-AUC = `1.000`, score separation = `+0.183`). **Classification**: `ranking preserved but classification degraded`.
+- **TFIM (critical_holdout)**: Fixed threshold BA = `0.700`, Validation-selected threshold BA = `0.700` (ROC-AUC = `1.000`, score separation = `+0.060`). **Classification**: `ranking preserved but classification degraded`.
+- **TFIM (parameter_block)**: Fixed threshold BA = `0.883`, Validation-selected threshold BA = `0.883` (ROC-AUC = `1.000`, score separation = `+0.144`). **Classification**: `discrimination and classification preserved`.
+- **XXZ (critical_holdout)**: Fixed threshold BA = `0.585`, Validation-selected threshold BA = `0.597` (ROC-AUC = `1.000`, score separation = `+0.037`). **Classification**: `ranking preserved but classification degraded`.
+- **XXZ (parameter_block)**: Fixed threshold BA = `0.507`, Validation-selected threshold BA = `0.536` (ROC-AUC = `1.000`, score separation = `+0.075`). **Classification**: `ranking preserved but classification degraded`.
 
-> **Scientific Implication**: A test Balanced Accuracy near 0.5 does not necessarily reflect an internal collapse of the quantum representation. Rather, out-of-distribution shifts can cause the optimal classification boundary to drift away from $t=0.5$, while class conditional scores remain separated. Selecting decision thresholds strictly on validation data recovers substantial generalization without ever fitting on test labels.
+> **Scientific Implication**: Critical-region distribution shift severely disrupts the fixed decision boundary and probability calibration, especially for XXZ and Cluster, while rank discrimination remains unexpectedly strong. Validation-only thresholding does not consistently recover the lost fixed-threshold performance, indicating that the shift is not reducible to a single universally transferable threshold correction.
 
 ---
 
@@ -68,8 +68,8 @@ A key scientific discovery of this investigation is that several out-of-distribu
 > **Key Findings & Inductive Bias Analysis**:
 > - **Random State Control**: Classifying Haar-random / unstructured quantum states yielded $BA \approx 0.583$ (chance level). The Haar-random-state experiment serves as a negative sanity control and does not provide evidence of meaningful phase-label structure.
 > - **Shuffled-Training-Label Control (N=25 runs)**: Training on randomly scrambled training targets yielded mean true-label test BA 0.505 (empirical comparison p = 0.3462). Measures whether learning scrambled training labels generalizes to genuine ground truth.
-> - **Full-Pipeline Label-Permutation Test (N=199 permutations)**: Permuting the whole-dataset label vector yields null test BA 0.511 ± 0.101 (95th percentile: 0.676, max: 0.818), achieving empirical p-value p = 0.0050. Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y).
-> - **Architectural Inductive Bias**: Both entanglement ablations reduce mean performance relative to the full architecture. In the paired critical-region analysis, removal of convolutional entanglement produces a statistically resolved degradation, whereas the no-pooling-entanglement difference relative to the full model reflects a distinct inductive mechanism. Removing all entanglement collapses performance to chance across the tested regimes. Removing the pooling hierarchy primarily destroys critical-region generalization while retaining comparatively strong IID and Hamiltonian-OOD performance.
+> - **Fixed-Split Full-Dataset Label-Permutation Test (N=199 permutations)**: 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050 (the resolution floor 0.0050 of this permutation run). Null test BA 0.511 ± 0.101 (95th percentile: 0.676, max: 0.818). Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y). Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.
+> - **Architectural Inductive Bias**: Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0923, 95% CI [+0.0577, +0.1308], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0269]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.
 
 ---
 
@@ -79,13 +79,13 @@ A key scientific discovery of this investigation is that several out-of-distribu
 - **Observed Result**: 10/10 held-out N=4 TFIM states correctly classified in one ibm_fez session [95% Clopper-Pearson CI: 0.692, 1.000].
 - **Job IDs**: Raw `dafdv05nj4cs73ag8e5g`, Mitigated `dafdv2t1ierc738n8c6g`
 - **Physical Scale & Parameters**: $N=4$ qubits, $p=18$ parameters (Hash: `a99f7a1e9741ccb5...`)
-- **Circuit Telemetry & Layout**: Historical layout was linear chain; per-circuit transpiled depths were unretained in historical provenance and are set to null.
+- **Circuit Telemetry & Layout**: Exact transpiled depth, two-qubit gate count, and logical-to-physical layout were not retained in the original execution artifact and are therefore not reported (stored as null with full provenance hashes).
 - **Multi-Session Status**: Single physical session complete (`multi_session_hardware_complete = false`); multi-session calibration tracking remains optional future work.
 
 ---
 
 ## Family-Specific Physical Findings
 
-- **TFIM Near-Critical Crossover**: TFIM displays clear distance-dependent generalization and a bracketed finite-size crossover ($h \approx 0.931$ vs thermodynamic $h_c=1.0$), while XXZ and Cluster highlight the boundary of near-critical zero-shot generalization ($BA \approx 0.50$ in the critical holdout).
+- **TFIM Near-Critical Crossover**: TFIM displays clear distance-dependent generalization and a bracketed finite-size crossover ($h \approx 0.931$ vs thermodynamic $h_c=1.0$), while XXZ and Cluster show critical-region distribution shift that severely disrupts the fixed decision boundary and probability calibration (fixed-threshold $BA \approx 0.50$) even though rank discrimination remains unexpectedly strong ($\text{ROC-AUC} \approx 1.0$).
 - **Thermal Fragility vs Robustness**: Thermal sensitivity is strongly phase-family dependent: TFIM classification collapses rapidly under thermal fluctuations ($BA \to 0.50$ by $T=0.10$), whereas XXZ and Cluster remain robust ($BA \ge 0.94$) under the tested finite-temperature Gibbs states.
 - **Measurement Resource Tradeoffs**: Under matched inference state-copy budgets, the QCNN shows a slightly higher mean BA than the two-observable classical comparator only for low-budget TFIM, while the physics-informed classical comparator outperforms it across the tested XXZ and Cluster budgets. This matches inference measurement resources, not total training resources (the classical model is trained using exact expectation values).

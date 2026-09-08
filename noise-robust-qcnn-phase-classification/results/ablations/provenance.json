@@ -22,7 +22,7 @@
   "n_qubits": 8,
   "family": "tfim",
   "optimizer": "COBYLA",
-  "convergence_policy": "initial_budget=max(300, 5*p), continuation enabled if active improvement",
+  "convergence_policy": "adaptive initial_budget=max(300, 5*p) with looped continuation to max_budget_ceiling=1000 while best-loss window improvement stays active",
   "split_seeds": [
     11,
     23,
@@ -148,6 +148,11 @@
       ]
     }
   },
-  "scientific_conclusion": "Both entanglement ablations reduce mean performance relative to the full architecture. In the paired critical-region analysis, removal of convolutional entanglement produces a statistically resolved degradation, whereas the no-pooling-entanglement difference relative to the full model reflects a distinct inductive mechanism. Removing all entanglement collapses performance to chance across the tested regimes. Removing the pooling hierarchy primarily destroys critical-region generalization while retaining comparatively strong IID and Hamiltonian-OOD performance.",
-  "script": "scripts/26_sanity_and_ablation_suite.py"
+  "scientific_conclusion": "Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0923, 95% CI [+0.0577, +0.1308], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0269]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.",
+  "script": "scripts/26_sanity_and_ablation_suite.py",
+  "permutation_test_name": "Fixed-Split Full-Dataset Label Permutation Test",
+  "permutation_test_design_note": "Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.",
+  "pipeline_permutation_n_exceedances": 0,
+  "pipeline_permutation_resolution_floor": 0.005,
+  "pipeline_permutation_at_resolution_floor": true
 }

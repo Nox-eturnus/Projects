@@ -80,7 +80,7 @@ def score_distribution_summary(y_true: np.ndarray, p1: np.ndarray) -> dict[str, 
 
     mean_c0 = float(np.mean(c0_scores)) if len(c0_scores) > 0 else float("nan")
     std_c0 = float(np.std(c0_scores, ddof=1)) if len(c0_scores) > 1 else 0.0
-    mean_c1 = float(np.mean(c1_scores)) if len(c1_scores) > 1 else float("nan")
+    mean_c1 = float(np.mean(c1_scores)) if len(c1_scores) > 0 else float("nan")
     std_c1 = float(np.std(c1_scores, ddof=1)) if len(c1_scores) > 1 else 0.0
 
     score_sep = mean_c1 - mean_c0 if not (np.isnan(mean_c0) or np.isnan(mean_c1)) else 0.0
@@ -122,20 +122,29 @@ def classify_generalization_regime(
     adjusted_ba: float,
     score_sep: float,
 ) -> str:
-    """Categorize model generalization behavior into one of three scientific regimes:
+    """Categorize model generalization behavior into descriptive diagnostic regimes.
 
-    1. 'discrimination preserved + calibration shifted':
-       Model retains high ranking discrimination (ROC-AUC >= 0.85, positive score separation),
-       but fixed 0.5 threshold fails (fixed_ba < 0.65) while validation-tuned threshold or recalibration
-       recovers performance (adjusted_ba >= 0.75).
-    2. 'discrimination partially degraded':
-       Moderate ranking and classification performance (ROC-AUC >= 0.70 or adjusted_ba >= 0.65).
-    3. 'discrimination collapsed':
-       Model has chance-level ranking (ROC-AUC < 0.70) and near-zero score separation.
+    These labels are descriptive diagnostics of the (ranking, classification)
+    operating point — not statistical hypothesis-test outcomes.
+
+    1. 'discrimination and classification preserved':
+       Strong ranking and strong fixed-threshold classification
+       (fixed_ba >= 0.80 and roc_auc >= 0.85).
+    2. 'discrimination preserved + threshold shifted':
+       Model retains high ranking discrimination (ROC-AUC >= 0.85) but the
+       fixed 0.5 threshold fails (fixed_ba < 0.65) while validation-tuned
+       thresholding recovers performance (adjusted_ba >= 0.75).
+    3. 'ranking preserved but classification degraded':
+       Moderate ranking retained (ROC-AUC >= 0.70) without meeting the
+       preserved/shifted criteria above.
+    4. 'discrimination collapsed':
+       Chance-level ranking (ROC-AUC < 0.70) and no meaningful separation.
     """
-    if roc_auc >= 0.85 and (fixed_ba < 0.65 or score_sep < 0.0) and adjusted_ba >= 0.75:
-        return "discrimination preserved + calibration shifted"
-    elif roc_auc >= 0.70 or adjusted_ba >= 0.65:
-        return "discrimination partially degraded"
+    if fixed_ba >= 0.80 and roc_auc >= 0.85:
+        return "discrimination and classification preserved"
+    elif roc_auc >= 0.85 and fixed_ba < 0.65 and adjusted_ba >= 0.75:
+        return "discrimination preserved + threshold shifted"
+    elif roc_auc >= 0.70:
+        return "ranking preserved but classification degraded"
     else:
         return "discrimination collapsed"

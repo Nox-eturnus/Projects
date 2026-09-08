@@ -169,7 +169,7 @@ A major scientific integrity issue in quantum machine learning literature is com
 
 - **Ideal Objective:** Binary cross-entropy under exact statevector evolution:
   $$\mathcal{L}(\theta) = -\frac{1}{M} \sum_{m=1}^M \left[ y_m \log p_1(\theta; |\psi_m\rangle) + (1 - y_m) \log (1 - p_1(\theta; |\psi_m\rangle)) \right]$$
-- **Optimizer:** `scipy.optimize.minimize` with method `COBYLA` (`rhobeg=0.25`, `tol=1e-4`, maxiter up to 120).
+- **Optimizer:** `scipy.optimize.minimize` with method `COBYLA` (`rhobeg=0.25`, `tol=1e-4`) under the shared adaptive convergence policy: starting budget `max(300, 5 × parameter_count)` with looped continuation toward a ceiling of 1000 evaluations while best-loss window improvement stays active. Plateau detection uses absolute best-loss improvement over consecutive windows; `scipy_optimizer_success`, plateau detection, evaluation-limit, and `convergence_status` (`scipy_converged` / `plateau_converged` / `budget_exhausted_active` / `budget_exhausted_uncertain`) are tracked as separate signals.
 - **Stratified Data Splits:** 70% Train, 15% Validation, 15% Test, stratified across Hamiltonian phase labels.
 
 ---
@@ -254,7 +254,7 @@ P(class 1)
 ## 11. Sample Efficiency & Statistical Reliability
 
 - **Sample Efficiency:** Models are evaluated across training set fractions $\eta \in [0.2, 0.4, 0.6, 0.8, 1.0]$. QCNNs demonstrate high data efficiency, saturating classification performance with as few as 24 labeled quantum states per phase.
-- **Repeated Seed Statistics:** Training is repeated across 5 independent PRNG seeds ($12345, 12346, 12347, 12348, 12349$), reporting mean, standard deviation, and bounded 95% confidence intervals (clipped to $[0, 1]$ for probability/accuracy metrics).
+- **Repeated Seed Statistics:** The statistical benchmark runs 330 experiments (10 spatial partitions × 5 optimizer seeds for IID and critical holdouts per family, plus 1 canonical spatial block × 10 optimizer seeds for parameter blocks), reporting means with partition-aware hierarchical bootstrap 95% confidence intervals (flat intervals retained as supplementary information). Parameter-block uncertainty is explicitly optimizer-seed variability on one canonical spatial block.
 
 ---
 
@@ -263,7 +263,7 @@ P(class 1)
 ### Simulation-to-Hardware Transfer
 To validate execution on real quantum processors without requiring intractable error mitigation on large depths, we implement an $N=4$ qubit scale-down:
 - **Target Backend:** `ibm_fez` (156-qubit Heron r2 processor).
-- **Architecture Provenance:** The physical hardware demonstration explicitly executes the `light_shared_line` ansatz ($N=4$, depth $\approx 119$, 38 CNOTs) under IBM Runtime `EstimatorV2`.
+- **Architecture Provenance:** The physical IBM Quantum demonstration used the N=4 `expressive_shared_line` QCNN with 18 trainable parameters. Exact transpiled depth, two-qubit gate count, and logical-to-physical layout were not retained in the original execution artifact and are therefore not reported.
 - **Error Mitigation:** Dynamical Decoupling (DD with `XpXm` sequence) and Twirled Readout Error Extrapolation (TREX, resilience level 1).
 - **Provenance Isolation:** Real-device hardware runs on `ibm_fez` are preserved with full calibration provenance, while simulation scripts provide side-by-side $N=4$ comparisons between `light_shared_line` and `expressive_shared_line` architectures.
 
@@ -333,8 +333,8 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 > **Shuffled-Training-Label Control (N=25 runs)**:
 > Training on randomly shuffled targets yielded mean true-label test BA 0.505 (empirical comparison p = 0.3462). Measures whether learning scrambled training labels generalizes to genuine ground truth.
 
-> **Full-Pipeline Label-Permutation Test (N=199 permutations)**:
-> Permuting labels across the entire pipeline yields null test BA 0.511 ± 0.101 (95th percentile: 0.676, max: 0.818) with empirical p-value p = 0.0050. Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y).
+> **Fixed-Split Full-Dataset Label Permutation Test (N=199 permutations)**:
+> 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050 (the resolution floor 0.0050 of this permutation run). Null test BA 0.511 ± 0.101 (95th percentile: 0.676, max: 0.818). Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y). Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.
 
 > **Multi-Seed Architectural Ablation Aggregate (Repeated Runs)**:
 | architecture                    |   parameter_count |   two_qubit_gates |   n_runs |   iid_ba_mean |   critical_ood_ba_mean |   hamiltonian_ood_ba_mean |
@@ -346,7 +346,7 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 | expressive_shared_line          |                27 |                36 |       10 |         0.936 |                  0.619 |                     0.955 |
 | expressive_unshared_line        |                87 |                36 |       10 |         0.927 |                  0.596 |                     0.955 |
 
-> **Ablation Insight**: Both entanglement ablations reduce mean performance relative to the full architecture. In the paired critical-region analysis, removal of convolutional entanglement produces a statistically resolved degradation, whereas the no-pooling-entanglement difference relative to the full model reflects a distinct inductive mechanism. Removing all entanglement collapses performance to chance across the tested regimes. Removing the pooling hierarchy primarily destroys critical-region generalization while retaining comparatively strong IID and Hamiltonian-OOD performance.
+> **Ablation Insight**: Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0923, 95% CI [+0.0577, +0.1308], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0269]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.
 <!-- END AUTO RESULTS: ABLATIONS -->
 
 ### Classical Measurement-Budget Comparator
@@ -375,21 +375,24 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 - **Exact Binomial Uncertainty**: 95% Clopper-Pearson CI = **[0.692, 1.000]**.
 - **QPU Job Provenance**: Raw Job ID `dafdv05nj4cs73ag8e5g`, Mitigated Job ID `dafdv2t1ierc738n8c6g`.
 - **Execution Protocol**: Twirled Readout Error Extrapolation (TREX, resilience level 1) + Dynamical Decoupling (`XpXm`).
+- **Demonstration Architecture**: N=4 `expressive_shared_line` QCNN with 18 trainable parameters. Exact transpiled depth, two-qubit gate count, and logical-to-physical layout were not retained in the original execution artifact and are therefore not reported (stored as null).
 - **Multi-Session Status**: Single physical session complete (`multi_session_hardware_complete = false`); multi-session stability tracking across distinct calibration windows is pending.
 <!-- END AUTO RESULTS: HARDWARE -->
 
 ### Key Experimental Discoveries
 
-1. **Near-Critical Crossover & Family Boundaries:** TFIM displays clear distance-dependent generalization ($BA = 0.70$ near transition, $1.00$ away) and a bracketed finite-size crossover ($h \approx 0.931$ vs thermodynamic $h_c=1.0$), while XXZ and Cluster expose genuine zero-shot transfer boundaries ($BA \approx 0.50$ in the critical holdout).
-2. **Hamiltonian Perturbation Generalization:** Models trained purely at $\delta = 0$ maintain high balanced accuracy under disordered TFIM and symmetry-preserving Cluster/XXZ deformations up to $\delta = 0.20$ under nominal phase boundaries, accompanied by tracked spectral gaps and state fidelities.
+<!-- BEGIN AUTO RESULTS: KEY_DISCOVERIES -->
+1. **Near-Critical Crossover & Family Boundaries:** TFIM displays clear distance-dependent generalization (critical-region BA = 0.700) and a bracketed finite-size crossover, while critical-region distribution shift severely disrupts the fixed decision boundary and probability calibration for XXZ (BA = 0.585) and Cluster (BA = 0.516), even though rank discrimination remains unexpectedly strong (ROC-AUC ≈ 1.0). Validation-only thresholding does not consistently recover the lost fixed-threshold performance.
+2. **Hamiltonian Perturbation Generalization:** Models trained purely at zero disorder maintain high balanced accuracy under disordered TFIM and symmetry-preserving Cluster/XXZ deformations up to δ = 0.20 under nominal phase boundaries, accompanied by tracked spectral gaps and state fidelities.
 3. **Ablation & Control Proving Ground:**
-   - **Haar Random States**: Provide a negative sanity control consistent with chance-level generalization ($BA \approx 0.42$), consistent with no obvious label leakage through the random-state control.
+   - **Haar Random States**: Negative sanity control consistent with chance-level generalization (BA ≈ 0.583); no evidence of meaningful phase-label structure and no obvious label leakage.
    - **Untrained QCNN Baseline**: Random parameter initializations evaluate the inductive bias floor without optimization.
-   - **Shuffled-Training-Label Control**: Training on randomly shuffled targets yielded mean true-label test BA $0.549 \pm 0.388$, but the control distribution was broad and the empirical comparison was not significant ($p \approx 0.308$). A full-pipeline permutation test is evaluated separately.
-   - **Entanglement Inductive Bias**: The full architecture gives the strongest mean IID and critical-region generalization; removing either convolutional or pooling entanglement degrades performance, while removing all entanglement or pooling collapses to chance.
-   - **Pooling Ablation**: Removing pooling degrades critical and out-of-distribution generalization.
+   - **Shuffled-Training-Label Control**: Training on randomly shuffled targets yielded mean true-label test BA 0.505 (empirical comparison p ≈ 0.3462).
+   - **Fixed-Split Label-Permutation Test (N=199)**: 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050, the resolution floor of this permutation run.
+   - **Entanglement Inductive Bias**: Full critical BA ≈ 0.619; no-conv-entanglement Δ = -0.0154 95% CI [-0.0538, +0.0269] (unresolved); no-pool-entanglement Δ = +0.0923 95% CI [+0.0577, +0.1308] (resolved improvement); no-pool-entanglement critical BA ≈ 0.712 exceeds full. Removing all entanglement collapses to chance; removing the pooling hierarchy significantly damages critical-region generalization. Provisional until optimization convergence is fully established.
 4. **Finite-Shot Budgets with Commuting Pauli Observables:** Under matched inference state-copy budgets, the QCNN shows a slightly higher mean BA than the two-observable classical comparator only for low-budget TFIM, while the physics-informed classical comparator outperforms it across the tested XXZ and Cluster budgets. This matches inference measurement resources, not total training resources (the classical model is trained using exact expectation values).
-5. **Physical IBM Hardware Session:** Observed 10/10 correct classifications on a held-out N=4 TFIM test subset during one `ibm_fez` hardware session (95% Clopper-Pearson CI: $[0.692, 1.000]$; raw job `dafdv05nj4cs73ag8e5g`, mitigated job `dafdv2t1ierc738n8c6g`). Multi-session calibration tracking across distinct cooling windows is pending.
+5. **Physical IBM Hardware Session:** Observed 10/10 correct classifications on a held-out N=4 TFIM test subset during one `ibm_fez` hardware session (95% Clopper-Pearson CI: [0.692, 1.000]). Multi-session calibration tracking across distinct cooling windows is pending. Exact transpiled depth, two-qubit counts, and layout were not retained and are not reported.
+<!-- END AUTO RESULTS: KEY_DISCOVERIES -->
 
 
 ---
@@ -439,10 +442,10 @@ noise-robust-qcnn-phase-classification/
 │   ├── hamiltonian_ood/            # Microscopic deformation transfer data
 │   ├── near_critical/              # Dense grid predictions & crossover estimates
 │   ├── report/                     # Master generalization report & evaluation matrix
-│   ├── statistical_generalization/ # 50-run logs, CIs, and calibration curves
+│   ├── statistical_generalization/ # 330-run logs, hierarchical CIs, threshold diagnostics, and calibration curves
 │   └── thermal_and_prep/           # Temperature sweeps & 2x2 noise factorization
-├── scripts/                        # Phased reproducible runner scripts (00-30)
-├── tests/                          # Complete pytest suite (45 unit tests)
+├── scripts/                        # Phased reproducible runner scripts (00-32)
+├── tests/                          # Pytest suite (unit + behavioral + research-freeze regression tests)
 ├── pyproject.toml                  # Package configuration & dependencies
 └── README.md                       # Master research documentation
 ```

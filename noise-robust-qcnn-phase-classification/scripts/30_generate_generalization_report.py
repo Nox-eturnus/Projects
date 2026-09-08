@@ -38,6 +38,112 @@ def format_metric_ci(mean: float, std: float, low: float, high: float) -> str:
     return f"{mean:.3f} ± {std:.3f} [{low:.3f}, {high:.3f}]"
 
 
+def _ci_excludes_zero(lo: float, hi: float) -> bool:
+    try:
+        lo_f, hi_f = float(lo), float(hi)
+    except Exception:
+        return False
+    if np.isnan(lo_f) or np.isnan(hi_f):
+        return False
+    return bool((lo_f > 0 and hi_f > 0) or (lo_f < 0 and hi_f < 0))
+
+
+def _ablation_prose_matches_statistics(conclusion: str, pairwise: dict) -> tuple[bool, str]:
+    """Check that the ablation prose does not contradict the paired statistics.
+
+    Fails if the prose claims both entanglement ablations reduce performance
+    or that conv-entanglement removal is resolved when the CIs say otherwise.
+    """
+    if not conclusion or not pairwise:
+        return False, "missing conclusion or pairwise comparisons"
+    text = conclusion.lower()
+    try:
+        noconv = pairwise.get("no_conv_vs_full", {})
+        nopool = pairwise.get("no_pool_vs_full", {})
+        noconv_m = float(noconv.get("delta_crit_mean", float("nan")))
+        noconv_ci = noconv.get("delta_crit_ci95", (float("nan"), float("nan")))
+        nopool_m = float(nopool.get("delta_crit_mean", float("nan")))
+        nopool_ci = nopool.get("delta_crit_ci95", (float("nan"), float("nan")))
+        noconv_resolved_neg = _ci_excludes_zero(noconv_ci[0], noconv_ci[1]) and noconv_m < 0
+        nopool_positive = nopool_m > 0
+        nopool_resolved_pos = _ci_excludes_zero(nopool_ci[0], nopool_ci[1]) and nopool_m > 0
+    except Exception as e:
+        return False, f"unparseable pairwise statistics ({e})"
+    problems: list[str] = []
+    # The false legacy claim: both ablations reduce performance + conv resolved.
+    if nopool_positive and ("both entanglement ablations reduce" in text):
+        problems.append("prose claims both entanglement ablations reduce performance while no-pool delta is positive")
+    if not noconv_resolved_neg and ("removal of convolutional entanglement produces a statistically resolved degradation" in text):
+        problems.append("prose claims resolved conv-entanglement degradation while its CI includes zero")
+    if nopool_resolved_pos and ("distinct inductive mechanism" in text) and ("improv" not in text):
+        problems.append("prose hides resolved no-pool-entanglement improvement behind vague mechanism language")
+    if problems:
+        return False, "; ".join(problems)
+    return True, "ablation prose consistent with paired statistics"
+
+
+def _evaluate_freeze_readiness(
+    n_stat_runs: int,
+    n_permutations: int,
+    stat_runs: pd.DataFrame | None,
+    ablation_prov: dict | None,
+    hw_summary: dict | None,
+    hw_provenance_path: Path,
+    conclusion: str,
+    pairwise: dict,
+) -> tuple[bool, list[str]]:
+    """Decide whether RESEARCH_FROZEN is warranted.
+
+    Frozen means the artifact is internally consistent and validated — not
+    merely that the expected number of experiments exists. Requires:
+      counts, optimizer convergence quality, hardware provenance
+      consistency, and ablation prose/statistics consistency.
+    """
+    blockers: list[str] = []
+    if n_stat_runs < 330:
+        blockers.append(f"statistical benchmark incomplete ({n_stat_runs}/330 runs)")
+    if n_permutations < 199:
+        blockers.append(f"permutation test below 199 permutations ({n_permutations})")
+    # Optimizer convergence quality on the committed runs.
+    if stat_runs is not None and len(stat_runs) > 0:
+        cols = set(stat_runs.columns)
+        if "scipy_optimizer_success" in cols:
+            scipy_rate = float(stat_runs["scipy_optimizer_success"].fillna(False).astype(bool).mean())
+            if scipy_rate < 0.50:
+                blockers.append(f"Phase-23 scipy convergence rate too low ({scipy_rate:.2%}); rerun with adaptive looped budget")
+        if "evaluation_limit_reached" in cols:
+            eval_rate = float(stat_runs["evaluation_limit_reached"].fillna(False).astype(bool).mean())
+            if eval_rate > 0.50:
+                blockers.append(f"Phase-23 evaluation-limit rate too high ({eval_rate:.2%}); runs are not convergence-controlled")
+        if "convergence_status" in cols:
+            bad = stat_runs["convergence_status"].isin(["budget_exhausted_active", "budget_exhausted_uncertain"]).mean()
+            if float(bad) > 0.50:
+                blockers.append(f"Phase-23 budget-exhausted share too high ({float(bad):.2%})")
+    else:
+        blockers.append("statistical runs table unavailable for convergence audit")
+    # Hardware provenance consistency: expressive summary vs provenance.json.
+    try:
+        if hw_provenance_path.exists():
+            hw_prov = json.loads(hw_provenance_path.read_text(encoding="utf-8"))
+            for field in ["transpiled_depth_raw", "transpiled_depth_mitigated",
+                          "two_qubit_count_raw", "two_qubit_count_mitigated",
+                          "logical_to_physical_layout"]:
+                if hw_prov.get(field) != (hw_summary.get(field) if hw_summary else None):
+                    blockers.append(f"hardware provenance mismatch on {field}")
+                    break
+            if hw_summary and hw_prov.get("parameter_hash") != hw_summary.get("parameter_hash"):
+                blockers.append("hardware parameter_hash mismatch between summary and provenance")
+        else:
+            blockers.append("results/hardware/provenance.json missing")
+    except Exception as e:
+        blockers.append(f"hardware provenance unreadable ({e})")
+    # Ablation prose vs statistics.
+    ok, reason = _ablation_prose_matches_statistics(conclusion, pairwise)
+    if not ok:
+        blockers.append(f"ablation conclusion contradicts paired statistics: {reason}")
+    return (len(blockers) == 0), blockers
+
+
 def build_canonical_results(
     stat_agg: pd.DataFrame | None,
     stat_runs: pd.DataFrame | None,
@@ -156,14 +262,22 @@ def build_canonical_results(
         "scientific_meaning": "The Haar-random-state experiment serves as a negative sanity control and does not provide evidence of meaningful phase-label structure.",
     }
 
-    # 4. Pipeline Permutation Test
+    # 4. Fixed-Split Full-Dataset Label-Permutation Test
+    _n_perms = int(ablation_prov.get("n_permutations_pipeline_test", 0)) if ablation_prov else 0
+    _p_val = float(ablation_prov.get("pipeline_permutation_p_value", np.nan)) if ablation_prov else np.nan
+    _floor = float(1.0 / (_n_perms + 1)) if _n_perms > 0 else np.nan
     canonical["pipeline_permutation"] = {
-        "n_permutations": int(ablation_prov.get("n_permutations_pipeline_test", 0)) if ablation_prov else 0,
+        "test_name": "Fixed-Split Full-Dataset Label Permutation Test",
+        "design_note": "Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.",
+        "n_permutations": _n_perms,
+        "n_exceedances": int(ablation_prov.get("pipeline_permutation_n_exceedances", 0)) if ablation_prov and "pipeline_permutation_n_exceedances" in ablation_prov else None,
         "null_ba_mean": float(ablation_prov.get("pipeline_permutation_null_ba_mean", np.nan)) if ablation_prov else np.nan,
         "null_ba_std": float(ablation_prov.get("pipeline_permutation_null_ba_std", np.nan)) if ablation_prov else np.nan,
         "null_ba_p95": float(ablation_prov.get("pipeline_permutation_null_ba_p95", np.nan)) if ablation_prov else np.nan,
         "null_ba_max": float(ablation_prov.get("pipeline_permutation_null_ba_max", np.nan)) if ablation_prov else np.nan,
-        "empirical_p_value": float(ablation_prov.get("pipeline_permutation_p_value", np.nan)) if ablation_prov else np.nan,
+        "empirical_p_value": _p_val,
+        "resolution_floor": _floor,
+        "at_resolution_floor": bool(_n_perms > 0 and _p_val == _floor),
         "scientific_meaning": "Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y).",
     }
 
@@ -218,10 +332,31 @@ def build_canonical_results(
     if not canonical["hardware"]["multi_session_hardware_complete"]:
         canonical["pending"].append("Multi-session physical hardware validation across distinct calibration windows (optional future publication extension)")
 
-    if n_stat_runs >= 330 and canonical["pipeline_permutation"]["n_permutations"] >= 199:
+    # RESEARCH_FROZEN means the artifact is internally consistent and
+    # validated — not merely that the expected number of experiments exists.
+    # It is granted only when counts, optimizer convergence quality,
+    # hardware provenance consistency, and ablation prose/statistics
+    # consistency all hold (mirroring scripts/32_validate_research_freeze.py).
+    _conclusion = canonical["ablation"]["scientific_conclusion"] if isinstance(canonical["ablation"]["scientific_conclusion"], str) else ""
+    _pairwise = canonical["ablation"]["pairwise_comparisons"]
+    _ready, _blockers = _evaluate_freeze_readiness(
+        n_stat_runs,
+        canonical["pipeline_permutation"]["n_permutations"],
+        stat_runs,
+        ablation_prov,
+        hw_summary,
+        Path("results/hardware/provenance.json"),
+        _conclusion,
+        _pairwise,
+    )
+    canonical["freeze_blockers"] = _blockers
+    if _ready:
         canonical["status"] = "RESEARCH_FROZEN"
     else:
         canonical["status"] = "ADVANCED_BENCHMARK_PRELIMINARY"
+        for b in _blockers:
+            if b not in canonical["pending"]:
+                canonical["pending"].append(f"Freeze blocker: {b}")
 
     canonical["headline_claim"] = (
         "QCNN robustness is strongly evaluation- and phase-family-dependent, with robust microscopic perturbation "
@@ -433,7 +568,7 @@ def main():
     sb = canonical["statistical_benchmark"]
     n_runs = sb["total_runs_recorded"]
     multiseed_desc = (
-        f"2. **Multi-Split x Multi-Optimizer ({'Research-Frozen' if sb['is_full_330_benchmark'] else 'Repeated Benchmark'}, {n_runs} runs)**: "
+        f"2. **Multi-Split x Multi-Optimizer ({canonical['status']}, {n_runs} runs)**: "
         "10 independent spatial partitions for IID and critical holdouts crossed with 5 optimizer seeds, and 1 canonical spatial block crossed with 10 optimizer seeds. "
         "Reports hierarchical partition-aware 95% bootstrap confidence intervals, validation-tuned threshold diagnostics, and class-conditional score distributions."
     )
@@ -485,9 +620,9 @@ def main():
 
     report_lines.extend([
         "",
-        "> **Scientific Implication**: A test Balanced Accuracy near 0.5 does not necessarily reflect an internal collapse of the quantum representation. "
-        "Rather, out-of-distribution shifts can cause the optimal classification boundary to drift away from $t=0.5$, while class conditional scores remain separated. "
-        "Selecting decision thresholds strictly on validation data recovers substantial generalization without ever fitting on test labels.",
+        "> **Scientific Implication**: Critical-region distribution shift severely disrupts the fixed decision boundary and probability calibration, "
+        "especially for XXZ and Cluster, while rank discrimination remains unexpectedly strong. Validation-only thresholding does not consistently "
+        "recover the lost fixed-threshold performance, indicating that the shift is not reducible to a single universally transferable threshold correction.",
         "",
         "---",
         "",
@@ -513,12 +648,15 @@ def main():
     perm_info = canonical["pipeline_permutation"]
     rand_info = canonical["random_state_control"]
 
+    _exc = perm_info.get('n_exceedances')
+    _exc_str = f"{_exc}/{perm_info['n_permutations']} permuted statistics equaled or exceeded the observed statistic; " if _exc is not None else ""
+    _floor_str = f"resolution floor {perm_info.get('resolution_floor'):.4f}" if perm_info.get('resolution_floor') == perm_info.get('resolution_floor') else "resolution floor N/A"
     report_lines.extend([
         "",
         "> **Key Findings & Inductive Bias Analysis**:",
         f"> - **Random State Control**: Classifying Haar-random / unstructured quantum states yielded $BA \\approx {rand_info['iid_ba']:.3f}$ (chance level). {rand_info['scientific_meaning']}",
         f"> - **Shuffled-Training-Label Control (N={shuf_info['n_runs']} runs)**: Training on randomly scrambled training targets yielded mean true-label test BA {shuf_info['mean_true_label_test_ba']:.3f} (empirical comparison p = {shuf_info['empirical_comparison_p_value']:.4f}). {shuf_info['scientific_meaning']}",
-        f"> - **Full-Pipeline Label-Permutation Test (N={perm_info['n_permutations']} permutations)**: Permuting the whole-dataset label vector yields null test BA {perm_info['null_ba_mean']:.3f} ± {perm_info['null_ba_std']:.3f} (95th percentile: {perm_info['null_ba_p95']:.3f}, max: {perm_info['null_ba_max']:.3f}), achieving empirical p-value p = {perm_info['empirical_p_value']:.4f}. {perm_info['scientific_meaning']}",
+        f"> - **Fixed-Split Full-Dataset Label-Permutation Test (N={perm_info['n_permutations']} permutations)**: {_exc_str}+1-corrected Monte-Carlo p = {perm_info['empirical_p_value']:.4f} (the {_floor_str} of this permutation run). Null test BA {perm_info['null_ba_mean']:.3f} ± {perm_info['null_ba_std']:.3f} (95th percentile: {perm_info['null_ba_p95']:.3f}, max: {perm_info['null_ba_max']:.3f}). {perm_info['scientific_meaning']} {perm_info.get('design_note','')}",
         f"> - **Architectural Inductive Bias**: {canonical['ablation']['scientific_conclusion']}",
         "",
         "---",
@@ -533,7 +671,7 @@ def main():
             f"- **Observed Result**: {hw['hardware_claim_boundary']}",
             f"- **Job IDs**: Raw `{hw['raw_job_id']}`, Mitigated `{hw['mitigated_job_id']}`",
             f"- **Physical Scale & Parameters**: $N=4$ qubits, $p=18$ parameters (Hash: `{hw['parameter_hash'][:16]}...`)",
-            "- **Circuit Telemetry & Layout**: Historical layout was linear chain; per-circuit transpiled depths were unretained in historical provenance and are set to null.",
+            "- **Circuit Telemetry & Layout**: Exact transpiled depth, two-qubit gate count, and logical-to-physical layout were not retained in the original execution artifact and are therefore not reported (stored as null with full provenance hashes).",
             "- **Multi-Session Status**: Single physical session complete (`multi_session_hardware_complete = false`); multi-session calibration tracking remains optional future work.",
         ])
     else:
@@ -545,7 +683,7 @@ def main():
         "",
         "## Family-Specific Physical Findings",
         "",
-        "- **TFIM Near-Critical Crossover**: TFIM displays clear distance-dependent generalization and a bracketed finite-size crossover ($h \\approx 0.931$ vs thermodynamic $h_c=1.0$), while XXZ and Cluster highlight the boundary of near-critical zero-shot generalization ($BA \\approx 0.50$ in the critical holdout).",
+        "- **TFIM Near-Critical Crossover**: TFIM displays clear distance-dependent generalization and a bracketed finite-size crossover ($h \\approx 0.931$ vs thermodynamic $h_c=1.0$), while XXZ and Cluster show critical-region distribution shift that severely disrupts the fixed decision boundary and probability calibration (fixed-threshold $BA \\approx 0.50$) even though rank discrimination remains unexpectedly strong ($\\text{ROC-AUC} \\approx 1.0$).",
         "- **Thermal Fragility vs Robustness**: Thermal sensitivity is strongly phase-family dependent: TFIM classification collapses rapidly under thermal fluctuations ($BA \\to 0.50$ by $T=0.10$), whereas XXZ and Cluster remain robust ($BA \\ge 0.94$) under the tested finite-temperature Gibbs states.",
         "- **Measurement Resource Tradeoffs**: Under matched inference state-copy budgets, the QCNN shows a slightly higher mean BA than the two-observable classical comparator only for low-budget TFIM, while the physics-informed classical comparator outperforms it across the tested XXZ and Cluster budgets. This matches inference measurement resources, not total training resources (the classical model is trained using exact expectation values).",
     ])

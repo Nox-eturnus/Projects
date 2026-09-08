@@ -431,7 +431,7 @@ def test_hardware_telemetry_schema():
 
 
 def test_pipeline_permutation_semantics():
-    """Verify that full-pipeline permutation test permutes labels across the entire dataset (Item 35)."""
+    """Verify that fixed-split permutation test permutes labels across the entire dataset (Item 35)."""
     arch = get_architecture("expressive_shared_line")
     states, labels = make_random_quantum_states(8, n_qubits=4, seed=42)
     train_idx = np.array([0, 1, 2, 3])

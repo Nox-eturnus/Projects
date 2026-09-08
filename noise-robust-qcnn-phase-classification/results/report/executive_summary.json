@@ -1,9 +1,11 @@
 {
   "title": "Noise-Robust QCNN Generalization Report",
-  "status": "RESEARCH_FROZEN",
+  "status": "ADVANCED_BENCHMARK_PRELIMINARY",
   "headline_claim": "QCNN robustness is strongly evaluation- and phase-family-dependent, with robust microscopic perturbation and finite-shot performance, but distinct decision-boundary calibration shift near criticality rather than loss of class ranking.",
   "pending": [
-    "Multi-session physical hardware validation across distinct calibration windows (optional future publication extension)"
+    "Multi-session physical hardware validation across distinct calibration windows (optional future publication extension)",
+    "Freeze blocker: Phase-23 scipy convergence rate too low (0.00%); rerun with adaptive looped budget",
+    "Freeze blocker: Phase-23 evaluation-limit rate too high (100.00%); runs are not convergence-controlled"
   ],
   "matrix_path": "results/report/evaluation_matrix.csv",
   "report_path": "results/report/generalization_report.md",

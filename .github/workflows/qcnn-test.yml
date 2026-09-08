@@ -42,3 +42,6 @@ jobs:
 
       - name: Test
         run: pytest -q
+
+      - name: Validate research freeze
+        run: python scripts/32_validate_research_freeze.py

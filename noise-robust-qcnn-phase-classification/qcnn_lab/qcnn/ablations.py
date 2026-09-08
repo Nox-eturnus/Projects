@@ -302,13 +302,20 @@ def evaluate_pipeline_label_permutation_test(
     seed: int = 12345,
     n_jobs: int = 1,
 ) -> dict[str, Any]:
-    """Conduct a rigorous pipeline-level label-permutation significance test for H0: states and labels are unrelated.
+    """Conduct a fixed-split full-dataset label-permutation significance test.
 
-    Under each permutation k:
-        y^(k) = pi_k(y) across the entire dataset.
-        y^(k)_train, y^(k)_val, y^(k)_test are partitioned from y^(k).
-        QCNN is trained on permuted train/val and evaluated against y^(k)_test.
-    The empirical p-value is computed as:
+    H0 (sharp null): quantum statevectors and physical phase labels are
+    independent (X indep Y).
+
+    Procedure per permutation k: permute the full label vector
+    ``y^(k) = pi_k(y)`` and reuse the ORIGINAL train/validation/test
+    indices (the original IID split construction is label-stratified and is
+    not regenerated under the permutation). The QCNN is trained on the
+    permuted train/val partitions and evaluated against ``y^(k)_test``.
+    Because split construction is not rerun under each permutation, this is
+    a fixed-split (not full-pipeline-resplit) permutation test.
+
+    The empirical p-value is:
         p = (1 + #{BA_perm_test >= BA_true_test}) / (1 + N_permutations)
     """
     if n_jobs > 1:
@@ -345,6 +352,7 @@ def evaluate_pipeline_label_permutation_test(
 
     return {
         "n_permutations": n_permutations,
+        "n_exceedances": int(count_ge),
         "null_test_ba_mean": null_mean,
         "null_test_ba_std": null_std,
         "null_ba_mean": null_mean,

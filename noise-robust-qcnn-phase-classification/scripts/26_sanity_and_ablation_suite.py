@@ -87,9 +87,13 @@ def _run_single_ablation_pair(
     last_iid = hist_iid[-1]
     last_crit = hist_crit[-1]
 
-    # Save history logs
+    # Save history logs (both IID and critical trajectories; critical OOD is
+    # the main architecture conclusion and needs its own trajectory for
+    # diagnosing e.g. the no-pool-entanglement result)
     hist_df = pd.DataFrame(hist_iid[:-1])
     hist_df.to_csv(histories_dir / f"{arch_name}_seed{s_seed}_opt{opt_seed}_iid.csv", index=False)
+    hist_crit_df = pd.DataFrame(hist_crit[:-1])
+    hist_crit_df.to_csv(histories_dir / f"{arch_name}_seed{s_seed}_opt{opt_seed}_critical.csv", index=False)
 
     return {
         "architecture": arch_name,
@@ -538,8 +542,11 @@ def main():
 
     pd.DataFrame(pairwise_records).to_csv(out_dir / "pairwise_comparisons.csv", index=False)
 
-    # Stage 3: Full-Pipeline Label Permutation Significance Test (Audit Item 9)
-    print("\n--- Stage 3: Full-Pipeline Label-Permutation Significance Test (N=199) ---")
+    # Stage 3: Fixed-Split Full-Dataset Label-Permutation Significance Test (Audit Item 9)
+    # NOTE: this reuses the original train/validation/test indices under each
+    # global label permutation (split construction is not regenerated), so
+    # "fixed-split" is the accurate description — not full-pipeline resplit.
+    print("\n--- Stage 3: Fixed-Split Full-Dataset Label-Permutation Significance Test (N=199) ---")
     pipe_n_perms = 25 if getattr(args, "pilot", False) else 199
     pipe_perm = evaluate_pipeline_label_permutation_test(
         states, labels, n_qubits, get_architecture("expressive_shared_line"),
@@ -551,21 +558,45 @@ def main():
         n_jobs=args.n_jobs,
     )
     pd.DataFrame(pipe_perm["permutation_runs"]).to_csv(out_dir / "pipeline_label_permutations.csv", index=False)
+    n_exceed = int(sum(1 for r in pipe_perm["permutation_runs"] if r["test_ba_permuted"] >= full_qcnn_iid_ba))
     print(
-        f"Pipeline permutation test completed (N={pipe_n_perms}): null BA = {pipe_perm['null_test_ba_mean']:.3f} ± {pipe_perm['null_test_ba_std']:.3f} "
-        f"[p95: {pipe_perm['null_ba_p95']:.3f}, max: {pipe_perm['null_ba_max']:.3f}], empirical p = {pipe_perm['empirical_p_value']:.4f}"
+        f"Fixed-split permutation test completed (N={pipe_n_perms}): null BA = {pipe_perm['null_test_ba_mean']:.3f} ± {pipe_perm['null_test_ba_std']:.3f} "
+        f"[p95: {pipe_perm['null_ba_p95']:.3f}, max: {pipe_perm['null_ba_max']:.3f}], {n_exceed}/{pipe_n_perms} permuted statistics >= observed; "
+        f"+1-corrected Monte-Carlo p = {pipe_perm['empirical_p_value']:.4f} (resolution floor {1.0/(pipe_n_perms+1):.4f})"
     )
 
-    # Scientific conclusion formulated rigorously from paired bootstrap findings (Audit Items 3 & 4)
+    # Scientific conclusion derived directly from the paired bootstrap
+    # statistics above. It must describe what the pairwise CIs actually
+    # resolve: removing pooling entanglers improves critical-region BA here
+    # while removing convolutional entanglement is unresolved. All
+    # architectural comparisons remain provisional until optimization
+    # convergence is fully established.
     noconv_crit_info = pairwise_dict.get("no_conv_vs_full", {})
     nopool_crit_info = pairwise_dict.get("no_pool_vs_full", {})
 
+    def _ci_excludes_zero(lo: float, hi: float) -> bool:
+        try:
+            return bool((float(lo) > 0 and float(hi) > 0) or (float(lo) < 0 and float(hi) < 0))
+        except Exception:
+            return False
+
+    _noconv_m = float(noconv_crit_info.get("delta_crit_mean", float("nan"))) if noconv_crit_info else float("nan")
+    _nopool_m = float(nopool_crit_info.get("delta_crit_mean", float("nan"))) if nopool_crit_info else float("nan")
+    _noconv_ci = noconv_crit_info.get("delta_crit_ci95", (float("nan"), float("nan"))) if noconv_crit_info else (float("nan"), float("nan"))
+    _nopool_ci = nopool_crit_info.get("delta_crit_ci95", (float("nan"), float("nan"))) if nopool_crit_info else (float("nan"), float("nan"))
+    _noconv_resolved = _ci_excludes_zero(_noconv_ci[0], _noconv_ci[1])
+    _nopool_resolved = _ci_excludes_zero(_nopool_ci[0], _nopool_ci[1])
+
     scientific_conclusion = (
-        "Both entanglement ablations reduce mean performance relative to the full architecture. "
-        "In the paired critical-region analysis, removal of convolutional entanglement produces a statistically resolved degradation, "
-        "whereas the no-pooling-entanglement difference relative to the full model reflects a distinct inductive mechanism. "
-        "Removing all entanglement collapses performance to chance across the tested regimes. "
-        "Removing the pooling hierarchy primarily destroys critical-region generalization while retaining comparatively strong IID and Hamiltonian-OOD performance."
+        "Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves "
+        f"both IID and critical-region performance relative to the full architecture (critical Delta={_nopool_m:+.4f}, "
+        f"95% CI [{_nopool_ci[0]:+.4f}, {_nopool_ci[1]:+.4f}], {'statistically resolved' if _nopool_resolved else 'statistically unresolved'}), "
+        f"while removing convolutional entanglement produces only a small "
+        f"{'statistically resolved' if _noconv_resolved else 'statistically unresolved'} reduction (critical Delta={_noconv_m:+.4f}, "
+        f"95% CI [{_noconv_ci[0]:+.4f}, {_noconv_ci[1]:+.4f}]). "
+        "By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling "
+        "hierarchy significantly damages critical-region generalization. "
+        "These architectural comparisons remain provisional until optimization convergence is fully established."
     )
 
     # Save Provenance JSON (Audit Items 38 & 39)
@@ -594,15 +625,20 @@ def main():
         "n_qubits": n_qubits,
         "family": family,
         "optimizer": "COBYLA",
-        "convergence_policy": "initial_budget=max(300, 5*p), continuation enabled if active improvement",
+        "convergence_policy": "adaptive initial_budget=max(300, 5*p) with looped continuation to max_budget_ceiling=1000 while best-loss window improvement stays active",
         "split_seeds": split_seeds,
         "optimizer_seeds": optimizer_seeds,
         "n_runs_shuffled_control": 25,
         "shuffled_control_true_ba": full_qcnn_iid_ba,
         "shuffled_control_mean_test_ba": float(summary_df[summary_df["model"] == "Shuffled Training Labels Control"]["iid_ba"].iloc[0]),
         "shuffled_control_empirical_p_value": float(summary_df[summary_df["model"] == "Shuffled Training Labels Control"]["empirical_p_value"].iloc[0]),
+        "permutation_test_name": "Fixed-Split Full-Dataset Label Permutation Test",
+        "permutation_test_design_note": "Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.",
         "n_permutations_pipeline_test": pipe_n_perms,
+        "pipeline_permutation_n_exceedances": int(sum(1 for r in pipe_perm["permutation_runs"] if r["test_ba_permuted"] >= full_qcnn_iid_ba)),
         "pipeline_permutation_p_value": pipe_perm["empirical_p_value"],
+        "pipeline_permutation_resolution_floor": float(1.0 / (pipe_n_perms + 1)),
+        "pipeline_permutation_at_resolution_floor": bool(pipe_perm["empirical_p_value"] == float(1.0 / (pipe_n_perms + 1))),
         "pipeline_permutation_null_ba_mean": pipe_perm["null_test_ba_mean"],
         "pipeline_permutation_null_ba_std": pipe_perm["null_test_ba_std"],
         "pipeline_permutation_null_ba_p95": pipe_perm["null_ba_p95"],

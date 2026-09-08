@@ -48,7 +48,7 @@ def _run_single_benchmark_task(
     splits_dir: Path,
     n_qubits: int,
     arch,
-    maxiter: int,
+    maxiter: int | None,
 ) -> tuple[dict, list[dict], list[dict]]:
     states = np.load(data_dir / f"{family}_eval_states.npz")["states"]
     meta = pd.read_csv(data_dir / f"{family}_eval_metadata.csv")
@@ -123,7 +123,8 @@ def _run_single_benchmark_task(
         "optimizer_message": str(last_opt.get("optimizer_message", "")),
         "termination_reason": str(last_opt.get("termination_reason", "")),
         "n_function_evaluations": int(last_opt.get("nfev", 0)),
-        "maxiter_budget": int(last_opt.get("maxiter_budget", maxiter if maxiter else 120)),
+        "maxiter_budget": int(last_opt.get("maxiter_budget", maxiter if maxiter is not None else -1)),
+        "convergence_status": str(last_opt.get("convergence_status", "unknown")),
         "initial_train_loss": float(last_opt.get("initial_train_loss", np.nan)),
         "best_train_loss": float(last_opt.get("best_train_loss", np.nan)),
         "final_train_loss": float(last_opt.get("final_train_loss", np.nan)),
@@ -179,8 +180,16 @@ def main():
 
     n_qubits = int(proj_cfg.get("n_qubits", 8))
     arch = get_architecture(proj_cfg.get("qcnn", {}).get("architecture", "expressive_shared_line"))
-    # In full benchmark, use adaptive budget from convergence policy if not specified
-    maxiter = args.maxiter if args.maxiter is not None else (30 if args.fast else 150)
+    # Full benchmark uses the shared adaptive convergence policy unless the
+    # user explicitly overrides it. Passing maxiter=None lets
+    # train_ideal_qcnn select max(300, 5 * parameter_count) with looped
+    # continuation up to the budget ceiling.
+    if args.maxiter is not None:
+        maxiter = int(args.maxiter)
+    elif args.fast:
+        maxiter = 30
+    else:
+        maxiter = None  # type: ignore[assignment]
 
     if args.fast:
         split_seeds = [11, 23]
@@ -364,6 +373,7 @@ def main():
         "n_qubits": n_qubits,
         "optimizer": "COBYLA",
         "maxiter": maxiter,
+        "convergence_policy": "adaptive initial_budget=max(300, 5*p) with looped continuation to max_budget_ceiling=1000 while best-loss window improvement stays active (maxiter=None); explicit maxiter overrides the policy",
         "families": families,
         "split_types": split_types,
         "split_design": split_design,

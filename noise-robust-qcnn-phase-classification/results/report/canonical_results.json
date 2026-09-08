@@ -1,8 +1,10 @@
 {
-  "generated_at": "2026-09-08T10:03:02.337115+00:00",
-  "status": "RESEARCH_FROZEN",
+  "generated_at": "2026-09-08T12:32:42.371656+00:00",
+  "status": "ADVANCED_BENCHMARK_PRELIMINARY",
   "pending": [
-    "Multi-session physical hardware validation across distinct calibration windows (optional future publication extension)"
+    "Multi-session physical hardware validation across distinct calibration windows (optional future publication extension)",
+    "Freeze blocker: Phase-23 scipy convergence rate too low (0.00%); rerun with adaptive looped budget",
+    "Freeze blocker: Phase-23 evaluation-limit rate too high (100.00%); runs are not convergence-controlled"
   ],
   "statistical_benchmark": {
     "total_runs_recorded": 330,
@@ -28,7 +30,7 @@
         "validation_selected_ba_mean": 0.5189010989010989,
         "recalibrated_ba_mean": 0.5615384615384617,
         "score_separation_mean": 0.066944164354507,
-        "generalization_regime": "discrimination partially degraded",
+        "generalization_regime": "ranking preserved but classification degraded",
         "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
       },
       "cluster_iid": {
@@ -46,7 +48,7 @@
         "validation_selected_ba_mean": 0.9445454545454546,
         "recalibrated_ba_mean": 0.8099999999999998,
         "score_separation_mean": 0.2460412628428853,
-        "generalization_regime": "discrimination partially degraded",
+        "generalization_regime": "discrimination and classification preserved",
         "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
       },
       "cluster_parameter_block": {
@@ -64,7 +66,7 @@
         "validation_selected_ba_mean": 0.5337837837837838,
         "recalibrated_ba_mean": 0.959103840682788,
         "score_separation_mean": 0.1830390378150301,
-        "generalization_regime": "discrimination partially degraded",
+        "generalization_regime": "ranking preserved but classification degraded",
         "spatial_uncertainty_note": "optimizer-seed variability on one canonical spatial block"
       },
       "tfim_critical_holdout": {
@@ -82,7 +84,7 @@
         "validation_selected_ba_mean": 0.7,
         "recalibrated_ba_mean": 0.5007692307692309,
         "score_separation_mean": 0.0604232273464437,
-        "generalization_regime": "discrimination partially degraded",
+        "generalization_regime": "ranking preserved but classification degraded",
         "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
       },
       "tfim_iid": {
@@ -100,7 +102,7 @@
         "validation_selected_ba_mean": 0.95,
         "recalibrated_ba_mean": 0.7936363636363636,
         "score_separation_mean": 0.2489232444600517,
-        "generalization_regime": "discrimination partially degraded",
+        "generalization_regime": "discrimination and classification preserved",
         "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
       },
       "tfim_parameter_block": {
@@ -118,7 +120,7 @@
         "validation_selected_ba_mean": 0.8827956989247312,
         "recalibrated_ba_mean": 0.517741935483871,
         "score_separation_mean": 0.1443036914682633,
-        "generalization_regime": "discrimination partially degraded",
+        "generalization_regime": "discrimination and classification preserved",
         "spatial_uncertainty_note": "optimizer-seed variability on one canonical spatial block"
       },
       "xxz_critical_holdout": {
@@ -136,7 +138,7 @@
         "validation_selected_ba_mean": 0.5967279411764705,
         "recalibrated_ba_mean": 0.5,
         "score_separation_mean": 0.0370001892442292,
-        "generalization_regime": "discrimination partially degraded",
+        "generalization_regime": "ranking preserved but classification degraded",
         "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
       },
       "xxz_iid": {
@@ -154,7 +156,7 @@
         "validation_selected_ba_mean": 0.96,
         "recalibrated_ba_mean": 0.6663636363636363,
         "score_separation_mean": 0.1620351275087872,
-        "generalization_regime": "discrimination partially degraded",
+        "generalization_regime": "discrimination and classification preserved",
         "spatial_uncertainty_note": "hierarchical bootstrap across 10 spatial partitions"
       },
       "xxz_parameter_block": {
@@ -172,7 +174,7 @@
         "validation_selected_ba_mean": 0.5360465116279071,
         "recalibrated_ba_mean": 0.5,
         "score_separation_mean": 0.0746266974628839,
-        "generalization_regime": "discrimination partially degraded",
+        "generalization_regime": "ranking preserved but classification degraded",
         "spatial_uncertainty_note": "optimizer-seed variability on one canonical spatial block"
       }
     }
@@ -350,7 +352,7 @@
         ]
       }
     },
-    "scientific_conclusion": "Both entanglement ablations reduce mean performance relative to the full architecture. In the paired critical-region analysis, removal of convolutional entanglement produces a statistically resolved degradation, whereas the no-pooling-entanglement difference relative to the full model reflects a distinct inductive mechanism. Removing all entanglement collapses performance to chance across the tested regimes. Removing the pooling hierarchy primarily destroys critical-region generalization while retaining comparatively strong IID and Hamiltonian-OOD performance."
+    "scientific_conclusion": "Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0923, 95% CI [+0.0577, +0.1308], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0269]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established."
   },
   "shuffled_control": {
     "n_runs": 25,
@@ -363,12 +365,17 @@
     "scientific_meaning": "The Haar-random-state experiment serves as a negative sanity control and does not provide evidence of meaningful phase-label structure."
   },
   "pipeline_permutation": {
+    "test_name": "Fixed-Split Full-Dataset Label Permutation Test",
+    "design_note": "Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.",
     "n_permutations": 199,
+    "n_exceedances": 0,
     "null_ba_mean": 0.5105219076010533,
     "null_ba_std": 0.10144060100523233,
     "null_ba_p95": 0.6756410256410257,
     "null_ba_max": 0.8181818181818181,
     "empirical_p_value": 0.005,
+    "resolution_floor": 0.005,
+    "at_resolution_floor": true,
     "scientific_meaning": "Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y)."
   },
   "measurement_budget": {
@@ -555,5 +562,9 @@
     "multi_session_hardware_complete": false,
     "hardware_claim_boundary": "10/10 held-out N=4 TFIM states correctly classified in one ibm_fez session [95% Clopper-Pearson CI: 0.692, 1.000]."
   },
+  "freeze_blockers": [
+    "Phase-23 scipy convergence rate too low (0.00%); rerun with adaptive looped budget",
+    "Phase-23 evaluation-limit rate too high (100.00%); runs are not convergence-controlled"
+  ],
   "headline_claim": "QCNN robustness is strongly evaluation- and phase-family-dependent, with robust microscopic perturbation and finite-shot performance, but distinct decision-boundary calibration shift near criticality rather than loss of class ranking."
 }
