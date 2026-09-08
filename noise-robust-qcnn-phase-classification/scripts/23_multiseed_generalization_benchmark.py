@@ -165,6 +165,12 @@ def _run_single_benchmark_task(
 
 
 def main():
+    # Capture source-tree provenance BEFORE any output files are written:
+    # inspecting git status after results exist would falsely report a
+    # clean source tree as dirty (the experiment itself modifies results/).
+    from qcnn_lab.provenance import get_git_provenance as _get_git_at_start
+    git_info_at_start = _get_git_at_start()
+
     parser = argparse.ArgumentParser(description="Multi-split x multi-optimizer statistical benchmark.")
     parser.add_argument("--fast", action="store_true", help="Run fast 3x3 smoke benchmark")
     parser.add_argument("--config", default="configs/evaluation.yaml", help="Evaluation config path")
@@ -339,8 +345,9 @@ def main():
     agg_df.to_csv(out_dir / "aggregate.csv", index=False)
     (out_dir / "confidence_intervals.json").write_text(json.dumps(ci_dict, indent=2), encoding="utf-8")
 
-    # Save Provenance JSON (Audit Items 38 & 39)
-    git_info = get_git_provenance()
+    # Save Provenance JSON. Source-tree state is the snapshot captured at
+    # script start; post-run state recorded separately.
+    git_info_after = get_git_provenance()
     critical_input_files = [
         "configs/project.yaml",
         "configs/evaluation.yaml",
@@ -362,10 +369,12 @@ def main():
         }
 
     provenance = {
-        "git_provenance": git_info,
-        "git_commit": git_info["execution_git_commit"] or git_info["base_commit"],
-        "base_commit": git_info["base_commit"],
-        "working_tree_dirty": git_info["working_tree_dirty"],
+        "git_provenance": git_info_at_start,
+        "git_commit": git_info_at_start["execution_git_commit"] or git_info_at_start["base_commit"],
+        "base_commit": git_info_at_start["base_commit"],
+        "working_tree_dirty": git_info_at_start["working_tree_dirty"],
+        "source_tree_dirty_at_start": git_info_at_start["working_tree_dirty"],
+        "working_tree_dirty_after_execution": git_info_after["working_tree_dirty"],
         "input_file_hashes": compute_file_hashes(critical_input_files, full_sha256=True),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "execution_mode": "fast" if args.fast else "full",

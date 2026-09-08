@@ -53,106 +53,113 @@
     "no_conv_vs_full": {
       "delta_iid_mean": -0.009090909090909084,
       "delta_iid_ci95": [
-        -0.022727272727272707,
+        -0.027272727272727247,
         0.0
       ],
       "delta_crit_mean": -0.015384615384615385,
       "delta_crit_ci95": [
-        -0.05384615384615386,
-        0.023076923076923085
+        -0.06153846153846156,
+        0.030769230769230792
       ],
       "delta_ham_mean": 0.0,
       "delta_ham_ci95": [
         0.0,
         0.0
-      ]
+      ],
+      "ci_method": "hierarchical paired bootstrap (5000 resamples, seed=12345)"
     },
     "no_pool_vs_full": {
       "delta_iid_mean": 0.022727272727272728,
       "delta_iid_ci95": [
-        0.004545454545454542,
-        0.04090909090909093
+        0.0,
+        0.050000000000000024
       ],
       "delta_crit_mean": 0.08461538461538465,
       "delta_crit_ci95": [
-        0.05384615384615388,
-        0.11538461538461542
+        0.05000000000000003,
+        0.11923076923076925
       ],
       "delta_ham_mean": 0.0,
       "delta_ham_ci95": [
         0.0,
         0.0
-      ]
+      ],
+      "ci_method": "hierarchical paired bootstrap (5000 resamples, seed=12346)"
     },
     "no_entanglement_vs_full": {
       "delta_iid_mean": -0.4363636363636364,
       "delta_iid_ci95": [
-        -0.4636363636363637,
-        -0.40909090909090906
+        -0.47272727272727283,
+        -0.390909090909091
       ],
       "delta_crit_mean": -0.11923076923076921,
       "delta_crit_ci95": [
-        -0.15,
-        -0.08461538461538459
+        -0.1576923076923077,
+        -0.08076923076923075
       ],
       "delta_ham_mean": -0.4545454545454547,
       "delta_ham_ci95": [
         -0.4545454545454547,
         -0.4545454545454547
-      ]
+      ],
+      "ci_method": "hierarchical paired bootstrap (5000 resamples, seed=12347)"
     },
     "no_pooling_vs_full": {
       "delta_iid_mean": -0.004545454545454542,
       "delta_iid_ci95": [
-        -0.013636363636363624,
+        -0.018181818181818167,
         0.0
       ],
       "delta_crit_mean": -0.10384615384615384,
       "delta_crit_ci95": [
-        -0.1423076923076923,
-        -0.06153846153846153
+        -0.14999999999999997,
+        -0.05384615384615384
       ],
       "delta_ham_mean": 0.0,
       "delta_ham_ci95": [
         0.0,
         0.0
-      ]
+      ],
+      "ci_method": "hierarchical paired bootstrap (5000 resamples, seed=12348)"
     },
     "unshared_vs_full": {
       "delta_iid_mean": -0.009090909090909094,
       "delta_iid_ci95": [
-        -0.022727272727272728,
+        -0.022727272727272763,
         0.0
       ],
       "delta_crit_mean": -0.015384615384615363,
       "delta_crit_ci95": [
-        -0.05769230769230769,
-        0.023076923076923116
+        -0.057692307692307696,
+        0.02692307692307696
       ],
       "delta_ham_mean": 0.0,
       "delta_ham_ci95": [
         0.0,
         0.0
-      ]
+      ],
+      "ci_method": "hierarchical paired bootstrap (5000 resamples, seed=12349)"
     },
     "no_conv_vs_no_pool": {
       "delta_iid_mean": -0.031818181818181815,
       "delta_iid_ci95": [
-        -0.05,
-        -0.013636363636363636
+        -0.05909090909090908,
+        -0.009090909090909084
       ],
       "delta_crit_mean": -0.10000000000000005,
       "delta_crit_ci95": [
-        -0.12307692307692313,
-        -0.07692307692307694
+        -0.1307692307692308,
+        -0.06923076923076928
       ],
       "delta_ham_mean": 0.0,
       "delta_ham_ci95": [
         0.0,
         0.0
-      ]
+      ],
+      "ci_method": "hierarchical paired bootstrap (5000 resamples, seed=12350)"
     }
   },
-  "scientific_conclusion": "Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0846, 95% CI [+0.0538, +0.1154], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0231]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.",
-  "script": "scripts/26_sanity_and_ablation_suite.py"
+  "scientific_conclusion": "Under the repeated adaptive-budget runs with optimizer telemetry, removing pooling entanglers improves mean IID and critical-region performance relative to the full architecture (critical Delta=+0.0846, 95% hierarchical CI [+0.0500, +0.1192], statistically resolved), while the effect of removing convolutional entanglement remains unresolved (critical Delta=-0.0154, 95% hierarchical CI [-0.0615, +0.0308]). Removing all entanglement collapses performance to chance, and removing the pooling hierarchy strongly reduces critical-region generalization. These results should be interpreted alongside the recorded optimizer-termination diagnostics.",
+  "script": "scripts/26_sanity_and_ablation_suite.py",
+  "pairwise_ci_method": "hierarchical paired bootstrap (resample split partitions, then runs within splits; 5000 resamples, fixed per-comparison seeds)"
 }

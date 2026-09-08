@@ -38,6 +38,66 @@ def bootstrap_ci_from_samples(
 bootstrap_confidence_interval = bootstrap_ci_from_samples
 
 
+def hierarchical_paired_bootstrap(
+    df_a: any,
+    df_b: any,
+    metric: str,
+    *,
+    pair_keys: tuple[str, ...] = ("split_seed", "optimizer_seed"),
+    n_boot: int = 5000,
+    confidence: float = 0.95,
+    seed: int = 12345,
+) -> tuple[float, float]:
+    """Split-aware paired bootstrap CI for the mean of per-run differences.
+
+    Rows of ``df_a``/``df_b`` are paired on ``pair_keys`` (default: runs
+    sharing a data split and optimizer seed) and differenced as
+    ``delta = metric_a - metric_b``. Because runs sharing a split partition
+    are not fully independent, resampling is hierarchical: sample split
+    partitions with replacement, then resample runs with replacement within
+    each sampled partition (mirrors :func:`hierarchical_bootstrap`).
+    """
+    import pandas as pd
+
+    if not isinstance(df_a, pd.DataFrame):
+        df_a = pd.DataFrame(df_a)
+    if not isinstance(df_b, pd.DataFrame):
+        df_b = pd.DataFrame(df_b)
+
+    merged = df_a.merge(
+        df_b,
+        on=list(pair_keys),
+        suffixes=("_a", "_b"),
+    )
+    col_a, col_b = f"{metric}_a", f"{metric}_b"
+    if col_a not in merged.columns or col_b not in merged.columns:
+        raise ValueError(f"metric '{metric}' missing after pairing on {list(pair_keys)}")
+    merged = merged.dropna(subset=[col_a, col_b]).copy()
+    if len(merged) == 0:
+        return float("nan"), float("nan")
+    merged["delta"] = merged[col_a].to_numpy(dtype=float) - merged[col_b].to_numpy(dtype=float)
+    if len(merged) == 1:
+        d = float(merged["delta"].iloc[0])
+        return d, d
+
+    split_col = pair_keys[0]
+    split_seeds = merged[split_col].unique()
+    blocks = {s: merged.loc[merged[split_col] == s, "delta"].to_numpy(dtype=float) for s in split_seeds}
+    rng = np.random.default_rng(seed)
+    boot_means = np.empty(n_boot, dtype=float)
+    for b in range(n_boot):
+        sampled_splits = rng.choice(split_seeds, size=len(split_seeds), replace=True)
+        sampled_deltas: list[float] = []
+        for s in sampled_splits:
+            block = blocks[s]
+            idx = rng.integers(0, len(block), size=len(block))
+            sampled_deltas.extend(block[idx])
+        boot_means[b] = float(np.mean(sampled_deltas))
+
+    alpha = 1.0 - confidence
+    return float(np.quantile(boot_means, alpha / 2.0)), float(np.quantile(boot_means, 1.0 - alpha / 2.0))
+
+
 def bootstrap_metric_ci(
     y_true: np.ndarray,
     p1: np.ndarray,

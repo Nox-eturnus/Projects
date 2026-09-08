@@ -164,6 +164,25 @@ def main():
     df_pairs = pd.read_csv(pairwise_csv)
     check(len(df_pairs) >= 5, f"At least 5 paired ablation comparisons recorded (found {len(df_pairs)})")
 
+    # The stored pairwise CIs must match an independent hierarchical paired
+    # recomputation from the committed per-run values (same method, same
+    # fixed per-comparison seeds as Phase 26). This verifies the CIs are
+    # split-aware rather than flat-bootstrap artifacts.
+    try:
+        from qcnn_lab.analysis.statistics import hierarchical_paired_bootstrap
+        for comp_idx, prow in enumerate(df_pairs.itertuples()):
+            _ra = df_ablation[df_ablation["architecture"] == prow.architecture_a]
+            _rb = df_ablation[df_ablation["architecture"] == prow.architecture_b]
+            for _suffix, _mcol in (("iid", "iid_ba"), ("crit", "critical_ood_ba"), ("ham", "hamiltonian_ood_ba")):
+                _lo, _hi = hierarchical_paired_bootstrap(_ra, _rb, _mcol, seed=12345 + comp_idx)
+                _slo = float(getattr(prow, f"delta_{_suffix}_ci95_low"))
+                _shi = float(getattr(prow, f"delta_{_suffix}_ci95_high"))
+                check(abs(_lo - _slo) < 1e-9 and abs(_hi - _shi) < 1e-9,
+                      f"Hierarchical paired CI reproduced for {prow.comparison} delta_{_suffix} "
+                      f"([{_lo:+.4f}, {_hi:+.4f}])")
+    except ImportError as e:
+        check(False, f"hierarchical_paired_bootstrap importable ({e})")
+
     # Fixed-split permutation test: verify PROCEDURE, not outcome.
     # Valid results include non-significant p-values; we check
     #   0 <= p <= 1, n >= 199, and reported_p == (1 + exceedances) / (1 + n).
@@ -267,6 +286,26 @@ def main():
     if canonical.get("status") == "RESEARCH_FROZEN":
         check(len(canonical.get("freeze_blockers", [])) == 0,
               f"RESEARCH_FROZEN declared with no freeze blockers (found {canonical.get('freeze_blockers')})")
+    # The milestone definition must be present and honest about scope.
+    _status_def = str(canonical.get("status_definition", ""))
+    check(len(_status_def) > 50 and "documented limitation" in _status_def,
+          "Canonical RESEARCH_FROZEN definition present with documented-limitation scope")
+
+    # Stale convergence wording must not survive in synced artifacts.
+    _stale_phrases = [
+        "convergence-controlled runs",
+        "Convergence-Controlled",
+        "provisional until optimization convergence is fully established",
+    ]
+    _synced_texts = {
+        "README.md": Path("README.md").read_text(encoding="utf-8"),
+        "generalization_report.md": (report_dir / "generalization_report.md").read_text(encoding="utf-8"),
+        "canonical_results.json": (report_dir / "canonical_results.json").read_text(encoding="utf-8"),
+        "ablation provenance.json": (ablation_dir / "provenance.json").read_text(encoding="utf-8"),
+    }
+    for _fname, _text in _synced_texts.items():
+        for _phrase in _stale_phrases:
+            check(_phrase not in _text, f"Stale wording '{_phrase}' absent from {_fname}")
 
     # 7. README Sync Consistency
     readme_text = Path("README.md").read_text(encoding="utf-8")

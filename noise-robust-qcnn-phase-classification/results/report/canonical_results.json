@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T14:58:17.609373+00:00",
+  "generated_at": "2026-09-08T16:22:06.104372+00:00",
   "status": "RESEARCH_FROZEN",
   "pending": [
     "Multi-session physical hardware validation across distinct calibration windows (optional future publication extension)",
@@ -236,13 +236,13 @@
         "n_paired_runs": 10,
         "delta_iid_mean": -0.009090909090909,
         "delta_iid_ci95": [
-          -0.0227272727272727,
+          -0.0272727272727272,
           0.0
         ],
         "delta_crit_mean": -0.0153846153846153,
         "delta_crit_ci95": [
-          -0.0538461538461538,
-          0.023076923076923
+          -0.0615384615384615,
+          0.0307692307692307
         ],
         "delta_ham_mean": 0.0,
         "delta_ham_ci95": [
@@ -256,13 +256,13 @@
         "n_paired_runs": 10,
         "delta_iid_mean": 0.0227272727272727,
         "delta_iid_ci95": [
-          0.0045454545454545,
-          0.0409090909090909
+          0.0,
+          0.05
         ],
         "delta_crit_mean": 0.0846153846153846,
         "delta_crit_ci95": [
-          0.0538461538461538,
-          0.1153846153846154
+          0.05,
+          0.1192307692307692
         ],
         "delta_ham_mean": 0.0,
         "delta_ham_ci95": [
@@ -276,13 +276,13 @@
         "n_paired_runs": 10,
         "delta_iid_mean": -0.4363636363636364,
         "delta_iid_ci95": [
-          -0.4636363636363637,
-          -0.409090909090909
+          -0.4727272727272728,
+          -0.390909090909091
         ],
         "delta_crit_mean": -0.1192307692307692,
         "delta_crit_ci95": [
-          -0.15,
-          -0.0846153846153845
+          -0.1576923076923077,
+          -0.0807692307692307
         ],
         "delta_ham_mean": -0.4545454545454547,
         "delta_ham_ci95": [
@@ -296,13 +296,13 @@
         "n_paired_runs": 10,
         "delta_iid_mean": -0.0045454545454545,
         "delta_iid_ci95": [
-          -0.0136363636363636,
+          -0.0181818181818181,
           0.0
         ],
         "delta_crit_mean": -0.1038461538461538,
         "delta_crit_ci95": [
-          -0.1423076923076923,
-          -0.0615384615384615
+          -0.1499999999999999,
+          -0.0538461538461538
         ],
         "delta_ham_mean": 0.0,
         "delta_ham_ci95": [
@@ -322,7 +322,7 @@
         "delta_crit_mean": -0.0153846153846153,
         "delta_crit_ci95": [
           -0.0576923076923076,
-          0.0230769230769231
+          0.0269230769230769
         ],
         "delta_ham_mean": 0.0,
         "delta_ham_ci95": [
@@ -336,13 +336,13 @@
         "n_paired_runs": 10,
         "delta_iid_mean": -0.0318181818181818,
         "delta_iid_ci95": [
-          -0.05,
-          -0.0136363636363636
+          -0.059090909090909,
+          -0.009090909090909
         ],
         "delta_crit_mean": -0.1,
         "delta_crit_ci95": [
-          -0.1230769230769231,
-          -0.0769230769230769
+          -0.1307692307692308,
+          -0.0692307692307692
         ],
         "delta_ham_mean": 0.0,
         "delta_ham_ci95": [
@@ -351,7 +351,7 @@
         ]
       }
     },
-    "scientific_conclusion": "Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0846, 95% CI [+0.0538, +0.1154], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0231]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established."
+    "scientific_conclusion": "Under the repeated adaptive-budget runs with optimizer telemetry, removing pooling entanglers improves mean IID and critical-region performance relative to the full architecture (critical Delta=+0.0846, 95% hierarchical CI [+0.0500, +0.1192], statistically resolved), while the effect of removing convolutional entanglement remains unresolved (critical Delta=-0.0154, 95% hierarchical CI [-0.0615, +0.0308]). Removing all entanglement collapses performance to chance, and removing the pooling hierarchy strongly reduces critical-region generalization. These results should be interpreted alongside the recorded optimizer-termination diagnostics."
   },
   "shuffled_control": {
     "n_runs": 25,
@@ -562,6 +562,7 @@
     "hardware_claim_boundary": "10/10 held-out N=4 TFIM states correctly classified in one ibm_fez session [95% Clopper-Pearson CI: 0.692, 1.000]."
   },
   "freeze_blockers": [],
+  "status_definition": "All planned project experiments, reproducibility checks, controls, reporting synchronization, and validation checks are complete. Formal optimizer convergence is not required for every stochastic training run; unresolved optimization termination is retained as a documented limitation.",
   "optimizer_formal_convergence_rate": 0.10303030303030303,
   "headline_claim": "QCNN robustness is strongly evaluation- and phase-family-dependent, with robust microscopic perturbation and finite-shot performance, but distinct decision-boundary calibration shift near criticality rather than loss of class ranking."
 }

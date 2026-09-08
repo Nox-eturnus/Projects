@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.metrics import balanced_accuracy_score
 
 from qcnn_lab.analysis.splits import load_split_manifest, split_indices_from_manifest
-from qcnn_lab.analysis.statistics import bootstrap_confidence_interval
+from qcnn_lab.analysis.statistics import bootstrap_confidence_interval, hierarchical_paired_bootstrap
 from qcnn_lab.config import load_yaml
 from qcnn_lab.physics.perturbations import get_perturbed_ground_state
 from qcnn_lab.qcnn.ablations import (
@@ -313,6 +313,12 @@ def evaluate_model_on_splits(
 
 
 def main():
+    # Capture source-tree provenance BEFORE any output files are written:
+    # inspecting git status after results exist would falsely report a
+    # clean source tree as dirty (the experiment itself modifies results/).
+    from qcnn_lab.provenance import get_git_provenance as _get_git_at_start
+    git_info_at_start = _get_git_at_start()
+
     parser = argparse.ArgumentParser(description="Sanity controls and architecture ablation suite.")
     parser.add_argument("--project-config", default="configs/project.yaml", help="Path to project config")
     parser.add_argument("--out-dir", default="results/ablations", help="Output directory")
@@ -402,7 +408,7 @@ def main():
         print(f"Saved {len(perm_df)} shuffled-label control runs to {out_dir / 'shuffled_training_control.csv'}")
 
     # 2. Multi-Seed Statistical Architecture Ablation Study (Priority 4 & Audit Item 1)
-    print("\n--- Stage 2: Multi-Seed Architecture Ablation Study (Convergence-Controlled) ---")
+    print("\n--- Stage 2: Multi-Seed Architecture Ablation Study (Adaptive-Budget) ---")
     ablation_archs = [
         "expressive_shared_line",
         "expressive_no_conv_entanglement",
@@ -495,21 +501,24 @@ def main():
     pairwise_records = []
     pairwise_dict = {}
 
-    for arch_a, arch_b, comp_label in pair_comparisons:
+    for comp_idx, (arch_a, arch_b, comp_label) in enumerate(pair_comparisons):
         runs_a = runs_df[runs_df["architecture"] == arch_a].sort_values(["split_seed", "optimizer_seed"])
         runs_b = runs_df[runs_df["architecture"] == arch_b].sort_values(["split_seed", "optimizer_seed"])
 
         if len(runs_a) > 0 and len(runs_b) > 0 and len(runs_a) == len(runs_b):
             n_paired = len(runs_a)
-            # IID difference
-            d_iid = runs_a["iid_ba"].to_numpy() - runs_b["iid_ba"].to_numpy()
-            d_iid_ci = bootstrap_confidence_interval(d_iid) if n_paired > 1 else (float(d_iid[0]), float(d_iid[0]))
-            # Critical difference
-            d_crit = runs_a["critical_ood_ba"].to_numpy() - runs_b["critical_ood_ba"].to_numpy()
-            d_crit_ci = bootstrap_confidence_interval(d_crit) if n_paired > 1 else (float(d_crit[0]), float(d_crit[0]))
-            # Hamiltonian difference
-            d_ham = runs_a["hamiltonian_ood_ba"].to_numpy() - runs_b["hamiltonian_ood_ba"].to_numpy()
-            d_ham_ci = bootstrap_confidence_interval(d_ham) if n_paired > 1 else (float(d_ham[0]), float(d_ham[0]))
+            # Split-aware paired bootstrap: the two optimizer seeds within a
+            # split share a data partition, so differences are resampled
+            # hierarchically (splits, then runs within splits), not flat.
+            # Seeds are fixed per comparison so committed statistics are
+            # exactly reproducible (and re-verifiable by the validator).
+            d_iid_ci = hierarchical_paired_bootstrap(runs_a, runs_b, "iid_ba", seed=12345 + comp_idx)
+            d_crit_ci = hierarchical_paired_bootstrap(runs_a, runs_b, "critical_ood_ba", seed=12345 + comp_idx)
+            d_ham_ci = hierarchical_paired_bootstrap(runs_a, runs_b, "hamiltonian_ood_ba", seed=12345 + comp_idx)
+            paired = runs_a.merge(runs_b, on=["split_seed", "optimizer_seed"], suffixes=("_a", "_b"))
+            d_iid = (paired["iid_ba_a"] - paired["iid_ba_b"]).to_numpy(dtype=float)
+            d_crit = (paired["critical_ood_ba_a"] - paired["critical_ood_ba_b"]).to_numpy(dtype=float)
+            d_ham = (paired["hamiltonian_ood_ba_a"] - paired["hamiltonian_ood_ba_b"]).to_numpy(dtype=float)
 
             pairwise_records.append({
                 "comparison": comp_label,
@@ -565,12 +574,10 @@ def main():
         f"+1-corrected Monte-Carlo p = {pipe_perm['empirical_p_value']:.4f} (resolution floor {1.0/(pipe_n_perms+1):.4f})"
     )
 
-    # Scientific conclusion derived directly from the paired bootstrap
-    # statistics above. It must describe what the pairwise CIs actually
-    # resolve: removing pooling entanglers improves critical-region BA here
-    # while removing convolutional entanglement is unresolved. All
-    # architectural comparisons remain provisional until optimization
-    # convergence is fully established.
+    # Scientific conclusion derived directly from the split-aware paired
+    # bootstrap statistics above. Wording deliberately claims only what the
+    # hierarchical CIs resolve; optimizer termination is a documented
+    # limitation, not a claim of complete mathematical convergence.
     noconv_crit_info = pairwise_dict.get("no_conv_vs_full", {})
     nopool_crit_info = pairwise_dict.get("no_pool_vs_full", {})
 
@@ -588,20 +595,21 @@ def main():
     _nopool_resolved = _ci_excludes_zero(_nopool_ci[0], _nopool_ci[1])
 
     scientific_conclusion = (
-        "Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves "
-        f"both IID and critical-region performance relative to the full architecture (critical Delta={_nopool_m:+.4f}, "
-        f"95% CI [{_nopool_ci[0]:+.4f}, {_nopool_ci[1]:+.4f}], {'statistically resolved' if _nopool_resolved else 'statistically unresolved'}), "
-        f"while removing convolutional entanglement produces only a small "
-        f"{'statistically resolved' if _noconv_resolved else 'statistically unresolved'} reduction (critical Delta={_noconv_m:+.4f}, "
-        f"95% CI [{_noconv_ci[0]:+.4f}, {_noconv_ci[1]:+.4f}]). "
-        "By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling "
-        "hierarchy significantly damages critical-region generalization. "
-        "These architectural comparisons remain provisional until optimization convergence is fully established."
+        "Under the repeated adaptive-budget runs with optimizer telemetry, removing pooling entanglers improves "
+        f"mean IID and critical-region performance relative to the full architecture (critical Delta={_nopool_m:+.4f}, "
+        f"95% hierarchical CI [{_nopool_ci[0]:+.4f}, {_nopool_ci[1]:+.4f}], {'statistically resolved' if _nopool_resolved else 'statistically unresolved'}), "
+        f"while the effect of removing convolutional entanglement remains unresolved (critical Delta={_noconv_m:+.4f}, "
+        f"95% hierarchical CI [{_noconv_ci[0]:+.4f}, {_noconv_ci[1]:+.4f}]). "
+        "Removing all entanglement collapses performance to chance, and removing the pooling "
+        "hierarchy strongly reduces critical-region generalization. "
+        "These results should be interpreted alongside the recorded optimizer-termination diagnostics."
     )
 
-    # Save Provenance JSON (Audit Items 38 & 39)
+    # Save Provenance JSON. Source-tree state is the snapshot captured at
+    # script start (before outputs existed); post-run state is recorded
+    # separately so a clean source tree is never misreported as dirty.
     from qcnn_lab.provenance import get_git_provenance, compute_file_hashes
-    git_info = get_git_provenance()
+    git_info_after = get_git_provenance()
 
     critical_input_files = [
         "configs/project.yaml",
@@ -615,10 +623,13 @@ def main():
     ]
 
     provenance = {
-        "git_provenance": git_info,
-        "git_commit": git_info["execution_git_commit"] or git_info["base_commit"],
-        "base_commit": git_info["base_commit"],
-        "working_tree_dirty": git_info["working_tree_dirty"],
+        "git_provenance": git_info_at_start,
+        "git_commit": git_info_at_start["execution_git_commit"] or git_info_at_start["base_commit"],
+        "base_commit": git_info_at_start["base_commit"],
+        "working_tree_dirty": git_info_at_start["working_tree_dirty"],
+        "source_tree_dirty_at_start": git_info_at_start["working_tree_dirty"],
+        "working_tree_dirty_after_execution": git_info_after["working_tree_dirty"],
+        "pairwise_ci_method": "hierarchical paired bootstrap (resample split partitions, then runs within splits; 5000 resamples, fixed per-comparison seeds)",
         "input_file_hashes": compute_file_hashes(critical_input_files, full_sha256=True),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "python_version": sys.version,

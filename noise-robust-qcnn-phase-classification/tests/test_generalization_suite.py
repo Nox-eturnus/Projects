@@ -453,6 +453,35 @@ def test_pipeline_permutation_semantics():
     assert 0.0 <= res["empirical_p_value"] <= 1.0
 
 
+def test_hierarchical_paired_bootstrap_contract():
+    """Verify split-aware paired bootstrap: determinism, bracketing, degenerate case."""
+    import pandas as pd
+    from qcnn_lab.analysis.statistics import hierarchical_paired_bootstrap
+
+    rows_a, rows_b = [], []
+    for s_seed in [11, 23, 37]:
+        for opt_seed in [100, 200, 300, 400, 500]:
+            rows_a.append({"split_seed": s_seed, "optimizer_seed": opt_seed,
+                           "critical_ood_ba": 0.70 + 0.02 * (s_seed % 3) + 0.005 * (opt_seed % 7)})
+            rows_b.append({"split_seed": s_seed, "optimizer_seed": opt_seed,
+                           "critical_ood_ba": 0.60 + 0.02 * (s_seed % 3) + 0.005 * (opt_seed % 5)})
+    df_a, df_b = pd.DataFrame(rows_a), pd.DataFrame(rows_b)
+
+    lo, hi = hierarchical_paired_bootstrap(df_a, df_b, "critical_ood_ba", n_boot=500, seed=7)
+    assert lo <= hi
+    merged = df_a.merge(df_b, on=["split_seed", "optimizer_seed"], suffixes=("_a", "_b"))
+    mean_delta = float((merged["critical_ood_ba_a"] - merged["critical_ood_ba_b"]).mean())
+    assert lo <= mean_delta <= hi
+
+    # Deterministic for a fixed seed.
+    lo2, hi2 = hierarchical_paired_bootstrap(df_a, df_b, "critical_ood_ba", n_boot=500, seed=7)
+    assert (lo, hi) == (lo2, hi2)
+
+    # Single paired run degenerates to a point interval.
+    lo1, hi1 = hierarchical_paired_bootstrap(df_a.iloc[:1], df_b.iloc[:1], "critical_ood_ba")
+    assert lo1 == hi1
+
+
 def test_hierarchical_bootstrap_contract():
     """Verify that hierarchical bootstrap returns valid confidence intervals respecting partitions (Item 7)."""
     import pandas as pd

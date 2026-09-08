@@ -29,6 +29,10 @@ from qcnn_lab.qcnn.train import stratified_splits, train_ideal_qcnn
 
 
 def main():
+    # Capture source-tree provenance BEFORE any output files are written.
+    from qcnn_lab.provenance import get_git_provenance as _get_git_at_start
+    git_info_at_start = _get_git_at_start()
+
     parser = argparse.ArgumentParser(
         description="N=4 expressive QCNN hardware transfer benchmark across 4 execution stages."
     )
@@ -140,9 +144,9 @@ def main():
         ds_path = data_dir / "tfim_states.npz"
         dataset_hash = hashlib.sha256(ds_path.read_bytes()).hexdigest() if ds_path.exists() else "unknown"
 
-        git_prov = get_git_provenance()
+        git_prov = git_info_at_start
         git_commit = git_prov["execution_git_commit"]
-        working_dirty = git_prov["working_tree_dirty"]
+        working_dirty_at_start = git_prov["working_tree_dirty"]
         base_commit = git_prov["base_commit"]
 
         # Parse metrics list correctly
@@ -179,7 +183,8 @@ def main():
             "execution_mode": "physical_hardware",
             "is_physical_hardware": True,
             "execution_git_commit": git_commit,
-            "working_tree_dirty": working_dirty,
+            "working_tree_dirty": working_dirty_at_start,
+            "source_tree_dirty_at_start": working_dirty_at_start,
             "base_commit": base_commit,
             "execution_code_snapshot_hash": code_snapshot_hash,
             "provenance_note": (
@@ -284,6 +289,7 @@ def main():
         prov_dict = {
             "execution_git_commit": execution_meta.get("execution_git_commit"),
             "working_tree_dirty": execution_meta.get("working_tree_dirty"),
+            "source_tree_dirty_at_start": execution_meta.get("source_tree_dirty_at_start"),
             "base_commit": execution_meta.get("base_commit"),
             "execution_code_snapshot_hash": execution_meta.get("execution_code_snapshot_hash"),
             "provenance_note": execution_meta.get("provenance_note"),

@@ -355,6 +355,15 @@ def build_canonical_results(
         for b in _blockers:
             if b not in canonical["pending"]:
                 canonical["pending"].append(f"Freeze blocker: {b}")
+    # Internal project-milestone definition: frozen means the planned
+    # experiments, controls, sync, and validation are complete — formal
+    # optimizer convergence on every stochastic run is not required and
+    # unresolved termination stays a documented limitation.
+    canonical["status_definition"] = (
+        "All planned project experiments, reproducibility checks, controls, reporting synchronization, "
+        "and validation checks are complete. Formal optimizer convergence is not required for every "
+        "stochastic training run; unresolved optimization termination is retained as a documented limitation."
+    )
     # Documented limitation (non-blocking): COBYLA rarely attains formal
     # scipy/plateau convergence on this landscape, so trajectories rest on
     # budget-until-stall optimization; key comparative conclusions reproduced
@@ -604,6 +613,8 @@ def main():
         "6. **Thermal State Sensitivity**: Models trained at zero temperature ($T=0$) evaluated on mixed Gibbs states $\\rho(T)$ up to $T=0.40$.",
         "7. **Noise Factorization**: Decoupled state-preparation depolarizing noise from quantum circuit noise in a 2x2 factorial matrix and analytical 2D $(p_{state}, p_{circuit})$ sensitivity surface.",
         "8. **Hardware Progression**: $N=4$ expressive QCNN benchmarked across 4 stages with explicit provenance (distinguishing real QPU executions from analytical surrogate simulations).",
+        "",
+        "> **Project milestone definition of `RESEARCH_FROZEN`**: all planned project experiments, reproducibility checks, controls, reporting synchronization, and validation checks are complete. Formal optimizer convergence is not required for every stochastic training run; unresolved optimization termination is retained as a documented limitation.",
         "",
         "---",
         "",

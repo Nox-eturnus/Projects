@@ -17,6 +17,8 @@ Performance is benchmarked across a staircase of distribution shifts:
 7. **Noise Factorization**: Decoupled state-preparation depolarizing noise from quantum circuit noise in a 2x2 factorial matrix and analytical 2D $(p_{state}, p_{circuit})$ sensitivity surface.
 8. **Hardware Progression**: $N=4$ expressive QCNN benchmarked across 4 stages with explicit provenance (distinguishing real QPU executions from analytical surrogate simulations).
 
+> **Project milestone definition of `RESEARCH_FROZEN`**: all planned project experiments, reproducibility checks, controls, reporting synchronization, and validation checks are complete. Formal optimizer convergence is not required for every stochastic training run; unresolved optimization termination is retained as a documented limitation.
+
 ---
 
 ## Primary Evaluation Matrix
@@ -69,7 +71,7 @@ A key scientific discovery of this investigation is that several out-of-distribu
 > - **Random State Control**: Classifying Haar-random / unstructured quantum states yielded $BA \approx 0.583$ (chance level). The Haar-random-state experiment serves as a negative sanity control and does not provide evidence of meaningful phase-label structure.
 > - **Shuffled-Training-Label Control (N=25 runs)**: Training on randomly scrambled training targets yielded mean true-label test BA 0.509 (empirical comparison p = 0.3462). Measures whether learning scrambled training labels generalizes to genuine ground truth.
 > - **Fixed-Split Full-Dataset Label-Permutation Test (N=199 permutations)**: 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050 (the resolution floor 0.0050 of this permutation run). Null test BA 0.511 ± 0.102 (95th percentile: 0.676, max: 0.818). Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y). Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.
-> - **Architectural Inductive Bias**: Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0846, 95% CI [+0.0538, +0.1154], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0231]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.
+> - **Architectural Inductive Bias**: Under the repeated adaptive-budget runs with optimizer telemetry, removing pooling entanglers improves mean IID and critical-region performance relative to the full architecture (critical Delta=+0.0846, 95% hierarchical CI [+0.0500, +0.1192], statistically resolved), while the effect of removing convolutional entanglement remains unresolved (critical Delta=-0.0154, 95% hierarchical CI [-0.0615, +0.0308]). Removing all entanglement collapses performance to chance, and removing the pooling hierarchy strongly reduces critical-region generalization. These results should be interpreted alongside the recorded optimizer-termination diagnostics.
 
 ---
 
