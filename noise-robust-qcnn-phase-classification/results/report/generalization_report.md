@@ -9,7 +9,7 @@ To ensure scientific integrity, the evaluation enforces a **strict fail-closed r
 Performance is benchmarked across a staircase of distribution shifts:
 
 1. **IID Ideal**: Exact statevectors with standard stratified splits.
-2. **Multi-Split x Multi-Optimizer (ADVANCED_BENCHMARK_PRELIMINARY, 330 runs)**: 10 independent spatial partitions for IID and critical holdouts crossed with 5 optimizer seeds, and 1 canonical spatial block crossed with 10 optimizer seeds. Reports hierarchical partition-aware 95% bootstrap confidence intervals, validation-tuned threshold diagnostics, and class-conditional score distributions.
+2. **Multi-Split x Multi-Optimizer (RESEARCH_FROZEN, 330 runs)**: 10 independent spatial partitions for IID and critical holdouts crossed with 5 optimizer seeds, and 1 canonical spatial block crossed with 10 optimizer seeds. Reports hierarchical partition-aware 95% bootstrap confidence intervals, validation-tuned threshold diagnostics, and class-conditional score distributions.
 3. **Critical-Region OOD**: Models trained strictly outside $[0.80, 1.20]$ and evaluated on dense unseen states across the phase transition.
 4. **Hamiltonian OOD / Microscopic Perturbation**: Models trained at zero disorder ($\delta=0$) evaluated on disordered and symmetry-preserving Hamiltonians ($\delta > 0$) under nominal phase boundaries.
 5. **Finite-Shot Readout & Classical Observables**: Readout evaluated under finite measurement shots ($S \in [128, 8192]$) and compared against classical models using genuine commuting Pauli observable groups under matched state-copy budgets.
@@ -23,8 +23,8 @@ Performance is benchmarked across a staircase of distribution shifts:
 
 | Evaluation                 | TFIM BA                                           | XXZ BA                        | Cluster BA                    | Provenance Source                                      | Runs                      |
 |:---------------------------|:--------------------------------------------------|:------------------------------|:------------------------------|:-------------------------------------------------------|:--------------------------|
-| IID (Ideal)                | 0.934 ± 0.039 [0.913, 0.955]                      | 0.913 ± 0.051 [0.887, 0.940]  | 0.816 ± 0.079 [0.777, 0.855]  | results/statistical_generalization/aggregate.csv       | 50                        |
-| Critical-region OOD        | 0.700 ± 0.093 [0.668, 0.732]                      | 0.585 ± 0.116 [0.545, 0.632]  | 0.516 ± 0.073 [0.500, 0.549]  | results/statistical_generalization/aggregate.csv       | 50                        |
+| IID (Ideal)                | 0.915 ± 0.046 [0.890, 0.942]                      | 0.900 ± 0.054 [0.872, 0.928]  | 0.835 ± 0.069 [0.797, 0.870]  | results/statistical_generalization/aggregate.csv       | 50                        |
+| Critical-region OOD        | 0.577 ± 0.092 [0.546, 0.613]                      | 0.571 ± 0.088 [0.541, 0.606]  | 0.522 ± 0.079 [0.502, 0.555]  | results/statistical_generalization/aggregate.csv       | 50                        |
 | Hamiltonian OOD (δ=0.10)   | 0.955 (δ=0.10)                                    | 0.864 (δ=0.10)                | 0.818 (δ=0.10)                | results/hamiltonian_ood/summary.csv                    | 20                        |
 | 1024-shot Readout          | 0.955 ± 0.000                                     | 0.898 ± 0.039                 | 0.891 ± 0.034                 | results/finite_shots/shot_scaling_metrics.csv          | 20 seeds                  |
 | Thermal (T=0.10)           | 0.500                                             | 0.944                         | 1.000                         | results/thermal_and_prep/thermal_scaling.csv           | 16 points                 |
@@ -39,12 +39,12 @@ Performance is benchmarked across a staircase of distribution shifts:
 
 A key scientific discovery of this investigation is that several out-of-distribution regimes exhibiting near-chance Balanced Accuracy ($BA \approx 0.50$) nevertheless retain near-perfect ranking discrimination ($\text{ROC-AUC} \approx 1.0$):
 
-- **CLUSTER (critical_holdout)**: Fixed threshold BA = `0.516`, Validation-selected threshold BA = `0.519` (ROC-AUC = `1.000`, score separation = `+0.067`). **Classification**: `ranking preserved but classification degraded`.
-- **CLUSTER (parameter_block)**: Fixed threshold BA = `0.524`, Validation-selected threshold BA = `0.534` (ROC-AUC = `1.000`, score separation = `+0.183`). **Classification**: `ranking preserved but classification degraded`.
-- **TFIM (critical_holdout)**: Fixed threshold BA = `0.700`, Validation-selected threshold BA = `0.700` (ROC-AUC = `1.000`, score separation = `+0.060`). **Classification**: `ranking preserved but classification degraded`.
-- **TFIM (parameter_block)**: Fixed threshold BA = `0.883`, Validation-selected threshold BA = `0.883` (ROC-AUC = `1.000`, score separation = `+0.144`). **Classification**: `discrimination and classification preserved`.
-- **XXZ (critical_holdout)**: Fixed threshold BA = `0.585`, Validation-selected threshold BA = `0.597` (ROC-AUC = `1.000`, score separation = `+0.037`). **Classification**: `ranking preserved but classification degraded`.
-- **XXZ (parameter_block)**: Fixed threshold BA = `0.507`, Validation-selected threshold BA = `0.536` (ROC-AUC = `1.000`, score separation = `+0.075`). **Classification**: `ranking preserved but classification degraded`.
+- **CLUSTER (critical_holdout)**: Fixed threshold BA = `0.522`, Validation-selected threshold BA = `0.523` (ROC-AUC = `1.000`, score separation = `+0.070`). **Classification**: `ranking preserved but classification degraded`.
+- **CLUSTER (parameter_block)**: Fixed threshold BA = `0.539`, Validation-selected threshold BA = `0.547` (ROC-AUC = `1.000`, score separation = `+0.190`). **Classification**: `ranking preserved but classification degraded`.
+- **TFIM (critical_holdout)**: Fixed threshold BA = `0.577`, Validation-selected threshold BA = `0.577` (ROC-AUC = `1.000`, score separation = `+0.074`). **Classification**: `ranking preserved but classification degraded`.
+- **TFIM (parameter_block)**: Fixed threshold BA = `0.906`, Validation-selected threshold BA = `0.906` (ROC-AUC = `1.000`, score separation = `+0.162`). **Classification**: `discrimination and classification preserved`.
+- **XXZ (critical_holdout)**: Fixed threshold BA = `0.571`, Validation-selected threshold BA = `0.574` (ROC-AUC = `1.000`, score separation = `+0.040`). **Classification**: `ranking preserved but classification degraded`.
+- **XXZ (parameter_block)**: Fixed threshold BA = `0.513`, Validation-selected threshold BA = `0.559` (ROC-AUC = `1.000`, score separation = `+0.083`). **Classification**: `ranking preserved but classification degraded`.
 
 > **Scientific Implication**: Critical-region distribution shift severely disrupts the fixed decision boundary and probability calibration, especially for XXZ and Cluster, while rank discrimination remains unexpectedly strong. Validation-only thresholding does not consistently recover the lost fixed-threshold performance, indicating that the shift is not reducible to a single universally transferable threshold correction.
 
@@ -54,22 +54,22 @@ A key scientific discovery of this investigation is that several out-of-distribu
 
 | model                            |   parameters |   two_qubit_gates |   iid_ba | critical_ood_ba      | hamiltonian_ood_ba   |
 |:---------------------------------|-------------:|------------------:|---------:|:---------------------|:---------------------|
-| Full Expressive QCNN             |           27 |                36 |    0.955 | 0.6923076923076923   | 0.9545454545454546   |
-| No Conv Entanglement             |           21 |                14 |    0.955 | 0.8076923076923077   | 0.9545454545454546   |
+| Full Expressive QCNN             |           27 |                36 |    0.955 | 0.6153846153846154   | 0.9545454545454546   |
+| No Conv Entanglement             |           21 |                14 |    0.955 | 0.5384615384615384   | 0.9545454545454546   |
 | No Pool Entanglement             |           27 |                22 |    0.955 | 0.6538461538461539   | 0.9545454545454546   |
 | No Entanglement Anywhere         |           21 |                 0 |    0.5   | 0.5                  | 0.5                  |
-| No Pooling Ablation              |           18 |                42 |    0.955 | 0.5384615384615384   | 0.9545454545454546   |
+| No Pooling Ablation              |           18 |                42 |    0.955 | 0.5                  | 0.9545454545454546   |
 | Unshared Weights Ablation        |           87 |                36 |    0.955 | 0.5                  | 0.9545454545454546   |
 | Untrained QCNN Baseline          |           27 |                36 |    0.5   | 0.5                  | 0.5                  |
-| Shuffled Training Labels Control |           27 |                36 |    0.505 | 0.4626373626373626   | N/A — not executed   |
+| Shuffled Training Labels Control |           27 |                36 |    0.509 | 0.4626373626373626   | N/A — not executed   |
 | Random Quantum States Control    |           27 |                36 |    0.583 | N/A — not applicable | N/A — not applicable |
 | Physics Order Parameter          |            2 |                 0 |    0.955 | 0.5384615384615384   | 0.9545454545454546   |
 
 > **Key Findings & Inductive Bias Analysis**:
 > - **Random State Control**: Classifying Haar-random / unstructured quantum states yielded $BA \approx 0.583$ (chance level). The Haar-random-state experiment serves as a negative sanity control and does not provide evidence of meaningful phase-label structure.
-> - **Shuffled-Training-Label Control (N=25 runs)**: Training on randomly scrambled training targets yielded mean true-label test BA 0.505 (empirical comparison p = 0.3462). Measures whether learning scrambled training labels generalizes to genuine ground truth.
-> - **Fixed-Split Full-Dataset Label-Permutation Test (N=199 permutations)**: 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050 (the resolution floor 0.0050 of this permutation run). Null test BA 0.511 ± 0.101 (95th percentile: 0.676, max: 0.818). Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y). Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.
-> - **Architectural Inductive Bias**: Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0923, 95% CI [+0.0577, +0.1308], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0269]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.
+> - **Shuffled-Training-Label Control (N=25 runs)**: Training on randomly scrambled training targets yielded mean true-label test BA 0.509 (empirical comparison p = 0.3462). Measures whether learning scrambled training labels generalizes to genuine ground truth.
+> - **Fixed-Split Full-Dataset Label-Permutation Test (N=199 permutations)**: 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050 (the resolution floor 0.0050 of this permutation run). Null test BA 0.511 ± 0.102 (95th percentile: 0.676, max: 0.818). Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y). Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.
+> - **Architectural Inductive Bias**: Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0846, 95% CI [+0.0538, +0.1154], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0231]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.
 
 ---
 

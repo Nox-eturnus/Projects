@@ -1,11 +1,11 @@
 model,family,parameters,two_qubit_gates,iid_ba,critical_ood_ba,hamiltonian_ood_ba,iid_status,critical_ood_status,hamiltonian_ood_status,empirical_p_value
-Full Expressive QCNN,tfim,27,36,0.9545454545454546,0.6923076923076923,0.9545454545454546,executed,executed,executed,
-No Conv Entanglement,tfim,21,14,0.9545454545454546,0.8076923076923077,0.9545454545454546,executed,executed,executed,
+Full Expressive QCNN,tfim,27,36,0.9545454545454546,0.6153846153846154,0.9545454545454546,executed,executed,executed,
+No Conv Entanglement,tfim,21,14,0.9545454545454546,0.5384615384615384,0.9545454545454546,executed,executed,executed,
 No Pool Entanglement,tfim,27,22,0.9545454545454546,0.6538461538461539,0.9545454545454546,executed,executed,executed,
 No Entanglement Anywhere,tfim,21,0,0.5,0.5,0.5,executed,executed,executed,
-No Pooling Ablation,tfim,18,42,0.9545454545454546,0.5384615384615384,0.9545454545454546,executed,executed,executed,
+No Pooling Ablation,tfim,18,42,0.9545454545454546,0.5,0.9545454545454546,executed,executed,executed,
 Unshared Weights Ablation,tfim,87,36,0.9545454545454546,0.5,0.9545454545454546,executed,executed,executed,
 Untrained QCNN Baseline,tfim,27,36,0.5,0.5,0.5,executed,executed,executed,
-Shuffled Training Labels Control,tfim,27,36,0.5054545454545455,0.4626373626373626,,executed,executed,not_executed,0.34615384615384615
+Shuffled Training Labels Control,tfim,27,36,0.509090909090909,0.4626373626373626,,executed,executed,not_executed,0.34615384615384615
 Random Quantum States Control,tfim,27,36,0.5833333333333333,,,executed,not_applicable,not_applicable,
 Physics Order Parameter,tfim,2,0,0.9545454545454546,0.5384615384615384,0.9545454545454546,executed,executed,executed,

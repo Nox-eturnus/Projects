@@ -1,11 +1,11 @@
 {
   "git_provenance": {
     "execution_git_commit": null,
-    "base_commit": "5c5a2f551b4faaafa5731e73820a0d49fc8b1f00",
+    "base_commit": "365c184c980382315ac580df11f019aee20b1f3b",
     "working_tree_dirty": true
   },
-  "git_commit": "5c5a2f551b4faaafa5731e73820a0d49fc8b1f00",
-  "base_commit": "5c5a2f551b4faaafa5731e73820a0d49fc8b1f00",
+  "git_commit": "365c184c980382315ac580df11f019aee20b1f3b",
+  "base_commit": "365c184c980382315ac580df11f019aee20b1f3b",
   "working_tree_dirty": true,
   "input_file_hashes": {
     "configs/project.yaml": "47520107dad1ed4499c6a95675ea685cff6bffdb75d429702ecdfb21f18fb44a",
@@ -13,11 +13,11 @@
     "data/processed/tfim_eval_states.npz": "e9cd47b6a0aa8ad468a861d319131f419a99293020763d5263dcb54356ee47ac",
     "data/processed/tfim_eval_metadata.csv": "bd978eabe39de03584815bc1cbeef019b5a1d8745b9029d7898aff0d3f6695b9",
     "qcnn_lab/qcnn/architecture.py": "97560e56dd27ef34edccddbcbf059e76fbd677c9d987f3209d44c9d2acf3fe70",
-    "qcnn_lab/qcnn/train.py": "22623fb3d562efeba5d3025e29e5e1a4f1b5dfc9be1e115278a6e9c7216c8b7d",
+    "qcnn_lab/qcnn/train.py": "43c426f39ecba88004fd02e14f9037ca8e5ab350efad5bcc9e3f9905c93711a3",
     "qcnn_lab/qcnn/evaluate.py": "eba31312e1ff6789ae9a9814ca5ecad5989ff25f089ba8d7c0eb122a0156b736",
-    "scripts/26_sanity_and_ablation_suite.py": "f1f6ea434d919ff556ff79afa5544467df7fbc2f224a126b51289814ecc96a60"
+    "scripts/26_sanity_and_ablation_suite.py": "dfe36515c63844d5ba640baa2e6d7ef27e995ee325283f91b0c9c87d043bfa21"
   },
-  "generated_at": "2026-09-08T09:43:37.019668+00:00",
+  "generated_at": "2026-09-08T14:55:52.603235+00:00",
   "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
   "n_qubits": 8,
   "family": "tfim",
@@ -36,12 +36,17 @@
   ],
   "n_runs_shuffled_control": 25,
   "shuffled_control_true_ba": 0.9545454545454546,
-  "shuffled_control_mean_test_ba": 0.5054545454545455,
+  "shuffled_control_mean_test_ba": 0.509090909090909,
   "shuffled_control_empirical_p_value": 0.34615384615384615,
+  "permutation_test_name": "Fixed-Split Full-Dataset Label Permutation Test",
+  "permutation_test_design_note": "Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.",
   "n_permutations_pipeline_test": 199,
+  "pipeline_permutation_n_exceedances": 0,
   "pipeline_permutation_p_value": 0.005,
-  "pipeline_permutation_null_ba_mean": 0.5105219076010533,
-  "pipeline_permutation_null_ba_std": 0.10144060100523233,
+  "pipeline_permutation_resolution_floor": 0.005,
+  "pipeline_permutation_at_resolution_floor": true,
+  "pipeline_permutation_null_ba_mean": 0.5107731638824604,
+  "pipeline_permutation_null_ba_std": 0.10160067311232546,
   "pipeline_permutation_null_ba_p95": 0.6756410256410257,
   "pipeline_permutation_null_ba_max": 0.8181818181818181,
   "pairwise_deltas": {
@@ -54,7 +59,7 @@
       "delta_crit_mean": -0.015384615384615385,
       "delta_crit_ci95": [
         -0.05384615384615386,
-        0.026923076923076928
+        0.023076923076923085
       ],
       "delta_ham_mean": 0.0,
       "delta_ham_ci95": [
@@ -68,10 +73,10 @@
         0.004545454545454542,
         0.04090909090909093
       ],
-      "delta_crit_mean": 0.09230769230769234,
+      "delta_crit_mean": 0.08461538461538465,
       "delta_crit_ci95": [
-        0.05769230769230772,
-        0.13076923076923083
+        0.05384615384615388,
+        0.11538461538461542
       ],
       "delta_ham_mean": 0.0,
       "delta_ham_ci95": [
@@ -114,15 +119,15 @@
       ]
     },
     "unshared_vs_full": {
-      "delta_iid_mean": -0.009090909090909084,
+      "delta_iid_mean": -0.009090909090909094,
       "delta_iid_ci95": [
-        -0.022727272727272707,
+        -0.022727272727272728,
         0.0
       ],
-      "delta_crit_mean": -0.02307692307692307,
+      "delta_crit_mean": -0.015384615384615363,
       "delta_crit_ci95": [
-        -0.05769230769230771,
-        0.011538461538461576
+        -0.05769230769230769,
+        0.023076923076923116
       ],
       "delta_ham_mean": 0.0,
       "delta_ham_ci95": [
@@ -136,10 +141,10 @@
         -0.05,
         -0.013636363636363636
       ],
-      "delta_crit_mean": -0.10769230769230773,
+      "delta_crit_mean": -0.10000000000000005,
       "delta_crit_ci95": [
-        -0.13461538461538466,
-        -0.08076923076923077
+        -0.12307692307692313,
+        -0.07692307692307694
       ],
       "delta_ham_mean": 0.0,
       "delta_ham_ci95": [
@@ -148,11 +153,6 @@
       ]
     }
   },
-  "scientific_conclusion": "Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0923, 95% CI [+0.0577, +0.1308], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0269]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.",
-  "script": "scripts/26_sanity_and_ablation_suite.py",
-  "permutation_test_name": "Fixed-Split Full-Dataset Label Permutation Test",
-  "permutation_test_design_note": "Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.",
-  "pipeline_permutation_n_exceedances": 0,
-  "pipeline_permutation_resolution_floor": 0.005,
-  "pipeline_permutation_at_resolution_floor": true
+  "scientific_conclusion": "Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0846, 95% CI [+0.0538, +0.1154], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0231]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.",
+  "script": "scripts/26_sanity_and_ablation_suite.py"
 }

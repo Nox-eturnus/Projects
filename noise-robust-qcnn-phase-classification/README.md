@@ -305,8 +305,8 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 <!-- BEGIN AUTO RESULTS: PRIMARY_MATRIX -->
 | Evaluation                 | TFIM BA                                           | XXZ BA                        | Cluster BA                    | Runs                      |
 |:---------------------------|:--------------------------------------------------|:------------------------------|:------------------------------|:--------------------------|
-| IID (Ideal)                | 0.934 ± 0.039 [0.913, 0.955]                      | 0.913 ± 0.051 [0.887, 0.940]  | 0.816 ± 0.079 [0.777, 0.855]  | 50                        |
-| Critical-region OOD        | 0.700 ± 0.093 [0.668, 0.732]                      | 0.585 ± 0.116 [0.545, 0.632]  | 0.516 ± 0.073 [0.500, 0.549]  | 50                        |
+| IID (Ideal)                | 0.915 ± 0.046 [0.890, 0.942]                      | 0.900 ± 0.054 [0.872, 0.928]  | 0.835 ± 0.069 [0.797, 0.870]  | 50                        |
+| Critical-region OOD        | 0.577 ± 0.092 [0.546, 0.613]                      | 0.571 ± 0.088 [0.541, 0.606]  | 0.522 ± 0.079 [0.502, 0.555]  | 50                        |
 | Hamiltonian OOD (δ=0.10)   | 0.955 (δ=0.10)                                    | 0.864 (δ=0.10)                | 0.818 (δ=0.10)                | 20                        |
 | 1024-shot Readout          | 0.955 ± 0.000                                     | 0.898 ± 0.039                 | 0.891 ± 0.034                 | 20 seeds                  |
 | Thermal (T=0.10)           | 0.500                                             | 0.944                         | 1.000                         | 16 points                 |
@@ -319,34 +319,34 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 <!-- BEGIN AUTO RESULTS: ABLATIONS -->
 | model                            |   parameters |   two_qubit_gates |   iid_ba | critical_ood_ba      | hamiltonian_ood_ba   |
 |:---------------------------------|-------------:|------------------:|---------:|:---------------------|:---------------------|
-| Full Expressive QCNN             |           27 |                36 |    0.955 | 0.692                | 0.955                |
-| No Conv Entanglement             |           21 |                14 |    0.955 | 0.808                | 0.955                |
+| Full Expressive QCNN             |           27 |                36 |    0.955 | 0.615                | 0.955                |
+| No Conv Entanglement             |           21 |                14 |    0.955 | 0.538                | 0.955                |
 | No Pool Entanglement             |           27 |                22 |    0.955 | 0.654                | 0.955                |
 | No Entanglement Anywhere         |           21 |                 0 |    0.5   | 0.500                | 0.500                |
-| No Pooling Ablation              |           18 |                42 |    0.955 | 0.538                | 0.955                |
+| No Pooling Ablation              |           18 |                42 |    0.955 | 0.500                | 0.955                |
 | Unshared Weights Ablation        |           87 |                36 |    0.955 | 0.500                | 0.955                |
 | Untrained QCNN Baseline          |           27 |                36 |    0.5   | 0.500                | 0.500                |
-| Shuffled Training Labels Control |           27 |                36 |    0.505 | 0.463                | N/A — not executed   |
+| Shuffled Training Labels Control |           27 |                36 |    0.509 | 0.463                | N/A — not executed   |
 | Random Quantum States Control    |           27 |                36 |    0.583 | N/A — not applicable | N/A — not applicable |
 | Physics Order Parameter          |            2 |                 0 |    0.955 | 0.538                | 0.955                |
 
 > **Shuffled-Training-Label Control (N=25 runs)**:
-> Training on randomly shuffled targets yielded mean true-label test BA 0.505 (empirical comparison p = 0.3462). Measures whether learning scrambled training labels generalizes to genuine ground truth.
+> Training on randomly shuffled targets yielded mean true-label test BA 0.509 (empirical comparison p = 0.3462). Measures whether learning scrambled training labels generalizes to genuine ground truth.
 
 > **Fixed-Split Full-Dataset Label Permutation Test (N=199 permutations)**:
-> 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050 (the resolution floor 0.0050 of this permutation run). Null test BA 0.511 ± 0.101 (95th percentile: 0.676, max: 0.818). Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y). Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.
+> 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050 (the resolution floor 0.0050 of this permutation run). Null test BA 0.511 ± 0.102 (95th percentile: 0.676, max: 0.818). Tests the sharp null hypothesis that quantum statevectors and physical phase labels are independent (X indep Y). Global label permutation with original train/validation/test indices reused; split construction is not regenerated under permutation.
 
 > **Multi-Seed Architectural Ablation Aggregate (Repeated Runs)**:
 | architecture                    |   parameter_count |   two_qubit_gates |   n_runs |   iid_ba_mean |   critical_ood_ba_mean |   hamiltonian_ood_ba_mean |
 |:--------------------------------|------------------:|------------------:|---------:|--------------:|-----------------------:|--------------------------:|
 | expressive_no_conv_entanglement |                21 |                14 |       10 |         0.927 |                  0.604 |                     0.955 |
 | expressive_no_entanglement      |                21 |                 0 |       10 |         0.5   |                  0.5   |                     0.5   |
-| expressive_no_pool_entanglement |                27 |                22 |       10 |         0.959 |                  0.712 |                     0.955 |
+| expressive_no_pool_entanglement |                27 |                22 |       10 |         0.959 |                  0.704 |                     0.955 |
 | expressive_no_pooling           |                18 |                42 |       10 |         0.932 |                  0.515 |                     0.955 |
 | expressive_shared_line          |                27 |                36 |       10 |         0.936 |                  0.619 |                     0.955 |
-| expressive_unshared_line        |                87 |                36 |       10 |         0.927 |                  0.596 |                     0.955 |
+| expressive_unshared_line        |                87 |                36 |       10 |         0.927 |                  0.604 |                     0.955 |
 
-> **Ablation Insight**: Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0923, 95% CI [+0.0577, +0.1308], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0269]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.
+> **Ablation Insight**: Under the current convergence-controlled runs, removing pooling entanglers unexpectedly improves both IID and critical-region performance relative to the full architecture (critical Delta=+0.0846, 95% CI [+0.0538, +0.1154], statistically resolved), while removing convolutional entanglement produces only a small statistically unresolved reduction (critical Delta=-0.0154, 95% CI [-0.0538, +0.0231]). By contrast, eliminating all entanglement collapses performance to chance, and removing the pooling hierarchy significantly damages critical-region generalization. These architectural comparisons remain provisional until optimization convergence is fully established.
 <!-- END AUTO RESULTS: ABLATIONS -->
 
 ### Classical Measurement-Budget Comparator
@@ -382,14 +382,14 @@ Rather than treating a 100% IID test accuracy score as a terminal goal, Phases 2
 ### Key Experimental Discoveries
 
 <!-- BEGIN AUTO RESULTS: KEY_DISCOVERIES -->
-1. **Near-Critical Crossover & Family Boundaries:** TFIM displays clear distance-dependent generalization (critical-region BA = 0.700) and a bracketed finite-size crossover, while critical-region distribution shift severely disrupts the fixed decision boundary and probability calibration for XXZ (BA = 0.585) and Cluster (BA = 0.516), even though rank discrimination remains unexpectedly strong (ROC-AUC ≈ 1.0). Validation-only thresholding does not consistently recover the lost fixed-threshold performance.
+1. **Near-Critical Crossover & Family Boundaries:** TFIM displays clear distance-dependent generalization (critical-region BA = 0.577) and a bracketed finite-size crossover, while critical-region distribution shift severely disrupts the fixed decision boundary and probability calibration for XXZ (BA = 0.571) and Cluster (BA = 0.522), even though rank discrimination remains unexpectedly strong (ROC-AUC ≈ 1.0). Validation-only thresholding does not consistently recover the lost fixed-threshold performance.
 2. **Hamiltonian Perturbation Generalization:** Models trained purely at zero disorder maintain high balanced accuracy under disordered TFIM and symmetry-preserving Cluster/XXZ deformations up to δ = 0.20 under nominal phase boundaries, accompanied by tracked spectral gaps and state fidelities.
 3. **Ablation & Control Proving Ground:**
    - **Haar Random States**: Negative sanity control consistent with chance-level generalization (BA ≈ 0.583); no evidence of meaningful phase-label structure and no obvious label leakage.
    - **Untrained QCNN Baseline**: Random parameter initializations evaluate the inductive bias floor without optimization.
-   - **Shuffled-Training-Label Control**: Training on randomly shuffled targets yielded mean true-label test BA 0.505 (empirical comparison p ≈ 0.3462).
+   - **Shuffled-Training-Label Control**: Training on randomly shuffled targets yielded mean true-label test BA 0.509 (empirical comparison p ≈ 0.3462).
    - **Fixed-Split Label-Permutation Test (N=199)**: 0/199 permuted statistics equaled or exceeded the observed statistic; +1-corrected Monte-Carlo p = 0.0050, the resolution floor of this permutation run.
-   - **Entanglement Inductive Bias**: Full critical BA ≈ 0.619; no-conv-entanglement Δ = -0.0154 95% CI [-0.0538, +0.0269] (unresolved); no-pool-entanglement Δ = +0.0923 95% CI [+0.0577, +0.1308] (resolved improvement); no-pool-entanglement critical BA ≈ 0.712 exceeds full. Removing all entanglement collapses to chance; removing the pooling hierarchy significantly damages critical-region generalization. Provisional until optimization convergence is fully established.
+   - **Entanglement Inductive Bias**: Full critical BA ≈ 0.619; no-conv-entanglement Δ = -0.0154 95% CI [-0.0538, +0.0231] (unresolved); no-pool-entanglement Δ = +0.0846 95% CI [+0.0538, +0.1154] (resolved improvement); no-pool-entanglement critical BA ≈ 0.704 exceeds full. Removing all entanglement collapses to chance; removing the pooling hierarchy significantly damages critical-region generalization. Provisional until optimization convergence is fully established.
 4. **Finite-Shot Budgets with Commuting Pauli Observables:** Under matched inference state-copy budgets, the QCNN shows a slightly higher mean BA than the two-observable classical comparator only for low-budget TFIM, while the physics-informed classical comparator outperforms it across the tested XXZ and Cluster budgets. This matches inference measurement resources, not total training resources (the classical model is trained using exact expectation values).
 5. **Physical IBM Hardware Session:** Observed 10/10 correct classifications on a held-out N=4 TFIM test subset during one `ibm_fez` hardware session (95% Clopper-Pearson CI: [0.692, 1.000]). Multi-session calibration tracking across distinct cooling windows is pending. Exact transpiled depth, two-qubit counts, and layout were not retained and are not reported.
 <!-- END AUTO RESULTS: KEY_DISCOVERIES -->
