@@ -35,6 +35,26 @@ export function addLocalDays(ms: number, days: number): number {
   return d.getTime()
 }
 
+/**
+ * `day`'s local calendar date at `timeOf`'s local wall-clock time — moving
+ * a task to another day without losing the time it was captured with. On a
+ * spring-forward day, a time inside the skipped hour resolves forward (an
+ * item at 02:30 lands at 03:30), never onto a neighbouring day.
+ */
+export function atLocalTimeOf(day: number, timeOf: number): number {
+  const d = new Date(day)
+  const t = new Date(timeOf)
+  return new Date(
+    d.getFullYear(),
+    d.getMonth(),
+    d.getDate(),
+    t.getHours(),
+    t.getMinutes(),
+    t.getSeconds(),
+    t.getMilliseconds(),
+  ).getTime()
+}
+
 /** The first instant of the local calendar day after `ms`'s. */
 export function startOfNextLocalDay(ms: number): number {
   const d = new Date(ms)

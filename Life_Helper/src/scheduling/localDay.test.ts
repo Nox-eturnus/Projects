@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { withTimeZone } from '../test/timeZone'
 import {
   addLocalDays,
+  atLocalTimeOf,
   compareLocalDays,
   localDayOrdinal,
   startOfLocalDay,
@@ -96,6 +97,35 @@ describe('addLocalDays across DST', () => {
       const sat9am = addLocalDays(mon9am, -2)
       expect(new Date(sat9am).getDate()).toBe(28)
       expect(new Date(sat9am).getHours()).toBe(9)
+    })
+  })
+})
+
+describe('atLocalTimeOf', () => {
+  it("puts one day's wall-clock time on another day, across a DST boundary", () => {
+    withTimeZone(NEW_YORK, () => {
+      const fri6pm = new Date(2026, 2, 6, 18, 5).getTime()
+      const moved = atLocalTimeOf(new Date(2026, 2, 8).getTime(), fri6pm)
+      expect(moved).toBe(new Date(2026, 2, 8, 18, 5).getTime())
+      // Two calendar days on, but 47 hours elapsed, not 48.
+      expect(moved - fri6pm).toBe(47 * HOUR_MS)
+    })
+  })
+
+  it('a time inside the skipped hour resolves forward on the same day, not onto another day', () => {
+    withTimeZone(NEW_YORK, () => {
+      const sat230am = new Date(2026, 2, 7, 2, 30).getTime()
+      const moved = new Date(atLocalTimeOf(new Date(2026, 2, 8).getTime(), sat230am))
+      expect(moved.getDate()).toBe(8)
+      expect(moved.getHours()).toBe(3)
+      expect(moved.getMinutes()).toBe(30)
+    })
+  })
+
+  it('midnight stays midnight', () => {
+    withTimeZone(KOLKATA, () => {
+      const day = new Date(2026, 8, 20).getTime()
+      expect(atLocalTimeOf(day, new Date(2026, 8, 11).getTime())).toBe(day)
     })
   })
 })

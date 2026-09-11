@@ -66,8 +66,9 @@ intend to do it," but capture stores whatever the parser resolved,
 including a time (timed captures like `acne cream 6pm` and `wash face
 8pm` make up most of `docs/usage_log.md`). Nudging 3pm to 6pm the same
 day isn't the kind of avoidance Part C4 is looking for, and counting it
-would make that frequent, harmless edit inflate the slipping signal. So the stored value
-keeps its time; the touch rule compares local calendar days.
+would make that frequent, harmless edit inflate the slipping signal. So
+the stored value keeps its time; the touch rule compares local calendar
+days.
 
 **`defer_until` is a date.** "Hidden from all views before this date."
 `planScheduleChange()` normalizes it to the first instant of its local day
@@ -77,6 +78,22 @@ a time of day (a synced or imported row, say) still reappears at the start
 of its day, not at that time. This is also what makes the query parameter
 stable: `deferralCutoff(now)` is "the start of tomorrow," which only
 changes at midnight, so views don't re-query on every render.
+
+**Triage keeps a captured time of day.** Found while building this part,
+fixed right after it: B3's "schedule for today" wrote the start of today
+outright, and "schedule for a date" wrote the date picker's local
+midnight. So `acne cream 6pm` triaged to Today came out scheduled for
+00:00, and the 6pm the parser had resolved was gone. Neither the `T` key
+nor `<input type="date">` carries a time, so there was never a user
+intent to override the captured one. Both actions now move only the
+date (`atLocalTimeOf()` in `localDay.ts`). An item already on the target
+day isn't written at all, and an item with no date yet still takes the
+day as given. On a spring-forward day, a time inside the skipped hour
+resolves forward, onto the same day. This only affects new triage
+actions: items already triaged to midnight keep that value for now. Their
+original times aren't lost, though. The `ops` log still holds every
+earlier `scheduled_for` value, so a one-off repair could restore them.
+That isn't done here, because it rewrites real data on the device.
 
 **The three dates stay independent.** Nothing reconciles them — a task
 can be scheduled for Monday and deferred until Wednesday, and Monday's
@@ -167,7 +184,7 @@ zone's IANA name first and restores that, which is correct whether or not
 ## Verification
 
 ```bash
-pnpm verify      # typecheck + lint + format + 337 unit tests (23 files) + build — green
+pnpm verify      # typecheck + lint + format + 344 unit tests (23 files) + build — green
 pnpm test:e2e    # 17 Playwright tests, including e2e/scheduling.spec.ts — green
 ```
 

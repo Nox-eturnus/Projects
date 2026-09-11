@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { addLocalDays } from '../scheduling/localDay'
 import { planTriageAction, type TriageAction, type TriageItem } from './triageActions'
 
 const NOW = 1_700_000_000_000 // an arbitrary fixed instant
@@ -18,6 +19,10 @@ const BASE_ITEM: TriageItem = {
 const START_OF_TODAY = new Date(NOW).setHours(0, 0, 0, 0)
 const DAY_MS = 24 * 60 * 60 * 1000
 
+function atHour(day: number, hour: number): number {
+  return new Date(day).setHours(hour, 0, 0, 0)
+}
+
 describe('planTriageAction', () => {
   it('scheduleToday: sets status active and scheduled_for to the start of today', () => {
     const plan = planTriageAction(BASE_ITEM, { type: 'scheduleToday' }, NOW)
@@ -31,15 +36,50 @@ describe('planTriageAction', () => {
     ])
   })
 
-  it('scheduleToday: undo restores the prior status and scheduled_for', () => {
+  it('scheduleToday: keeps a time captured for today instead of flattening it to midnight', () => {
+    // "acne cream 6pm", captured and triaged the same day — the usage-log
+    // case that used to come out of triage scheduled for 00:00.
+    const today6pm = atHour(START_OF_TODAY, 18)
+    const item: TriageItem = { ...BASE_ITEM, scheduledFor: today6pm }
+    const plan = planTriageAction(item, { type: 'scheduleToday' }, NOW)
+    expect(plan.writes).toEqual([
+      { table: 'items', key: { id: 'item-1' }, fields: { status: 'active' } },
+    ])
+  })
+
+  it('scheduleToday: moves a captured time from another day to the same time today', () => {
     // Captured as "tomorrow 3pm", triaged to today: pulled in, not a reschedule.
-    const tomorrow3pm = START_OF_TODAY + DAY_MS + 15 * 60 * 60 * 1000
+    const tomorrow3pm = atHour(addLocalDays(START_OF_TODAY, 1), 15)
+    const item: TriageItem = { ...BASE_ITEM, scheduledFor: tomorrow3pm }
+    const plan = planTriageAction(item, { type: 'scheduleToday' }, NOW)
+    expect(plan.writes).toContainEqual({
+      table: 'task_fields',
+      key: { item_id: 'item-1' },
+      fields: { scheduled_for: atHour(START_OF_TODAY, 15) },
+    })
+  })
+
+  it('scheduleToday: undo restores the prior status and scheduled_for', () => {
+    const tomorrow3pm = atHour(addLocalDays(START_OF_TODAY, 1), 15)
     const item: TriageItem = { ...BASE_ITEM, scheduledFor: tomorrow3pm }
     const plan = planTriageAction(item, { type: 'scheduleToday' }, NOW)
     expect(plan.undoWrites).toEqual([
       { table: 'items', key: { id: 'item-1' }, fields: { status: 'inbox' } },
       { table: 'task_fields', key: { item_id: 'item-1' }, fields: { scheduled_for: tomorrow3pm } },
     ])
+  })
+
+  it('scheduleToday: an overdue timed item keeps its time and counts as a reschedule', () => {
+    const item: TriageItem = {
+      ...BASE_ITEM,
+      scheduledFor: atHour(addLocalDays(START_OF_TODAY, -3), 18),
+    }
+    const plan = planTriageAction(item, { type: 'scheduleToday' }, NOW)
+    expect(plan.writes).toContainEqual({
+      table: 'task_fields',
+      key: { item_id: 'item-1' },
+      fields: { scheduled_for: atHour(START_OF_TODAY, 18), touch_count: 1, last_touched_at: NOW },
+    })
   })
 
   it('scheduleToday: an item already scheduled earlier than today counts as a reschedule', () => {
@@ -76,6 +116,17 @@ describe('planTriageAction', () => {
       table: 'task_fields',
       key: { item_id: 'item-1' },
       fields: { scheduled_for: 123_456 },
+    })
+  })
+
+  it('scheduleDate: the picked date keeps the time the item was captured with', () => {
+    const item: TriageItem = { ...BASE_ITEM, scheduledFor: atHour(START_OF_TODAY, 15) }
+    const picked = addLocalDays(START_OF_TODAY, 4) // <input type="date"> gives local midnight
+    const plan = planTriageAction(item, { type: 'scheduleDate', date: picked }, NOW)
+    expect(plan.writes).toContainEqual({
+      table: 'task_fields',
+      key: { item_id: 'item-1' },
+      fields: { scheduled_for: atHour(picked, 15), touch_count: 1, last_touched_at: NOW },
     })
   })
 
