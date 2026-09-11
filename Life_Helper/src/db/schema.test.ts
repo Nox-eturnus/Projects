@@ -32,6 +32,7 @@ const MATERIALIZED_TABLES = [
   'container_fields',
   'person_fields',
   'note_fields',
+  'day_plans',
 ]
 
 describe('migrations: empty to head', () => {
@@ -61,6 +62,28 @@ describe('migrations: empty to head', () => {
     for (const table of MATERIALIZED_TABLES) {
       expect(names.has(table)).toBe(true)
     }
+  })
+})
+
+describe('upgrading a device that is already on 0001 with real data', () => {
+  // The path every existing install takes the first time it loads a build
+  // containing 0002: the worker calls applyMigrations() on an OPFS database
+  // that has 0001 applied and user data in it.
+  it('applies only the new migration and leaves existing data untouched', () => {
+    const db = createDb()
+    const init = MIGRATIONS.find((m) => m.id === '0001_init')
+    if (!init) throw new Error('0001_init missing')
+    db.exec('CREATE TABLE schema_migrations (id TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)')
+    db.exec(init.sql)
+    db.prepare('INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)').run('0001_init', 1)
+    db.prepare(
+      `INSERT INTO items (id, kind, title, created_at, updated_at, hlc, origin_device)
+       VALUES ('t1', 'task', 'Acne cream', 1, 1, 'h', 'd')`,
+    ).run()
+
+    expect(applyMigrations(db)).toEqual(MIGRATIONS.slice(1).map((m) => m.id))
+    expect(db.prepare('SELECT title FROM items').all()).toEqual([{ title: 'Acne cream' }])
+    expect(db.prepare('SELECT COUNT(*) AS n FROM day_plans').all()).toEqual([{ n: 0 }])
   })
 })
 

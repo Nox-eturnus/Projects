@@ -4,6 +4,7 @@ import {
   addLocalDays,
   atLocalTimeOf,
   compareLocalDays,
+  localDayKey,
   localDayOrdinal,
   startOfLocalDay,
   startOfNextLocalDay,
@@ -97,6 +98,26 @@ describe('addLocalDays across DST', () => {
       const sat9am = addLocalDays(mon9am, -2)
       expect(new Date(sat9am).getDate()).toBe(28)
       expect(new Date(sat9am).getHours()).toBe(9)
+    })
+  })
+})
+
+describe('localDayKey', () => {
+  it('is the local calendar date, zero-padded', () => {
+    withTimeZone(KOLKATA, () => {
+      expect(localDayKey(new Date(2026, 8, 1, 23, 59).getTime())).toBe('2026-09-01')
+      // 03:00 IST is still the previous day in UTC — the key is the local one.
+      expect(localDayKey(new Date(2026, 8, 11, 3).getTime())).toBe('2026-09-11')
+    })
+  })
+
+  it('is one key for every instant of a DST day, including one with no midnight', () => {
+    withTimeZone(NEW_YORK, () => {
+      expect(localDayKey(new Date(2026, 2, 8, 0, 30).getTime())).toBe('2026-03-08')
+      expect(localDayKey(new Date(2026, 2, 8, 23, 30).getTime())).toBe('2026-03-08')
+    })
+    withTimeZone(SAO_PAULO, () => {
+      expect(localDayKey(startOfLocalDay(new Date(2018, 10, 4, 12).getTime()))).toBe('2018-11-04')
     })
   })
 })

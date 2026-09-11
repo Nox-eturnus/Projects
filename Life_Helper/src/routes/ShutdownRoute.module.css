@@ -1,0 +1,190 @@
+.shutdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 40rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.step > * {
+  align-self: stretch;
+}
+
+.step > button {
+  align-self: flex-start;
+}
+
+.stepTitle {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.note {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.list {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.pickList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.pickRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-paper);
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.pickList li:last-child .pickRow {
+  border-bottom: none;
+}
+
+.pickRow:hover {
+  background: var(--surface-raised);
+}
+
+.pickRow:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.pickRow[aria-pressed='true'] {
+  background: var(--surface-raised);
+}
+
+/* Selection is a filled, numbered circle *and* aria-pressed — never colour alone. */
+.pickMarker {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid var(--muted-stroke);
+  border-radius: 50%;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--surface-paper);
+}
+
+.pickRow[aria-pressed='true'] .pickMarker {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.pickText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pickTitle {
+  font-size: var(--text-base);
+  overflow-wrap: anywhere;
+}
+
+.pickDetail {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+.hint {
+  margin: 0;
+  min-height: 1.25em;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.doneList {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--ink);
+  font-size: var(--text-lg);
+}
+
+.reminder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--hairline);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.reminder input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.reminder input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.reminderHelp {
+  flex-basis: 100%;
+  color: var(--ink-secondary);
+}

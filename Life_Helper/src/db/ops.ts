@@ -25,6 +25,7 @@ export type TableName =
   | 'container_fields'
   | 'person_fields'
   | 'note_fields'
+  | 'day_plans'
 
 interface TableConfig {
   readonly primaryKey: readonly string[]
@@ -41,6 +42,7 @@ const TABLES: Record<TableName, TableConfig> = {
   container_fields: { primaryKey: ['item_id'], required: ['container_kind'] },
   person_fields: { primaryKey: ['item_id'], required: [] },
   note_fields: { primaryKey: ['item_id'], required: ['note_kind'] },
+  day_plans: { primaryKey: ['day'], required: [] },
 }
 
 export interface Write {
@@ -278,6 +280,7 @@ const MATERIALIZED_TABLES: readonly TableName[] = [
   'container_fields',
   'person_fields',
   'note_fields',
+  'day_plans',
 ]
 
 export interface TableComparison {

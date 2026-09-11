@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
 import { planTriageAction, type TriageAction, type TriageItem } from '../triage/triageActions.js'
 import { dbClient } from '../db/client.js'
-import type { Write } from '../db/ops.js'
 import { Button } from '../ui/Button.js'
 import { EmptyState } from '../ui/EmptyState.js'
 import { ListRow } from '../ui/ListRow.js'
 import { Sheet } from '../ui/Sheet.js'
+import { UndoToast } from '../ui/UndoToast.js'
+import { useUndoToast } from '../ui/useUndoToast.js'
 import styles from './TriageView.module.css'
 
 export interface TriageItemRow {
@@ -33,19 +34,11 @@ export interface TriageViewProps {
   readonly onExit: () => void
 }
 
-// Decision 7's undo window, applied to every triage action per Part B3's
-// own Definition of Done ("every action is undoable for 10 seconds").
-const UNDO_WINDOW_MS = 10_000
 const SWIPE_THRESHOLD_PX = 80
 
 function todayInputValue(): string {
   const d = new Date()
   return `${d.getFullYear().toString().padStart(4, '0')}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`
-}
-
-interface UndoState {
-  readonly label: string
-  readonly writes: readonly Write[]
 }
 
 /**
@@ -65,27 +58,11 @@ interface UndoState {
  * interface would hide most of them from mobile users entirely.
  */
 export function TriageView({ items, projects, onExit }: TriageViewProps) {
-  const [undoState, setUndoState] = useState<UndoState | null>(null)
   const [dateSheetOpen, setDateSheetOpen] = useState(false)
   const [projectSheetOpen, setProjectSheetOpen] = useState(false)
   const [dateValue, setDateValue] = useState(todayInputValue)
-  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const swipeStartXRef = useRef<number | null>(null)
-
-  useEffect(
-    () => () => {
-      if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current)
-    },
-    [],
-  )
-
-  const showUndo = useCallback((label: string, writes: readonly Write[]): void => {
-    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current)
-    setUndoState({ label, writes })
-    undoTimeoutRef.current = setTimeout(() => {
-      setUndoState(null)
-    }, UNDO_WINDOW_MS)
-  }, [])
+  const { pending: pendingUndo, show: showUndo, runUndo } = useUndoToast()
 
   // Guards on items.length rather than `items[0]`'s own truthiness: this
   // project's tsconfig doesn't set noUncheckedIndexedAccess, so TS infers
@@ -115,17 +92,12 @@ export function TriageView({ items, projects, onExit }: TriageViewProps) {
       }
       const plan = planTriageAction(item, action, Date.now())
       void dbClient.mutate({ writes: plan.writes })
-      showUndo(plan.label, plan.undoWrites)
+      showUndo(plan.label, () => {
+        void dbClient.mutate({ writes: plan.undoWrites })
+      })
     },
     [items, showUndo],
   )
-
-  function handleUndo(): void {
-    if (!undoState) return
-    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current)
-    void dbClient.mutate({ writes: undoState.writes })
-    setUndoState(null)
-  }
 
   useEffect(() => {
     if (dateSheetOpen || projectSheetOpen || items.length === 0) return
@@ -194,14 +166,7 @@ export function TriageView({ items, projects, onExit }: TriageViewProps) {
   // inbox — the empty-state branch used to skip it entirely, which meant
   // the last item of a session had no undo option at all. Caught by
   // e2e/triage.spec.ts, not reasoned about in advance.
-  const undoToast = undoState ? (
-    <div className={styles.toast} role="status">
-      <span>{undoState.label}</span>
-      <Button variant="ghost" size="sm" onClick={handleUndo}>
-        Undo
-      </Button>
-    </div>
-  ) : null
+  const undoToast = <UndoToast pending={pendingUndo} onUndo={runUndo} />
 
   if (items.length === 0) {
     return (

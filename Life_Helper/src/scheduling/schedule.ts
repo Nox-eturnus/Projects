@@ -22,7 +22,12 @@
  * way it is.
  */
 import type { SqlValue, Write } from '../db/ops.js'
-import { compareLocalDays, startOfLocalDay, startOfNextLocalDay } from './localDay.js'
+import {
+  atLocalTimeOf,
+  compareLocalDays,
+  startOfLocalDay,
+  startOfNextLocalDay,
+} from './localDay.js'
 
 /** A task's current scheduling state — a snapshot of its `task_fields` row. */
 export interface TaskSchedule {
@@ -70,6 +75,17 @@ export function isForwardReschedule(previous: number | null, next: number | null
   if (previous === null) return false
   if (next === null) return true
   return compareLocalDays(next, previous) > 0
+}
+
+/**
+ * The `scheduled_for` a task gets when it's moved to `day` by an action
+ * that picks only a day — triage's Today key and date picker, committing
+ * it to a day's top 3. Keeps the time of day it already had (an item
+ * captured as "acne cream 6pm" stays at 6pm) rather than flattening it to
+ * midnight; a task with no date yet takes `day` as given.
+ */
+export function moveToDay(scheduledFor: number | null, day: number): number {
+  return scheduledFor === null ? day : atLocalTimeOf(day, scheduledFor)
 }
 
 /**

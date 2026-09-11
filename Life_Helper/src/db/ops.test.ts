@@ -303,6 +303,7 @@ describe('replayOps', () => {
       'container_fields',
       'person_fields',
       'note_fields',
+      'day_plans',
     ]) {
       expect(tableRows(target, table)).toEqual(tableRows(source, table))
     }

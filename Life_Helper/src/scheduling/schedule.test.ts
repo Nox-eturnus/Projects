@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { createHlcClock, type HlcState } from '../db/hlc'
 import { applyMigrations, type SqliteConnection } from '../db/migrate'
 import { compareMaterializedTables, mutate, replayOps, selectAllOps, type Write } from '../db/ops'
-import { INBOX_SQL, RECENT_CAPTURES_SQL } from '../routes/taskQueries'
+import { DAY_TASKS_SQL, INBOX_SQL, RECENT_CAPTURES_SQL } from '../routes/taskQueries'
 import { withTimeZone } from '../test/timeZone'
 import { addLocalDays, startOfLocalDay } from './localDay'
 import {
@@ -454,7 +454,13 @@ describe('through mutate() on a real database', () => {
 
 // --- "Deferred items are absent from every view until their date" ---------
 
-const TASK_VIEW_QUERIES: Record<string, string> = { INBOX_SQL, RECENT_CAPTURES_SQL }
+// Each view's SQL, and the params it's bound with for a given `now`: the
+// deferral cutoff first, then whatever else that query takes.
+const TASK_VIEW_QUERIES: Record<string, [string, (now: number) => unknown[]]> = {
+  INBOX_SQL: [INBOX_SQL, (now) => [deferralCutoff(now)]],
+  RECENT_CAPTURES_SQL: [RECENT_CAPTURES_SQL, (now) => [deferralCutoff(now)]],
+  DAY_TASKS_SQL: [DAY_TASKS_SQL, (now) => [deferralCutoff(now), startOfLocalDay(now)]],
+}
 
 describe('every task view hides deferred items until their date', () => {
   function seed(): SqliteConnection {
@@ -488,25 +494,26 @@ describe('every task view hides deferred items until their date', () => {
     return db
   }
 
-  function idsAt(db: SqliteConnection, sql: string, now: number): string[] {
+  function idsAt(db: SqliteConnection, name: string, now: number): string[] {
+    const [sql, params] = TASK_VIEW_QUERIES[name]
     return db
       .prepare(sql)
-      .all(deferralCutoff(now))
+      .all(...params(now))
       .map((row) => row.id as string)
       .sort()
   }
 
-  for (const [name, sql] of Object.entries(TASK_VIEW_QUERIES)) {
+  for (const name of Object.keys(TASK_VIEW_QUERIES)) {
     it(`${name}: absent the day before, present from the start of the defer date`, () => {
       const db = seed()
-      expect(idsAt(db, sql, NOW)).toEqual([
+      expect(idsAt(db, name, NOW)).toEqual([
         'deferred-to-today',
         'lapsed',
         'no-task-fields',
         'visible',
       ])
-      expect(idsAt(db, sql, TOMORROW - 1)).not.toContain('deferred')
-      expect(idsAt(db, sql, TOMORROW)).toContain('deferred')
+      expect(idsAt(db, name, TOMORROW - 1)).not.toContain('deferred')
+      expect(idsAt(db, name, TOMORROW)).toContain('deferred')
     })
   }
 

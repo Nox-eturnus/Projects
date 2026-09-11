@@ -4,7 +4,7 @@ test('the global shortcut opens capture and focuses the field, from any route', 
   page,
 }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Life Helper' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible()
 
   await page.keyboard.press('Control+k')
 

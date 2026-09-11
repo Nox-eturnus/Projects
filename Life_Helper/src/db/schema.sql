@@ -10,7 +10,7 @@
 -- src/db/schema.test.ts to never drift from it: edit the migrations, not
 -- this file, and regenerate.
 --
--- Head migration: 0001_init
+-- Head migration: 0002_day_plans
 
 CREATE TABLE items (
   id TEXT PRIMARY KEY,
@@ -152,3 +152,15 @@ CREATE TRIGGER items_au AFTER UPDATE ON items BEGIN
   INSERT INTO items_fts(items_fts, rowid, title, body) VALUES ('delete', old.rowid, old.title, old.body);
   INSERT INTO items_fts(rowid, title, body) VALUES (new.rowid, new.title, new.body);
 END;
+
+CREATE TABLE day_plans (
+  day TEXT PRIMARY KEY,
+  top1_id TEXT,
+  top2_id TEXT,
+  top3_id TEXT,
+  committed_at INTEGER,
+  committed_via TEXT CHECK (committed_via IN ('shutdown', 'proposal')),
+  shutdown_completed_at INTEGER,
+  hlc TEXT NOT NULL,
+  origin_device TEXT NOT NULL
+);

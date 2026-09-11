@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-test('loads the shell and shows the app heading', async ({ page }) => {
+test('loads the shell and opens on Today', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Life Helper' })).toBeVisible()
+  await expect(page.getByText('Life Helper').first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible()
 })
 
 test('registers a service worker and exposes a valid manifest', async ({ page }) => {

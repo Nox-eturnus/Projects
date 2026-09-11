@@ -1,0 +1,171 @@
+.today {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 40rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.date {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-base);
+}
+
+/* Evening shutdown prompt: a quiet invitation, not an alert — accent is
+   only ever a stroke here (Decision 13), never the text colour. */
+.prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--accent-stroke);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--surface-paper);
+}
+
+.promptText {
+  margin: 0;
+  flex: 1 1 16rem;
+  color: var(--ink);
+}
+
+/* The top 3: the most prominent thing on the page. */
+.topThree {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.intro {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+.topList {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.finish {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.proposalList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.proposalItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-paper);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.proposalItem:last-child {
+  border-bottom: none;
+}
+
+.proposalText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.proposalTitle {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.proposalReason {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+/* Everything else today: deliberately secondary. */
+.rest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.restTitle {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.restList {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.coldMessage {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-base);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--hairline);
+}
+
+.footerNote {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.footerLink {
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.footerLink:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}

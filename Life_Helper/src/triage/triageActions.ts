@@ -16,8 +16,8 @@
  * against `touch_count` exactly like any other reschedule would.
  */
 import type { SqlValue, Write } from '../db/ops.js'
-import { atLocalTimeOf, startOfLocalDay } from '../scheduling/localDay.js'
-import { planScheduleChange, type TaskSchedule } from '../scheduling/schedule.js'
+import { startOfLocalDay } from '../scheduling/localDay.js'
+import { moveToDay, planScheduleChange, type TaskSchedule } from '../scheduling/schedule.js'
 
 export interface TriageItem extends TaskSchedule {
   readonly status: string | null
@@ -56,15 +56,13 @@ function taskFieldsWrite(id: string, fields: Readonly<Record<string, SqlValue>>)
 }
 
 /**
- * Moves the item to `day` but keeps the time of day it already had: an
- * item captured as "acne cream 6pm" and triaged to Today stays at 6pm,
- * rather than being flattened to midnight (and one already on `day` isn't
- * written at all). Neither the Today key nor the date picker carries a
- * time, so there's no user intent here to override the captured one. An
- * item with no date yet takes `day` as given.
+ * Moves the item to `day` but keeps the time of day it already had (see
+ * moveToDay()) — neither the Today key nor the date picker carries a time,
+ * so there's no user intent here to override the captured one. An item
+ * already on `day` gets no task_fields write at all.
  */
 function planSchedule(item: TriageItem, label: string, day: number, now: number): TriagePlan {
-  const scheduledFor = item.scheduledFor === null ? day : atLocalTimeOf(day, item.scheduledFor)
+  const scheduledFor = moveToDay(item.scheduledFor, day)
   const schedule = planScheduleChange(item, { scheduledFor }, now)
   return {
     label,

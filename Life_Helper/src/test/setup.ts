@@ -48,6 +48,37 @@ if (typeof navigator !== 'undefined' && !('locks' in navigator)) {
   })
 }
 
+// Node 26 ships its own experimental global `localStorage`: a configurable
+// getter that returns undefined unless Node was started with
+// --localstorage-file (it's what prints "localStorage is not available").
+// It shadows jsdom's working one, so `window.localStorage` is undefined in
+// every test. App code already survives that (every access is in a
+// try/catch), but it means a test could never observe a stored preference.
+// An in-memory Storage stands in, emptied between tests.
+if (typeof window !== 'undefined' && (window as { localStorage?: Storage }).localStorage == null) {
+  const entries = new Map<string, string>()
+  const memoryStorage: Storage = {
+    get length() {
+      return entries.size
+    },
+    clear: () => {
+      entries.clear()
+    },
+    getItem: (key) => entries.get(key) ?? null,
+    key: (index) => [...entries.keys()][index] ?? null,
+    removeItem: (key) => {
+      entries.delete(key)
+    },
+    setItem: (key, value) => {
+      entries.set(key, value)
+    },
+  }
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: memoryStorage })
+  afterEach(() => {
+    memoryStorage.clear()
+  })
+}
+
 // jsdom also has no Worker constructor. Once the lock above resolves,
 // DbClient.setUpAsLeader() reaches `new Worker(...)`, which would otherwise
 // throw a synchronous ReferenceError inside an async method — an unhandled

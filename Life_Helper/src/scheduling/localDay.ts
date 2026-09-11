@@ -71,6 +71,19 @@ export function localDayOrdinal(ms: number): number {
   return d.getFullYear() * 10_000 + (d.getMonth() + 1) * 100 + d.getDate()
 }
 
+/**
+ * `ms`'s local calendar date as `YYYY-MM-DD` — an identity for "a day,"
+ * used as `day_plans`' primary key. A string rather than a midnight epoch
+ * because the date is the identity: two devices planning Saturday agree on
+ * `'2026-09-12'` whatever instant each happened to compute for its start.
+ */
+export function localDayKey(ms: number): string {
+  const d = new Date(ms)
+  const month = (d.getMonth() + 1).toString().padStart(2, '0')
+  const day = d.getDate().toString().padStart(2, '0')
+  return `${d.getFullYear().toString().padStart(4, '0')}-${month}-${day}`
+}
+
 /** Negative if `a` is on an earlier local day than `b`, 0 if the same day, positive if later. */
 export function compareLocalDays(a: number, b: number): number {
   return localDayOrdinal(a) - localDayOrdinal(b)

@@ -3,17 +3,10 @@ import { PwaPrompts } from './pwa/PwaPrompts'
 import { CaptureRoute } from './routes/CaptureRoute'
 import { GalleryRoute } from './routes/GalleryRoute'
 import { InboxRoute } from './routes/InboxRoute'
+import { ShutdownRoute } from './routes/ShutdownRoute'
+import { TodayRoute } from './routes/TodayRoute'
 import { AppShell } from './ui/AppShell'
 import { RouterProvider, Routes } from './ui/router'
-
-function TodayPlaceholder() {
-  return (
-    <>
-      <h1>Life Helper</h1>
-      <p>Foundations are laid. Capture comes next.</p>
-    </>
-  )
-}
 
 function AppRoutes() {
   // Must be mounted under RouterProvider (it calls useRouter()), and above
@@ -23,7 +16,8 @@ function AppRoutes() {
   return (
     <Routes
       routes={[
-        { path: '/', element: <TodayPlaceholder /> },
+        { path: '/', element: <TodayRoute /> },
+        { path: '/shutdown', element: <ShutdownRoute /> },
         { path: '/capture', element: <CaptureRoute /> },
         { path: '/inbox', element: <InboxRoute /> },
         { path: '/gallery', element: <GalleryRoute /> },
