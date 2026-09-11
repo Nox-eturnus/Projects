@@ -13,7 +13,11 @@ export interface TriageItemRow {
   readonly title: string
   readonly status: string | null
   readonly created_at: number
+  readonly due_at: number | null
   readonly scheduled_for: number | null
+  readonly defer_until: number | null
+  readonly touch_count: number
+  readonly last_touched_at: number | null
   readonly someday: number
   readonly completed_at: number | null
 }
@@ -101,7 +105,11 @@ export function TriageView({ items, projects, onExit }: TriageViewProps) {
       const item: TriageItem = {
         id: row.id,
         status: row.status,
+        dueAt: row.due_at,
         scheduledFor: row.scheduled_for,
+        deferUntil: row.defer_until,
+        touchCount: row.touch_count,
+        lastTouchedAt: row.last_touched_at,
         someday: row.someday,
         completedAt: row.completed_at,
       }

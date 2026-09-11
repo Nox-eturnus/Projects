@@ -20,7 +20,11 @@ function item(overrides: Partial<TriageItemRow> = {}): TriageItemRow {
     title: 'Buy milk',
     status: 'inbox',
     created_at: 1000,
+    due_at: null,
     scheduled_for: null,
+    defer_until: null,
+    touch_count: 0,
+    last_touched_at: null,
     someday: 0,
     completed_at: null,
     ...overrides,
@@ -62,6 +66,23 @@ describe('TriageView', () => {
     expect(itemsWrite).toMatchObject({ table: 'items', fields: { status: 'active' } })
     expect(taskFieldsWrite).toMatchObject({ table: 'task_fields' })
     expect(typeof taskFieldsWrite.fields.scheduled_for).toBe('number')
+  })
+
+  it("pressing T on an item scheduled for an earlier day carries the row's touch_count forward", () => {
+    const threeDaysAgo = new Date().setHours(0, 0, 0, 0) - 3 * 24 * 60 * 60 * 1000
+    render(
+      <TriageView
+        items={[item({ scheduled_for: threeDaysAgo, touch_count: 2 })]}
+        projects={[]}
+        onExit={vi.fn()}
+      />,
+    )
+
+    fireEvent.keyDown(window, { key: 't' })
+
+    const [, taskFieldsWrite] = writesFor(mutateMock.mock.calls[0][0])
+    expect(taskFieldsWrite.fields).toMatchObject({ touch_count: 3 })
+    expect(typeof taskFieldsWrite.fields.last_touched_at).toBe('number')
   })
 
   it('pressing Enter marks the item done', () => {

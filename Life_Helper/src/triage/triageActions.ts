@@ -10,13 +10,17 @@
  * written back to `TriageItem` — mutate() only logs a field as an op if it
  * differs from what's already there, so an undo write that happens to
  * match the current value again is a safe no-op, not a phantom op.
+ *
+ * The two scheduling actions delegate their `task_fields` write to Part
+ * C1's planScheduleChange(), so a triage reschedule to a later day counts
+ * against `touch_count` exactly like any other reschedule would.
  */
 import type { SqlValue, Write } from '../db/ops.js'
+import { startOfLocalDay } from '../scheduling/localDay.js'
+import { planScheduleChange, type TaskSchedule } from '../scheduling/schedule.js'
 
-export interface TriageItem {
-  readonly id: string
+export interface TriageItem extends TaskSchedule {
   readonly status: string | null
-  readonly scheduledFor: number | null
   readonly someday: number
   readonly completedAt: number | null
 }
@@ -43,12 +47,6 @@ export interface TriagePlan {
 const CONVERTED_NOTE_KIND = 'idea'
 const CONVERTED_ROUTINE_CADENCE = 'daily'
 
-function startOfDay(ms: number): number {
-  const d = new Date(ms)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
-}
-
 function itemsWrite(id: string, fields: Readonly<Record<string, SqlValue>>): Write {
   return { table: 'items', key: { id }, fields }
 }
@@ -57,35 +55,26 @@ function taskFieldsWrite(id: string, fields: Readonly<Record<string, SqlValue>>)
   return { table: 'task_fields', key: { item_id: id }, fields }
 }
 
+function planSchedule(
+  item: TriageItem,
+  label: string,
+  scheduledFor: number,
+  now: number,
+): TriagePlan {
+  const schedule = planScheduleChange(item, { scheduledFor }, now)
+  return {
+    label,
+    writes: [itemsWrite(item.id, { status: 'active' }), ...schedule.writes],
+    undoWrites: [itemsWrite(item.id, { status: item.status }), ...schedule.undoWrites],
+  }
+}
+
 export function planTriageAction(item: TriageItem, action: TriageAction, now: number): TriagePlan {
   switch (action.type) {
-    case 'scheduleToday': {
-      const scheduledFor = startOfDay(now)
-      return {
-        label: 'Scheduled for today',
-        writes: [
-          itemsWrite(item.id, { status: 'active' }),
-          taskFieldsWrite(item.id, { scheduled_for: scheduledFor }),
-        ],
-        undoWrites: [
-          itemsWrite(item.id, { status: item.status }),
-          taskFieldsWrite(item.id, { scheduled_for: item.scheduledFor }),
-        ],
-      }
-    }
-    case 'scheduleDate': {
-      return {
-        label: 'Scheduled',
-        writes: [
-          itemsWrite(item.id, { status: 'active' }),
-          taskFieldsWrite(item.id, { scheduled_for: action.date }),
-        ],
-        undoWrites: [
-          itemsWrite(item.id, { status: item.status }),
-          taskFieldsWrite(item.id, { scheduled_for: item.scheduledFor }),
-        ],
-      }
-    }
+    case 'scheduleToday':
+      return planSchedule(item, 'Scheduled for today', startOfLocalDay(now), now)
+    case 'scheduleDate':
+      return planSchedule(item, 'Scheduled', action.date, now)
     case 'fileToProject': {
       return {
         label: `Filed to ${action.projectTitle}`,

@@ -4,9 +4,11 @@ import { parse, resolveCapture, tokenKey } from '../capture/parse.js'
 import { FOCUS_CAPTURE_EVENT } from '../capture/useGlobalCaptureShortcut.js'
 import { dbClient } from '../db/client.js'
 import { useQuery } from '../db/useQuery.js'
+import { useDeferralCutoff } from '../scheduling/useDeferralCutoff.js'
 import { EmptyState } from '../ui/EmptyState.js'
 import { ListRow } from '../ui/ListRow.js'
 import { computeViewState, ThreeStateView } from '../ui/ThreeStateView.js'
+import { RECENT_CAPTURES_SQL } from './taskQueries.js'
 import styles from './CaptureRoute.module.css'
 
 interface RecentCapture {
@@ -14,13 +16,6 @@ interface RecentCapture {
   title: string
   created_at: number
 }
-
-const RECENT_CAPTURES_SQL = `
-  SELECT id, title, created_at FROM items
-  WHERE kind = 'task' AND status = 'inbox' AND deleted_at IS NULL
-  ORDER BY created_at DESC
-  LIMIT 5
-`
 
 /**
  * Part B1's capture surface, extended by Part B2's deterministic parser.
@@ -40,8 +35,9 @@ export function CaptureRoute() {
   const [text, setText] = useState('')
   const [removedKeys, setRemovedKeys] = useState<ReadonlySet<string>>(new Set())
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { data, loading } = useQuery<RecentCapture>(RECENT_CAPTURES_SQL, [], {
-    tables: ['items'],
+  const deferralCutoff = useDeferralCutoff()
+  const { data, loading } = useQuery<RecentCapture>(RECENT_CAPTURES_SQL, [deferralCutoff], {
+    tables: ['items', 'task_fields'],
   })
 
   const parsed = useMemo(() => parse(text), [text])

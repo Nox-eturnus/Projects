@@ -1,21 +1,14 @@
 import { useState } from 'react'
 import { useQuery } from '../db/useQuery.js'
+import { useDeferralCutoff } from '../scheduling/useDeferralCutoff.js'
 import { Button } from '../ui/Button.js'
 import { EmptyState } from '../ui/EmptyState.js'
 import { ListRow } from '../ui/ListRow.js'
 import { useRouter } from '../ui/router.js'
 import { computeViewState, ThreeStateView } from '../ui/ThreeStateView.js'
+import { INBOX_SQL } from './taskQueries.js'
 import { TriageView, type ProjectOption, type TriageItemRow } from './TriageView.js'
 import styles from './InboxRoute.module.css'
-
-const INBOX_SQL = `
-  SELECT items.id, items.title, items.status, items.created_at,
-         task_fields.scheduled_for, task_fields.someday, task_fields.completed_at
-  FROM items
-  LEFT JOIN task_fields ON task_fields.item_id = items.id
-  WHERE items.kind = 'task' AND items.status = 'inbox' AND items.deleted_at IS NULL
-  ORDER BY items.created_at DESC
-`
 
 const PROJECTS_SQL = `
   SELECT id, title FROM items
@@ -24,7 +17,8 @@ const PROJECTS_SQL = `
 `
 
 /**
- * Part B3's inbox: lists everything with status='inbox', newest first, and
+ * Part B3's inbox: lists everything with status='inbox', newest first
+ * (minus anything deferred to a later day — Part C1's NOT_DEFERRED_SQL), and
  * is the entry point into the one-item-at-a-time triage ritual (see
  * TriageView.tsx). Nothing here batches or stages — every triage action
  * commits immediately through dbClient.mutate(), the same as capture — so
@@ -35,7 +29,8 @@ const PROJECTS_SQL = `
 export function InboxRoute() {
   const [mode, setMode] = useState<'list' | 'triage'>('list')
   const { navigate } = useRouter()
-  const { data: items, loading } = useQuery<TriageItemRow>(INBOX_SQL, [], {
+  const deferralCutoff = useDeferralCutoff()
+  const { data: items, loading } = useQuery<TriageItemRow>(INBOX_SQL, [deferralCutoff], {
     tables: ['items', 'task_fields'],
   })
   const { data: projects } = useQuery<ProjectOption>(PROJECTS_SQL, [], { tables: ['items'] })

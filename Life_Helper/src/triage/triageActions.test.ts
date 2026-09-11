@@ -6,10 +6,17 @@ const NOW = 1_700_000_000_000 // an arbitrary fixed instant
 const BASE_ITEM: TriageItem = {
   id: 'item-1',
   status: 'inbox',
+  dueAt: null,
   scheduledFor: null,
+  deferUntil: null,
+  touchCount: 0,
+  lastTouchedAt: null,
   someday: 0,
   completedAt: null,
 }
+
+const START_OF_TODAY = new Date(NOW).setHours(0, 0, 0, 0)
+const DAY_MS = 24 * 60 * 60 * 1000
 
 describe('planTriageAction', () => {
   it('scheduleToday: sets status active and scheduled_for to the start of today', () => {
@@ -25,11 +32,41 @@ describe('planTriageAction', () => {
   })
 
   it('scheduleToday: undo restores the prior status and scheduled_for', () => {
-    const item: TriageItem = { ...BASE_ITEM, scheduledFor: 42 }
+    // Captured as "tomorrow 3pm", triaged to today: pulled in, not a reschedule.
+    const tomorrow3pm = START_OF_TODAY + DAY_MS + 15 * 60 * 60 * 1000
+    const item: TriageItem = { ...BASE_ITEM, scheduledFor: tomorrow3pm }
     const plan = planTriageAction(item, { type: 'scheduleToday' }, NOW)
     expect(plan.undoWrites).toEqual([
       { table: 'items', key: { id: 'item-1' }, fields: { status: 'inbox' } },
-      { table: 'task_fields', key: { item_id: 'item-1' }, fields: { scheduled_for: 42 } },
+      { table: 'task_fields', key: { item_id: 'item-1' }, fields: { scheduled_for: tomorrow3pm } },
+    ])
+  })
+
+  it('scheduleToday: an item already scheduled earlier than today counts as a reschedule', () => {
+    const item: TriageItem = {
+      ...BASE_ITEM,
+      scheduledFor: START_OF_TODAY - 2 * DAY_MS,
+      touchCount: 1,
+      lastTouchedAt: 7,
+    }
+    const plan = planTriageAction(item, { type: 'scheduleToday' }, NOW)
+    expect(plan.writes).toContainEqual({
+      table: 'task_fields',
+      key: { item_id: 'item-1' },
+      fields: { scheduled_for: START_OF_TODAY, touch_count: 2, last_touched_at: NOW },
+    })
+    expect(plan.undoWrites).toContainEqual({
+      table: 'task_fields',
+      key: { item_id: 'item-1' },
+      fields: { scheduled_for: item.scheduledFor, touch_count: 1, last_touched_at: 7 },
+    })
+  })
+
+  it('scheduleToday: an item already scheduled for today writes only the status', () => {
+    const item: TriageItem = { ...BASE_ITEM, scheduledFor: START_OF_TODAY }
+    const plan = planTriageAction(item, { type: 'scheduleToday' }, NOW)
+    expect(plan.writes).toEqual([
+      { table: 'items', key: { id: 'item-1' }, fields: { status: 'active' } },
     ])
   })
 
@@ -39,6 +76,20 @@ describe('planTriageAction', () => {
       table: 'task_fields',
       key: { item_id: 'item-1' },
       fields: { scheduled_for: 123_456 },
+    })
+  })
+
+  it('scheduleDate: moving a captured date to a later day increments touch_count once', () => {
+    const item: TriageItem = { ...BASE_ITEM, scheduledFor: START_OF_TODAY + DAY_MS }
+    const plan = planTriageAction(
+      item,
+      { type: 'scheduleDate', date: START_OF_TODAY + 5 * DAY_MS },
+      NOW,
+    )
+    expect(plan.writes).toContainEqual({
+      table: 'task_fields',
+      key: { item_id: 'item-1' },
+      fields: { scheduled_for: START_OF_TODAY + 5 * DAY_MS, touch_count: 1, last_touched_at: NOW },
     })
   })
 
