@@ -21,15 +21,17 @@ Conditions, from `life_helper_implementation_plan_v1.md`'s Part B4:
 | #   | Condition                                                                       | Status                                                                            |
 | --- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | 1   | Capture latency budget met on a real Android device, measured and recorded      | ✅ done — 20ms / 32ms / 30ms, 2026-08-07. See `docs/phase_B1_capture_surface.md`. |
-| 2   | `ops` replay test passes with real captured data, not fixtures                  | ⬜ pending real usage — tool ready: `/gallery` → "Run ops replay verification"    |
-| 3   | App installed to the Android home screen and used from there, not a browser tab | ⬜ pending                                                                        |
-| 4   | 7 consecutive days meeting the Definition of "used"                             | ⬜ pending — needs the daily log below filled in                                  |
-| 5   | At least 30 real items captured, not test data                                  | ⬜ pending — running total tracked below                                          |
+| 2   | `ops` replay test passes with real captured data, not fixtures                  | ✅ done — 2026-08-22, all tables match. See result below.                        |
+| 3   | App installed to the Android home screen and used from there, not a browser tab | ✅ done — installed via "Add to Home Screen", launched from the icon throughout.  |
+| 4   | 7 consecutive days meeting the Definition of "used"                             | ✅ done — 9 consecutive days, 2026-08-11 to 2026-08-19, all from phone.           |
+| 5   | At least 30 real items captured, not test data                                  | ✅ done — 31 (low estimate) to 36 (high estimate), 2026-09-11. Clears 30 under either estimate. |
 
 **Do not proceed to Phase C until every row above is checked**, per the
 plan's own rule for this gate. If the 7-day usage condition fails, the
 plan's instruction is explicit: diagnose the friction that caused it and
 fix it, then re-run the gate — not push through anyway.
+
+**Gate closed: 2026-09-11.** All five conditions above are checked.
 
 ### How to close out the remaining conditions
 
@@ -54,15 +56,25 @@ fix it, then re-run the gate — not push through anyway.
 Fill in one row per day. "Items" is a running total, not a daily count,
 so the last filled row shows whether the 30-item condition is met.
 
-| Date | Opened? | From phone? | Item(s) captured/completed today | Running item total | Notes |
-| ---- | ------- | ----------- | -------------------------------- | ------------------ | ----- |
-|      |         |             |                                  |                    |       |
-|      |         |             |                                  |                    |       |
-|      |         |             |                                  |                    |       |
-|      |         |             |                                  |                    |       |
-|      |         |             |                                  |                    |       |
-|      |         |             |                                  |                    |       |
-|      |         |             |                                  |                    |       |
+| Date       | Opened? | From phone? | Item(s) captured/completed today                 | Running item total | Notes |
+| ---------- | ------- | ----------- | -------------------------------------------------- | ------------------- | ----- |
+| 2026-08-11 | Yes     | Yes         | Acne cream, wash face                               | —                    |       |
+| 2026-08-12 | Yes     | Yes         | Acne cream, wash face                               | —                    |       |
+| 2026-08-13 | Yes     | Yes         | Acne cream, wash face                               | —                    |       |
+| 2026-08-14 | Yes     | Yes         | Acne cream (3pm), wash face (5pm)                   | —                    | Times shifted earlier this day |
+| 2026-08-15 | Yes     | Yes         | Acne cream, wash face, + occasional item (see notes)| —                    |       |
+| 2026-08-16 | Yes     | Yes         | Acne cream, wash face                               | —                    |       |
+| 2026-08-17 | Yes     | Yes         | Acne cream, wash face, + occasional item (see notes)| —                    |       |
+| 2026-08-18 | Yes     | Yes         | Acne cream, wash face                               | —                    |       |
+| 2026-08-19 | Yes     | Yes         | Acne cream, wash face, + occasional item (see notes)| ≈15–20 (aggregate self-report) | Recurring: acne cream (6pm, one day 3pm) + wash face (8pm, one day 5pm), triaged to "today" via Inbox. Occasional extras across the 9 days: bring clothes up to room, remove clothes before rain, turn off stove in 15 min. Exact per-day counts not tracked — total is a self-reported aggregate, not a precise ledger. |
+| 2026-08-22 | Yes     | Yes         | Apply cream (3pm), F1 Sprint (3:30pm), wash face (5pm), F1 Quali (7:30pm) — all done | 19 (low-end) – 24 (high-end) | 4 items this day |
+| 2026-08-23 | Yes     | Yes         | F1A race (2:00pm), F1 race (6:30pm), apply acne cream (3pm) — all done | 22–27 | 3 items this day |
+| 2026-08-25 | Yes     | Yes         | Wash acne cream after 2h, pack for trip in 10 min — both done | 24–29 | 2 items this day |
+| 2026-08-26 | Yes     | Yes         | Flight at 11:00am — done | 25–30 | 1 item this day |
+| 2026-08-28 | Yes     | Yes         | Eat lunch in 15 min — done | 26–31 | 1 item this day |
+| 2026-08-30 | Yes     | Yes         | Apply cream (3pm), wash face (5pm) — both done | 28–33 | 2 items this day |
+| 2026-08-31 | Yes     | Yes         | Wash face in 2 hours — done | 29–34 | 1 item this day. |
+| 2026-09-11 | Yes     | Yes         | Wash face after 2 hours, food order reminder (8:15pm) | 31–36 | 2 items this day. Low-end running total (baselined off the "≈15" floor of the earlier aggregate) now sits at 31 — clears the 30 threshold even under the conservative estimate. High-end (baselined off "≈20") sits at 36. |
 
 ### Ops replay verification result
 
@@ -70,10 +82,10 @@ Run from `/gallery` once real usage exists — not before, and not against
 seeded/test data (that defeats the point of this specific gate
 condition).
 
-- Date run:
-- Result: ⬜ pass / ⬜ fail
-- Table-by-table detail (paste from the results table, or note the first
-  mismatch if it failed):
+- Date run: 2026-08-22
+- Result: ✅ pass
+- Table-by-table detail: "All tables match" — every row in the results
+  table showed pass.
 
 ---
 
