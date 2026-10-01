@@ -1,13 +1,11 @@
 # Phase C, Part C3 — Google Calendar (read-only) and capacity
 
-Status: **built and tested; live connection pending your setup.** Every
-piece of code is in place and verified against the real Worker code in a
-real browser, with only Google faked. Two Definition of Done items can only
-be checked against live Google and Cloudflare accounts: "OAuth completes
-and the refresh token survives a Worker redeploy," and the revocation check
-against real Google. Those need the runbook below, which only you can
-run — it involves your Google account, your Cloudflare login, and a
-deploy.
+Status: **done (2026-10-02).** Built and tested against the real Worker
+code in a real browser with only Google faked, then connected live: the
+Worker is deployed, Google is connected, and the three live checks —
+token survives a redeploy, a revoke prompts a reconnect, Today works
+offline from cache — all passed (see "Live checks" below). No card was
+needed anywhere (`docs/cost_ledger.md`).
 
 ## What's in place
 
@@ -81,14 +79,24 @@ the ledger records it.
 3. Google Auth Platform (OAuth consent screen) → Get started. Audience
    **External**. App name "Life Helper", your email for support and
    contact.
-4. Data access → Add scope → `.../auth/calendar.readonly`.
-5. Audience → **Publish app** ("In production"). This matters. In
+4. Data access → Add or remove scopes → tick only
+   `.../auth/calendar.readonly` (Google Calendar API) → Update → Save.
+   Google asks "How will the scopes be used?": say it reads event titles,
+   times and busy/free for today and tomorrow to show the day and estimate
+   free time, never writes, and that data isn't stored server-side,
+   shared, or sold. Leave the demo video blank; it's only for verification.
+5. Branding → homepage `https://life-helper.pages.dev`, privacy policy
+   `https://life-helper.pages.dev/privacy`, authorised domain
+   `life-helper.pages.dev`. Publishing is greyed out until these are set;
+   the policy page is `public/privacy.html`, served by Pages.
+6. Audience → **Publish app** ("In production"). This matters. In
    "Testing", Google expires refresh tokens after 7 days, which would fail
    C6's "calendar sync survives a full week" exactly on day 7. Unverified
    and in production, you'll see a "Google hasn't verified this app"
    screen once during consent. Choose Advanced → Go to Life Helper; it's
-   your own app.
-6. Clients → Create client → **Desktop app** → Create. Keep the Client ID
+   your own app. Don't submit for verification; it isn't needed for your
+   own account.
+7. Clients → Create client → **Desktop app** → Create. Keep the Client ID
    and Client secret to hand.
 
 **2. The Worker (from `Life_Helper/` on your computer):**
@@ -108,7 +116,7 @@ the ledger records it.
 device key → Connect. It should say "Working. Last updated just now."
 
 **4. Close the remaining DoD items**, and record them here and in
-`docs/cost_ledger.md`:
+`docs/cost_ledger.md` (done 2026-10-02 — see "Live checks"):
 
 - _Refresh token survives a redeploy:_ `pnpm edge:deploy` again, then
   Settings → Check now → still "Working."
@@ -118,6 +126,16 @@ device key → Connect. It should say "Working. Last updated just now."
   `pnpm calendar:connect` again fixes it.
 - _Offline from cache:_ airplane mode on the phone, open the app. The
   events are still there, with "Offline — calendar as of …".
+
+## Live checks (2026-10-02)
+
+Run against the real Google account and the deployed Worker, all passed:
+
+| Check                             | How                                                                     | Result                                                                              |
+| --------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Refresh token survives a redeploy | `pnpm edge:deploy` again, then Settings → Check now                     | ✅ still "Working"                                                                  |
+| Revoked token → clear reconnect   | Removed Life Helper at myaccount.google.com/permissions, then Check now | ✅ Today showed the reconnect prompt, no crash; `pnpm calendar:connect` restored it |
+| Today renders offline from cache  | Airplane mode on the phone, opened the app                              | ✅ events shown from cache, with "Offline — calendar as of …"                       |
 
 ## Decisions, and why
 
@@ -177,7 +195,12 @@ the freshness line, because there's nothing for you to do about them.
   HTTP on its own `127.0.0.1` port, so the app's calls are genuinely
   cross-origin. The same mutation now fails all four tests.
 - **Google's 7-day expiry for "Testing" apps** (above) would have broken
-  C6 on day 7. It's now step 5 of the runbook, not a surprise.
+  C6 on day 7. It's now step 6 of the runbook, not a surprise.
+- **Publishing needs a privacy policy.** Google greys out "Publish app"
+  until Branding has a homepage and privacy policy URL. The policy is a
+  standalone `public/privacy.html` on the existing Pages site, excluded
+  from the service worker's navigation fallback. Pages 308-redirects
+  `/privacy.html` to `/privacy`, so the fallback excludes both.
 - **Invisible characters in a script.** The file-writing tool turned the
   `\u0003` and `\u007f` escapes in the connect script's hidden-input
   prompt into literal control bytes. They behaved the same, but were
@@ -199,9 +222,9 @@ pnpm test:e2e    # Playwright, including e2e/calendar.spec.ts — green
 
 | DoD requirement                                                           | Where                                                                                                                                                                                                                                                        |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| OAuth completes and the refresh token survives a Worker redeploy          | **Pending your setup** (runbook step 4). The connect script and Worker are built. Wrangler secrets persist across deploys by design, and this is confirmed live only after you run it                                                                        |
+| OAuth completes and the refresh token survives a Worker redeploy          | ✅ Live, 2026-10-02: `pnpm calendar:connect` completed, then a second `pnpm edge:deploy` and Check now still said "Working"                                                                                                                                  |
 | events render on Today                                                    | `TodayRoute.test.tsx`; `e2e/calendar.spec.ts` (real Worker code, real HTTP, fake Google)                                                                                                                                                                     |
 | capacity is computed and displayed                                        | `capacity.test.ts` (clipping, overlaps, all-day and free events, pro-rated buffer, past-midnight bedtimes, a DST day); `TodayRoute.test.tsx`; `e2e/calendar.spec.ts` ("your three need about 1h 30m")                                                        |
 | the token is never present in client-side storage or in the repository    | Structural: the app has no code path that receives it; the connect script pipes it to `wrangler secret put`; `.dev.vars` and `.wrangler` are gitignored. Tested: `edge/src/index.test.ts` checks that no Worker response, in any branch, contains any secret |
-| Today renders fully offline from cache with a visible staleness indicator | `e2e/calendar.spec.ts`: second navigation (service worker in control), network cut, **full page reload**. Events render from cache, and a refresh shows "Offline — calendar as of …"                                                                         |
-| a revoked token produces a clear reconnect prompt rather than a crash     | `edge/src/index.test.ts` (`invalid_grant`, a narrowed scope, Calendar API 401/403); `e2e/calendar.spec.ts` (a revoke mid-session: the prompt appears, last events and tasks stay). **Live check pending**                                                    |
+| Today renders fully offline from cache with a visible staleness indicator | `e2e/calendar.spec.ts`: second navigation (service worker in control), network cut, **full page reload**. Events render from cache, and a refresh shows "Offline — calendar as of …". ✅ Live on the phone in airplane mode, 2026-10-02                      |
+| a revoked token produces a clear reconnect prompt rather than a crash     | `edge/src/index.test.ts` (`invalid_grant`, a narrowed scope, Calendar API 401/403); `e2e/calendar.spec.ts` (a revoke mid-session: the prompt appears, last events and tasks stay). ✅ Live, 2026-10-02: revoked at myaccount.google.com, the prompt appeared |
