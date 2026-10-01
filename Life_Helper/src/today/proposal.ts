@@ -22,6 +22,8 @@ export interface DayTask {
   readonly touch_count: number
   readonly last_touched_at: number | null
   readonly completed_at: number | null
+  /** From capture's `~45m` / `~2h`; what Part C3 adds up against free time. */
+  readonly estimate_min: number | null
 }
 
 /**

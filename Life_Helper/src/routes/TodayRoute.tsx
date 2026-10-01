@@ -1,6 +1,11 @@
 import { useState } from 'react'
+import { commitmentOf, computeCapacity } from '../calendar/capacity.js'
+import { useCapacitySettings } from '../calendar/capacitySettings.js'
+import { coversDay } from '../calendar/calendarSync.js'
+import { useCalendar } from '../calendar/useCalendar.js'
 import { dbClient } from '../db/client.js'
 import { useQuery } from '../db/useQuery.js'
+import { useNow } from '../lib/useNow.js'
 import { addLocalDays, localDayKey, startOfLocalDay } from '../scheduling/localDay.js'
 import { useDeferralCutoff } from '../scheduling/useDeferralCutoff.js'
 import {
@@ -9,6 +14,8 @@ import {
   planSetCompleted,
   type DayPlanRow,
 } from '../today/dayPlan.js'
+import { CalendarPanel } from '../today/CalendarPanel.js'
+import { CapacityNote } from '../today/CapacityNote.js'
 import { describeCandidate, describeTask, formatLongDate, theseN } from '../today/labels.js'
 import { rankCandidates, type DayTask } from '../today/proposal.js'
 import { TaskCheck } from '../today/TaskCheck.js'
@@ -80,6 +87,9 @@ export function TodayRoute() {
   }))
   const [restShown, setRestShown] = useState(false)
   const undo = useUndoToast()
+  const calendar = useCalendar()
+  const [capacitySettings] = useCapacitySettings()
+  const now = useNow()
 
   const header = (
     <header className={styles.header}>
@@ -133,6 +143,18 @@ export function TodayRoute() {
   const viewState = computeViewState(isEmpty, activity.at(0)?.last_active_at ?? null)
   const shutdownDone = plan?.shutdown_completed_at != null
 
+  // Capacity only from a calendar that actually covers today: computing it
+  // from no events would claim the whole day is free.
+  const capacity =
+    calendar.connected && coversDay(calendar.cache, todayStart)
+      ? computeCapacity(calendar.cache.events, todayStart, now, capacitySettings)
+      : null
+  const threeTasks = isCommitted ? committed : proposal.map((candidate) => candidate.task)
+  const capacityNote =
+    capacity && !allDone ? (
+      <CapacityNote capacity={capacity} commitment={commitmentOf(threeTasks)} />
+    ) : null
+
   function accept(): void {
     const commit = planCommitTop3({
       dayStart: todayStart,
@@ -175,6 +197,7 @@ export function TodayRoute() {
               />
             ))}
           </div>
+          {capacityNote}
           {allDone ? (
             <p className={styles.finish} role="status">
               That&apos;s all three. The rest of the day is yours.
@@ -225,6 +248,7 @@ export function TodayRoute() {
             </li>
           ))}
         </ol>
+        {capacityNote}
         <Button onClick={accept}>Accept {theseN(proposal.length)}</Button>
       </section>
     )
@@ -316,12 +340,25 @@ export function TodayRoute() {
         }
       />
 
+      {/* Outside the three states: the day's events are worth seeing even
+          with no tasks at all, and they carry no guilt to hide when cold. */}
+      {calendar.connected ? (
+        <CalendarPanel calendar={calendar} dayStart={todayStart} now={now} />
+      ) : null}
+
       {isEmpty ? null : (
         <footer className={styles.footer}>
           {shutdownDone ? <span className={styles.footerNote}>Tomorrow is planned.</span> : null}
-          <Link to="/shutdown" className={styles.footerLink}>
-            Evening shutdown
-          </Link>
+          <span className={styles.footerLinks}>
+            {calendar.connected ? null : (
+              <Link to="/settings" className={styles.footerLink}>
+                Connect your calendar
+              </Link>
+            )}
+            <Link to="/shutdown" className={styles.footerLink}>
+              Evening shutdown
+            </Link>
+          </span>
         </footer>
       )}
 

@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.edge.tsbuildinfo",
+    "target": "es2023",
+    /* A Worker has fetch, Request, Response, URL, and crypto.subtle — the
+       same web-standard APIs the DOM lib declares — and nothing Node-only. */
+    "lib": ["ES2023", "DOM"],
+    "types": [],
+    "skipLibCheck": true,
+
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["edge/src"]
+}

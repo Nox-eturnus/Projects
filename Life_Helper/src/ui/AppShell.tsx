@@ -12,6 +12,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Today' },
   { to: '/capture', label: 'Capture' },
   { to: '/inbox', label: 'Inbox' },
+  { to: '/settings', label: 'Settings' },
   { to: '/gallery', label: 'Gallery' },
 ]
 

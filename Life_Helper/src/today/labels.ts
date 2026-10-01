@@ -106,6 +106,22 @@ export function describeCandidate(candidate: Candidate, dayStart: number): strin
   }
 }
 
+/** "just now", "12 min ago", "at 9:14 AM", "on Thu 10 Sep at 9:14 AM" — how old something is. */
+export function formatSince(then: number, now: number): string {
+  const minutes = Math.floor((now - then) / 60_000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${String(minutes)} min ago`
+  const time = formatTime(then) ?? '12:00 AM'
+  if (compareLocalDays(then, now) === 0) return `at ${time}`
+  return `on ${formatShortDate(then)} at ${time}`
+}
+
+/** "7:31 PM" today, "Thu 10 Sep, 7:31 PM" otherwise — for "as of …". */
+export function formatAsOf(then: number, now: number): string {
+  const time = formatTime(then) ?? '12:00 AM'
+  return compareLocalDays(then, now) === 0 ? time : `${formatShortDate(then)}, ${time}`
+}
+
 /** "these three" / "these two" / "this one" — for buttons that act on a small set. */
 export function theseN(count: number): string {
   if (count === 1) return 'this one'

@@ -3,8 +3,10 @@ import { addLocalDays, startOfLocalDay } from '../scheduling/localDay'
 import {
   describeCandidate,
   describeTask,
+  formatAsOf,
   formatLongDate,
   formatShortDate,
+  formatSince,
   formatTime,
   theseN,
 } from './labels'
@@ -25,6 +27,7 @@ function task(overrides: Partial<DayTask> = {}): DayTask {
     touch_count: 0,
     last_touched_at: null,
     completed_at: null,
+    estimate_min: null,
     ...overrides,
   }
 }
@@ -57,6 +60,16 @@ describe('labels', () => {
     for (const text of [due, carried, scheduled]) {
       expect(text).not.toMatch(/overdue|late|missed|behind|slipp/i)
     }
+  })
+
+  it('says how old something is, and "as of" when, reading naturally either way', () => {
+    const now = TODAY + 14 * HOUR_MS
+    expect(formatSince(now - 20_000, now)).toBe('just now')
+    expect(formatSince(now - 12 * 60_000, now)).toBe('12 min ago')
+    expect(formatSince(TODAY + 9 * HOUR_MS, now)).toBe('at 9:00 AM')
+    expect(formatSince(addLocalDays(TODAY, -1) + 9 * HOUR_MS, now)).toBe('on Thu 10 Sep at 9:00 AM')
+    expect(formatAsOf(TODAY + 9 * HOUR_MS, now)).toBe('9:00 AM')
+    expect(formatAsOf(addLocalDays(TODAY, -1) + 9 * HOUR_MS, now)).toBe('Thu 10 Sep, 9:00 AM')
   })
 
   it('names a small set for button labels', () => {

@@ -159,6 +159,13 @@
   font-size: var(--text-sm);
 }
 
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-left: auto;
+}
+
 .footerLink {
   color: var(--ink);
   font-size: var(--text-sm);

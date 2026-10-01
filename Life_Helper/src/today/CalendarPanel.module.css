@@ -1,0 +1,87 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.event {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-paper);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.event:last-child {
+  border-bottom: none;
+}
+
+.time {
+  flex: none;
+  min-width: 8.5rem;
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.eventTitle {
+  flex: 1 1 8rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.free {
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.note {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+/* A problem that needs the user: quiet, but unmistakable — a stroke and
+   the words carry it, never colour alone (Decision 13). No red. */
+.problem {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  color: var(--ink);
+  background: var(--surface-raised);
+  border-left: 4px solid var(--accent-stroke);
+  border-radius: var(--radius-sm);
+}
+
+.problem code {
+  font-size: var(--text-sm);
+}
+
+.problem a {
+  color: var(--ink);
+}
+
+.freshness {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}

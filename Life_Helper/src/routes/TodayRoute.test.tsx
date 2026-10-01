@@ -1,10 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RouterProvider } from '../ui/router'
 import { addLocalDays, localDayKey, startOfLocalDay } from '../scheduling/localDay'
 import type { DayPlanRow } from '../today/dayPlan'
 import type { DayTask } from '../today/proposal'
+import type { CalendarEvent } from '../../edge/src/contract.js'
+import { saveConnection, writeCache, type CalendarCache } from '../calendar/calendarStore'
+import { refreshRange } from '../calendar/calendarSync'
 
 type ChangeListener = (tables: string[]) => void
 
@@ -44,6 +47,7 @@ function task(id: string, overrides: Partial<DayTask> = {}): DayTask {
     touch_count: 0,
     last_touched_at: null,
     completed_at: null,
+    estimate_min: null,
     ...overrides,
   }
 }
@@ -94,6 +98,15 @@ beforeEach(() => {
   listeners.clear()
   window.localStorage.clear()
   window.history.pushState(null, '', '/')
+  // No test here may reach a real network: an unexpected refresh fails fast.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.reject(new TypeError('no network in tests'))),
+  )
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 describe('TodayRoute: empty', () => {
@@ -249,5 +262,108 @@ describe('TodayRoute: evening shutdown prompt (the notification hook)', () => {
     renderToday()
     expect(await screen.findByText('Tomorrow is planned.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Start shutdown' })).not.toBeInTheDocument()
+  })
+})
+
+describe('TodayRoute: calendar and capacity (Part C3)', () => {
+  const HOUR = 60 * 60 * 1000
+  const EVENTS: CalendarEvent[] = [
+    {
+      id: 'standup',
+      title: 'Standup',
+      allDay: false,
+      start: TODAY + 9 * HOUR,
+      end: TODAY + 9.5 * HOUR,
+      busy: true,
+    },
+    {
+      id: 'bday',
+      title: "Sam's birthday",
+      allDay: true,
+      startDate: TODAY_KEY,
+      endDate: '9999-12-31',
+      busy: true,
+    },
+  ]
+
+  function connect(cache: Partial<CalendarCache> = {}) {
+    saveConnection({ edgeUrl: 'https://edge.example.workers.dev', deviceKey: 'k'.repeat(43) })
+    const range = refreshRange(Date.now())
+    writeCache({
+      events: EVENTS,
+      fetchedAt: Date.now() - 5 * 60_000,
+      rangeStart: range.from,
+      rangeEnd: range.to,
+      // Just attempted: the throttle keeps these tests from refreshing.
+      lastAttemptAt: Date.now(),
+      problem: null,
+      ...cache,
+    })
+    // A 24-hour waking window with no buffer, so "free time" exists
+    // whatever time of day the suite happens to run.
+    window.localStorage.setItem(
+      'life-helper-capacity-settings',
+      JSON.stringify({ wakeStart: '00:00', wakeEnd: '00:00', bufferMinutes: 0 }),
+    )
+  }
+
+  it("renders today's events from the cache, saying how fresh they are", async () => {
+    connect()
+    serve({ tasks: [task('A')] })
+    renderToday()
+    const calendar = await screen.findByRole('region', { name: 'Calendar' })
+    expect(within(calendar).getByText('Standup')).toBeInTheDocument()
+    expect(within(calendar).getByText("Sam's birthday")).toBeInTheDocument()
+    expect(within(calendar).getByText('All day')).toBeInTheDocument()
+    expect(within(calendar).getByText('Updated 5 min ago.')).toBeInTheDocument()
+  })
+
+  it('offline: still renders from the cache, with a visible staleness indicator', async () => {
+    connect({ problem: 'offline', fetchedAt: Date.now() - 3 * HOUR })
+    serve({ tasks: [task('A')] })
+    renderToday()
+    const calendar = await screen.findByRole('region', { name: 'Calendar' })
+    expect(within(calendar).getByText('Standup')).toBeInTheDocument()
+    expect(within(calendar).getByText(/^Offline — calendar as of/)).toBeInTheDocument()
+  })
+
+  it('a revoked grant: a clear reconnect prompt, and the rest of Today still works', async () => {
+    connect({ problem: 'reconnect_required' })
+    serve({ tasks: [task('A'), task('B')] })
+    renderToday()
+    expect(await screen.findByText(/Google Calendar needs reconnecting/)).toBeInTheDocument()
+    expect(screen.getByText('pnpm calendar:connect')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Three to start with' })).toBeInTheDocument()
+    expect(screen.getByText('Standup')).toBeInTheDocument()
+  })
+
+  it('shows free time under the three, and a plain note when their estimates need more', async () => {
+    connect()
+    serve({ tasks: ['A', 'B', 'C'].map((id) => task(id, { estimate_min: 2000 })) })
+    renderToday()
+    const top = await screen.findByRole('region', { name: 'Three to start with' })
+    expect(within(top).getByText(/free for the rest of today/)).toBeInTheDocument()
+    expect(within(top).getByText(/your three need about/)).toHaveTextContent('100h')
+    expect(within(top).getByText(/may not all fit today/)).toBeInTheDocument()
+  })
+
+  it('no note when the three fit, and tasks without estimates are called out, not guessed', async () => {
+    connect()
+    serve({ tasks: [task('A', { estimate_min: 1 }), task('B')] })
+    renderToday()
+    const top = await screen.findByRole('region', { name: 'Three to start with' })
+    expect(within(top).getByText(/without an estimate/)).toBeInTheDocument()
+    expect(within(top).queryByText(/may not all fit/)).not.toBeInTheDocument()
+  })
+
+  it('not connected: no calendar or capacity, just a quiet way to connect', async () => {
+    serve({ tasks: [task('A')] })
+    renderToday()
+    expect(await screen.findByRole('link', { name: 'Connect your calendar' })).toHaveAttribute(
+      'href',
+      '/settings',
+    )
+    expect(screen.queryByRole('region', { name: 'Calendar' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/free for the rest of today/)).not.toBeInTheDocument()
   })
 })

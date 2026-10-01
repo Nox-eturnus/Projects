@@ -3,6 +3,7 @@ import { PwaPrompts } from './pwa/PwaPrompts'
 import { CaptureRoute } from './routes/CaptureRoute'
 import { GalleryRoute } from './routes/GalleryRoute'
 import { InboxRoute } from './routes/InboxRoute'
+import { SettingsRoute } from './routes/SettingsRoute'
 import { ShutdownRoute } from './routes/ShutdownRoute'
 import { TodayRoute } from './routes/TodayRoute'
 import { AppShell } from './ui/AppShell'
@@ -20,6 +21,7 @@ function AppRoutes() {
         { path: '/shutdown', element: <ShutdownRoute /> },
         { path: '/capture', element: <CaptureRoute /> },
         { path: '/inbox', element: <InboxRoute /> },
+        { path: '/settings', element: <SettingsRoute /> },
         { path: '/gallery', element: <GalleryRoute /> },
       ]}
       notFound={<p>Page not found.</p>}

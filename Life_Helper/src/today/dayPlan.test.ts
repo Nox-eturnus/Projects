@@ -34,6 +34,7 @@ function task(id: string, overrides: Partial<DayTask> = {}): DayTask {
     touch_count: 0,
     last_touched_at: null,
     completed_at: null,
+    estimate_min: null,
     ...overrides,
   }
 }

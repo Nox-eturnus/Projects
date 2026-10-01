@@ -30,3 +30,7 @@ blob-report
 *.njsproj
 *.sln
 *.sw?
+
+# Cloudflare Wrangler (edge Worker)
+.wrangler
+.dev.vars

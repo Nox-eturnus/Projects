@@ -36,7 +36,7 @@ export const DAY_TASKS_SQL = `
   SELECT items.id, items.title, items.status, items.created_at,
          task_fields.due_at, task_fields.scheduled_for, task_fields.defer_until,
          COALESCE(task_fields.touch_count, 0) AS touch_count, task_fields.last_touched_at,
-         task_fields.completed_at
+         task_fields.completed_at, task_fields.estimate_min
   FROM items
   LEFT JOIN task_fields ON task_fields.item_id = items.id
   WHERE items.kind = 'task' AND items.deleted_at IS NULL

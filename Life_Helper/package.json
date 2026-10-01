@@ -18,7 +18,10 @@
     "test:e2e": "playwright test",
     "preview": "vite preview",
     "generate-icons": "node scripts/generate-icons.mjs",
-    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:unit && pnpm build"
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:unit && pnpm build",
+    "edge:deploy": "npx --yes wrangler@4.130.0 deploy --config edge/wrangler.toml",
+    "edge:device-key": "node scripts/edge-device-key.mjs",
+    "calendar:connect": "node scripts/calendar-connect.mjs"
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "3.53.0-build1",
