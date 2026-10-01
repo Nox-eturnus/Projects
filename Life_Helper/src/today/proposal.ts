@@ -9,6 +9,7 @@
  * the ranking is tested without a database.
  */
 import { startOfNextLocalDay } from '../scheduling/localDay.js'
+import { findSlipping } from '../slipping/slipping.js'
 
 /** One row of DAY_TASKS_SQL. */
 export interface DayTask {
@@ -54,12 +55,11 @@ function byNumbers(...keys: ((task: DayTask) => number)[]) {
  *
  * 1. **Due** by the end of the day — a real deadline, including one that
  *    has already passed. Earliest deadline first.
- * 2. **Carried over** — the plan's "slipping": rescheduled at least once
- *    (`touch_count` > 0) or scheduled for an earlier day and not done.
- *    Most-rescheduled first, then longest untouched — Part C4's own
- *    ordering ("touch count first and age second"). A task deliberately
- *    scheduled for a *later* day isn't carried over, however often it was
- *    moved: that move was the plan.
+ * 2. **Carried over** — the plan's "slipping," exactly as Part C4's
+ *    findSlipping() defines and ranks it (rescheduled at least once, or
+ *    scheduled for an earlier day and not done; most-moved first, then
+ *    longest untouched). One definition, so Today's proposal and the
+ *    Revisit view never disagree.
  * 3. **Scheduled** for this day. Oldest task first.
  *
  * Tasks with no date that were never moved aren't candidates: nothing says
@@ -78,19 +78,8 @@ export function rankCandidates(tasks: readonly DayTask[], dayStart: number): Can
       ),
     )
 
-  const carriedOver = open
-    .filter((task) => {
-      const notPlannedLater = task.scheduled_for === null || task.scheduled_for < dayEnd
-      const missedItsDay = task.scheduled_for !== null && task.scheduled_for < dayStart
-      return notPlannedLater && (task.touch_count > 0 || missedItsDay)
-    })
-    .sort(
-      byNumbers(
-        (task) => -task.touch_count,
-        (task) => task.last_touched_at ?? task.created_at,
-        (task) => task.created_at,
-      ),
-    )
+  // Part C4's definition and ranking, so Today and Revisit agree.
+  const carriedOver = findSlipping(open, dayStart)
 
   const scheduled = open
     .filter(

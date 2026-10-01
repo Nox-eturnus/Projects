@@ -89,6 +89,32 @@ export function describeTask(task: DayTask, dayStart: number): string {
   return parts.join(' · ')
 }
 
+function timesWord(count: number): string {
+  if (count === 1) return 'once'
+  if (count === 2) return 'twice'
+  return `${String(count)} times`
+}
+
+/**
+ * Why a task is on Revisit (Part C4), as plain facts: how often it was
+ * moved and when it last was, or the day it was planned for. Dates, never
+ * "N days ago" or "overdue" — the same Decision 7 rule as describeTask().
+ */
+export function describeSlipping(task: DayTask, dayStart: number): string {
+  const parts: string[] = []
+  if (task.touch_count > 0) {
+    parts.push(
+      task.last_touched_at === null
+        ? `Moved ${timesWord(task.touch_count)}`
+        : `Moved ${timesWord(task.touch_count)}, last on ${formatShortDate(task.last_touched_at)}`,
+    )
+  } else if (task.scheduled_for !== null) {
+    parts.push(`Planned for ${formatShortDate(task.scheduled_for)}`)
+  }
+  if (task.due_at !== null) parts.push(`Due ${dayWord(task.due_at, dayStart)}`)
+  return parts.join(' · ')
+}
+
 /** Why a proposed task was proposed, in plain words. */
 export function describeCandidate(candidate: Candidate, dayStart: number): string {
   const { task, reason } = candidate

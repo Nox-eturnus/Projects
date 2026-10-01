@@ -1,0 +1,160 @@
+.revisit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: var(--text-3xl);
+}
+
+.lede {
+  margin: 0;
+  max-width: 52ch;
+  color: var(--ink-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Each task is a card with its three ways out — no colour signals
+   anything here (Decision 13): the words and the order do. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.showRest {
+  align-self: flex-start;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sheetNote {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.choiceList > button {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.field input {
+  font: inherit;
+  font-size: var(--text-base);
+  color: var(--ink);
+  background: var(--surface-paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  min-height: 2.75rem;
+}
+
+.field input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.addStep {
+  align-self: flex-start;
+}
+
+.when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: var(--space-3) 0 0;
+  border: none;
+  border-top: 1px solid var(--hairline);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.when legend {
+  float: left;
+  width: 100%;
+  margin-bottom: var(--space-1);
+  font-weight: 600;
+}
+
+.whenOption {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+}
+
+.whenOption input {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--ink);
+}
+
+@media (max-width: 479px) {
+  .card {
+    padding: var(--space-4);
+  }
+}

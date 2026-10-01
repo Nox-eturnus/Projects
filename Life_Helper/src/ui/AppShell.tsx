@@ -3,7 +3,7 @@ import { Link, useRouter } from './router'
 import { ThemeToggle } from './ThemeToggle'
 import styles from './AppShell.module.css'
 
-export type NavIcon = 'today' | 'capture' | 'inbox' | 'settings'
+export type NavIcon = 'today' | 'capture' | 'inbox' | 'revisit' | 'settings'
 
 export interface NavItem {
   to: string
@@ -17,6 +17,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Today', icon: 'today' },
   { to: '/capture', label: 'Capture', icon: 'capture' },
   { to: '/inbox', label: 'Inbox', icon: 'inbox' },
+  { to: '/revisit', label: 'Revisit', icon: 'revisit' },
   { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
 
@@ -39,6 +40,12 @@ const ICON_PATHS: Record<NavIcon, ReactNode> = {
     <>
       <path d="M3 13h5l1.5 3h5L16 13h5" />
       <path d="M5.5 5h13L21 13v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5z" />
+    </>
+  ),
+  revisit: (
+    <>
+      <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+      <path d="M20 4v7h-7" />
     </>
   ),
   settings: (

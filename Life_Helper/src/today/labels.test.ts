@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { addLocalDays, startOfLocalDay } from '../scheduling/localDay'
 import {
   describeCandidate,
+  describeSlipping,
   describeTask,
   formatAsOf,
   formatLongDate,
@@ -74,5 +75,29 @@ describe('labels', () => {
 
   it('names a small set for button labels', () => {
     expect([1, 2, 3].map(theseN)).toEqual(['this one', 'these two', 'these three'])
+  })
+})
+
+describe('describeSlipping', () => {
+  it('how often it was moved and when it last was — as dates, never "days ago"', () => {
+    const lastMoved = addLocalDays(TODAY, -4) + 9 * HOUR_MS // Mon 7 Sep
+    expect(describeSlipping(task({ touch_count: 1, last_touched_at: lastMoved }), TODAY)).toBe(
+      'Moved once, last on Mon 7 Sep',
+    )
+    expect(describeSlipping(task({ touch_count: 2, last_touched_at: lastMoved }), TODAY)).toBe(
+      'Moved twice, last on Mon 7 Sep',
+    )
+    expect(describeSlipping(task({ touch_count: 4, last_touched_at: null }), TODAY)).toBe(
+      'Moved 4 times',
+    )
+  })
+
+  it('never moved: the day it was planned for, plus any deadline', () => {
+    expect(
+      describeSlipping(
+        task({ scheduled_for: addLocalDays(TODAY, -2), due_at: TODAY + 17 * HOUR_MS }),
+        TODAY,
+      ),
+    ).toBe('Planned for Wed 9 Sep · Due today')
   })
 })

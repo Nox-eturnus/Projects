@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { createHlcClock, type HlcState } from '../db/hlc'
 import { applyMigrations, type SqliteConnection } from '../db/migrate'
 import { compareMaterializedTables, mutate, replayOps, selectAllOps, type Write } from '../db/ops'
-import { DAY_TASKS_SQL, INBOX_SQL, RECENT_CAPTURES_SQL } from '../routes/taskQueries'
+import { DAY_TASKS_SQL, INBOX_SQL, RECENT_CAPTURES_SQL, SLIPPING_SQL } from '../routes/taskQueries'
 import { withTimeZone } from '../test/timeZone'
 import { addLocalDays, startOfLocalDay } from './localDay'
 import {
@@ -460,6 +460,7 @@ const TASK_VIEW_QUERIES: Record<string, [string, (now: number) => unknown[]]> = 
   INBOX_SQL: [INBOX_SQL, (now) => [deferralCutoff(now)]],
   RECENT_CAPTURES_SQL: [RECENT_CAPTURES_SQL, (now) => [deferralCutoff(now)]],
   DAY_TASKS_SQL: [DAY_TASKS_SQL, (now) => [deferralCutoff(now), startOfLocalDay(now)]],
+  SLIPPING_SQL: [SLIPPING_SQL, (now) => [deferralCutoff(now), startOfLocalDay(now)]],
 }
 
 describe('every task view hides deferred items until their date', () => {
