@@ -46,7 +46,8 @@ test('ops replay verification passes against a real, non-trivial device history'
   await page.keyboard.press('Backspace') // delete the second
   await expect(page.getByText('Inbox zero. Nice work.')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Gallery' }).click()
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await page.getByRole('link', { name: 'Open the gallery' }).click()
   await dismissPwaPromptIfPresent(page)
   await page.getByRole('button', { name: 'Run ops replay verification' }).click()
 

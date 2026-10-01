@@ -93,8 +93,9 @@ export default defineConfig(({ mode }) => {
               workbox: {
                 globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
                 // /privacy.html is a standalone page (Google's OAuth consent
-                // screen links to it), not a route of the app shell.
-                navigateFallbackDenylist: [/^\/api\//, /^\/privacy\.html$/],
+                // screen links to it), not a route of the app shell. Pages
+                // serves it at /privacy too (308 from .html), so both.
+                navigateFallbackDenylist: [/^\/api\//, /^\/privacy(\.html)?$/],
               },
               devOptions: {
                 enabled: true,

@@ -6,6 +6,7 @@ import { useCalendar } from '../calendar/useCalendar.js'
 import { formatSince } from '../today/labels.js'
 import { useShutdownTime } from '../today/useShutdownReminder.js'
 import { Button } from '../ui/Button.js'
+import { Link } from '../ui/router.js'
 import styles from './SettingsRoute.module.css'
 
 function calendarStatus(calendar: ReturnType<typeof useCalendar>, now: number): string {
@@ -211,6 +212,21 @@ export function SettingsRoute() {
             }}
           />
         </label>
+      </section>
+
+      <section className={styles.section} aria-labelledby="tools-settings">
+        <h2 id="tools-settings" className={styles.sectionTitle}>
+          Tools
+        </h2>
+        <p className={styles.help}>
+          The component gallery, with its colour-contrast table and the ops replay check for the
+          usage log.
+        </p>
+        <p className={styles.status}>
+          <Link to="/gallery" className={styles.link}>
+            Open the gallery
+          </Link>
+        </p>
       </section>
     </div>
   )

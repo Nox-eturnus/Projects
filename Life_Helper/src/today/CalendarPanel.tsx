@@ -87,9 +87,14 @@ export function CalendarPanel({
 
   return (
     <section className={styles.panel} aria-labelledby="calendar-heading">
-      <h2 id="calendar-heading" className={styles.title}>
-        Calendar
-      </h2>
+      <div className={styles.head}>
+        <h2 id="calendar-heading" className={styles.title}>
+          Calendar
+        </h2>
+        <Button variant="secondary" size="sm" onClick={refreshNow} disabled={refreshing}>
+          Refresh
+        </Button>
+      </div>
 
       {cache.problem ? <ProblemNote problem={cache.problem} /> : null}
 
@@ -111,14 +116,9 @@ export function CalendarPanel({
         )
       ) : null}
 
-      <div className={styles.freshness}>
-        <span aria-live="polite">
-          {refreshing && cache.fetchedAt !== null ? 'Refreshing…' : freshness}
-        </span>
-        <Button variant="ghost" size="sm" onClick={refreshNow} disabled={refreshing}>
-          Refresh
-        </Button>
-      </div>
+      <p className={styles.freshness} aria-live="polite">
+        {refreshing && cache.fetchedAt !== null ? 'Refreshing…' : freshness}
+      </p>
     </section>
   )
 }

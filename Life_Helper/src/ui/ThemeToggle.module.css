@@ -1,16 +1,28 @@
 .toggle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
   border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
-  background: var(--surface-raised);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--text-sm);
-  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  background: var(--surface-paper);
+  color: var(--ink-secondary);
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.toggle svg {
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
 .toggle:hover {
-  border-color: var(--ink-secondary);
+  color: var(--ink);
+  background: var(--surface-raised);
 }
 
 .toggle:focus-visible {

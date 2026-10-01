@@ -2,13 +2,25 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-right: calc(-1 * var(--space-2));
 }
 
 .title {
   margin: 0;
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--ink-secondary);
+  font-size: var(--text-lg);
+  font-weight: 650;
+  color: var(--ink);
 }
 
 .events {
@@ -63,7 +75,7 @@
   margin: 0;
   padding: var(--space-3) var(--space-4);
   color: var(--ink);
-  background: var(--surface-raised);
+  background: var(--surface-paper);
   border-left: 4px solid var(--accent-stroke);
   border-radius: var(--radius-sm);
 }
@@ -77,11 +89,32 @@
 }
 
 .freshness {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--ink-secondary);
+}
+
+/* Phone: give the card's padding back to the rows, so a normal event
+   (time and title) still fits on one line at 375px. */
+@media (max-width: 479px) {
+  .panel {
+    padding: var(--space-3) var(--space-3) var(--space-4);
+  }
+
+  .head,
+  .freshness {
+    padding-left: var(--space-1);
+  }
+
+  .head {
+    margin-right: 0;
+  }
+
+  .event {
+    padding: var(--space-3);
+  }
+
+  .time {
+    min-width: 7.75rem;
+  }
 }

@@ -1,31 +1,90 @@
-.toast {
+/* Bottom-anchored, one slot above UndoToast's (--toast-slot), so the two
+   can never overlap: undo keeps the bottom spot it's always had, and a
+   top-anchored prompt would sit on page controls (e2e/triage.spec.ts's
+   "Exit triage" button, for one). */
+.stack {
   position: fixed;
-  left: 50%;
-  bottom: var(--space-4);
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--ink);
-  color: var(--surface-paper);
-  box-shadow: var(--shadow-raised);
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: calc(var(--space-6) + var(--toast-slot));
   z-index: 1000;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
   font-size: var(--text-sm);
 }
 
+.text {
+  flex: 1 1 12rem;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
 .toast button {
-  background: var(--surface-paper);
+  font: inherit;
+  font-weight: 600;
   color: var(--ink);
-  border: none;
+  background: transparent;
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-3);
-  font-weight: 600;
   cursor: pointer;
 }
 
+.toast button:hover {
+  background: var(--surface-paper);
+}
+
+.toast .primary {
+  color: var(--surface-paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.toast .primary:hover {
+  background: var(--ink-secondary);
+}
+
 .toast button:focus-visible {
-  outline: 2px solid var(--surface-paper);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* Phone: above the tab bar, and above undo's slot over it. */
+@media (max-width: 767px) {
+  .stack {
+    bottom: calc(
+      var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-4) + var(--toast-slot)
+    );
+  }
+}
+
+/* Desktop: centred under the page column, like UndoToast. */
+@media (min-width: 768px) {
+  .stack {
+    left: var(--sidebar-width);
+    right: 0;
+  }
 }

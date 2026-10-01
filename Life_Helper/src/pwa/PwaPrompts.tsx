@@ -50,31 +50,44 @@ export function PwaPrompts() {
     setNeedRefresh(false)
   }
 
+  const showStatus = offlineReady || needRefresh
+  if (!canInstall && !showStatus) return null
+
+  // One stack, so two prompts sit one above the other instead of on top
+  // of each other — and a slot above the undo toast, never over it.
   return (
-    <>
+    <div className={styles.stack}>
       {canInstall && (
         <div className={styles.toast} role="status">
-          <span>Install Life Helper for offline, one-tap access.</span>
-          <button type="button" onClick={() => void promptInstall()}>
-            Install
-          </button>
+          <span className={styles.text}>Install Life Helper for offline, one-tap access.</span>
+          <span className={styles.actions}>
+            <button type="button" className={styles.primary} onClick={() => void promptInstall()}>
+              Install
+            </button>
+          </span>
         </div>
       )}
-      {(offlineReady || needRefresh) && (
+      {showStatus && (
         <div className={styles.toast} role="status">
-          <span>
+          <span className={styles.text}>
             {needRefresh ? 'A new version is ready.' : 'Life Helper is ready to work offline.'}
           </span>
-          {needRefresh && (
-            <button type="button" onClick={() => void updateServiceWorker(true)}>
-              Reload
+          <span className={styles.actions}>
+            {needRefresh && (
+              <button
+                type="button"
+                className={styles.primary}
+                onClick={() => void updateServiceWorker(true)}
+              >
+                Reload
+              </button>
+            )}
+            <button type="button" onClick={close} aria-label="Dismiss">
+              Dismiss
             </button>
-          )}
-          <button type="button" onClick={close} aria-label="Dismiss">
-            Dismiss
-          </button>
+          </span>
         </div>
       )}
-    </>
+    </div>
   )
 }

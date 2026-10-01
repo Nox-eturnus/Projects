@@ -6,25 +6,30 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   color: var(--ink);
   background: var(--surface-raised);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-raised);
-  /* Above PwaPrompts.module.css's own bottom-center toast (z-index: 1000)
-     — both are fixed/bottom-centered and can genuinely coincide (a
-     service-worker "ready offline"/"update available" prompt during a
-     triage session), and the undo window is time-limited, so this one
-     must stay clickable if they overlap. Found via e2e/triage.spec.ts,
-     not reasoned about in advance — see docs/phase_B3_inbox_triage.md. */
+  /* PwaPrompts used to share this bottom-centre spot and could cover the
+     undo button mid-triage (found via e2e/triage.spec.ts — see
+     docs/phase_B3_inbox_triage.md). Those prompts now stack one
+     --toast-slot higher; this stays above them anyway, since the undo
+     window is time-limited. */
   z-index: 1001;
 }
 
-/* Below 768px the nav is a fixed 3rem bottom tab bar (AppShell.module.css
-   reserves the same 3rem for it) — sit above it, not on top of it. */
+/* Phone: sit above the fixed bottom tab bar, not on top of it. */
 @media (max-width: 767px) {
   .toast {
-    bottom: calc(3rem + var(--space-4));
+    bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-4));
+  }
+}
+
+/* Desktop: centre under the page column, not the whole window. */
+@media (min-width: 768px) {
+  .toast {
+    left: calc(50% + var(--sidebar-width) / 2);
   }
 }

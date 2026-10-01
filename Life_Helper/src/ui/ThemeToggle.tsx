@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import styles from './ThemeToggle.module.css'
 
 type ThemeChoice = 'system' | 'light' | 'dark'
@@ -44,6 +44,23 @@ const CHOICE_LABEL: Record<ThemeChoice, string> = {
   dark: 'Dark',
 }
 
+/** Half-filled circle for "follow the system", sun for light, moon for dark. */
+const CHOICE_ICON: Record<ThemeChoice, ReactNode> = {
+  system: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" />
+    </>
+  ),
+  light: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </>
+  ),
+  dark: <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />,
+}
+
 /**
  * Cycles system -> light -> dark -> system. Exists so the gallery (and manual
  * QA) can inspect both themes without depending on the OS setting, on top of
@@ -62,9 +79,27 @@ export function ThemeToggle() {
     persistChoice(next)
   }
 
+  const label = `Theme: ${CHOICE_LABEL[choice]}`
   return (
-    <button type="button" className={styles.toggle} onClick={handleClick}>
-      Theme: {CHOICE_LABEL[choice]}
+    <button
+      type="button"
+      className={styles.toggle}
+      onClick={handleClick}
+      aria-label={label}
+      title={`${label} (click to change)`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        {CHOICE_ICON[choice]}
+      </svg>
     </button>
   )
 }

@@ -1,7 +1,5 @@
 .shell {
   min-height: 100svh;
-  display: flex;
-  flex-direction: column;
   background: var(--surface-paper);
   color: var(--ink);
 }
@@ -26,13 +24,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--hairline);
+  gap: var(--space-3);
 }
 
 .brand {
-  font-size: var(--text-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-base);
   font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.brandMark {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
 }
 
 .navList {
@@ -45,16 +52,25 @@
 .navLink {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex: 1;
-  padding: var(--space-3) var(--space-2);
+  gap: var(--space-3);
   color: var(--ink-secondary);
   text-decoration: none;
   font-size: var(--text-sm);
-  border-top: 2px solid transparent;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.navIcon {
+  flex: none;
+  width: 1.375rem;
+  height: 1.375rem;
 }
 
 .navLink:hover {
+  color: var(--ink);
   background: var(--surface-raised);
 }
 
@@ -63,67 +79,116 @@
   outline-offset: -2px;
 }
 
+/* Current page: weight, a filled background, and aria-current — the
+   accent stroke is decoration on top, never the only signal (Decision 13). */
 .navLink[data-current] {
   color: var(--ink);
-  font-weight: 600;
-  border-top-color: var(--accent-stroke);
+  font-weight: 650;
+  background: var(--surface-raised);
 }
 
 .main {
-  flex: 1;
-  padding: var(--space-4);
+  min-width: 0;
 }
 
-/* Mobile (<768px): bottom tab bar, fixed to the viewport so content can scroll under it. */
+/* One reading column for every page, so sections line up with each other. */
+.content {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+}
+
+/* Phone (<768px): a slim top bar, and a bottom tab bar fixed to the
+   viewport so content scrolls under it. */
 @media (max-width: 767px) {
+  .header {
+    padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-3);
+    border-bottom: 1px solid var(--hairline);
+  }
+
   .nav {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
+    z-index: 10;
+    padding-bottom: env(safe-area-inset-bottom);
     background: var(--surface-paper);
     border-top: 1px solid var(--hairline);
   }
 
+  .navItem {
+    flex: 1;
+  }
+
+  .navLink {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.125rem;
+    height: var(--tabbar-height);
+    font-size: var(--text-xs);
+    border-radius: 0;
+  }
+
+  .navLink:hover,
+  .navLink[data-current] {
+    background: transparent;
+  }
+
+  /* The pill sits behind the icon only, so the tab still reads as a tab. */
+  .navLink[data-current] .navIcon {
+    box-sizing: content-box;
+    padding: 0.125rem var(--space-4);
+    border-radius: 999px;
+    background: var(--surface-raised);
+  }
+
   .main {
-    padding-bottom: calc(var(--space-6) + 3rem);
+    padding: var(--space-5) var(--space-4)
+      calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-6));
   }
 }
 
-/* Desktop (>=768px): header spans the top, nav becomes a left sidebar. */
+/* Desktop (>=768px): a full-height sidebar holding the brand and nav,
+   and the page column centred in the rest. */
 @media (min-width: 768px) {
   .shell {
-    flex-direction: row;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    padding: var(--space-5) var(--space-3);
+    border-right: 1px solid var(--hairline);
+    overflow-y: auto;
   }
 
   .header {
-    width: 100%;
-  }
-
-  .nav {
-    width: 14rem;
-    flex: none;
-    border-right: 1px solid var(--hairline);
+    padding: 0 var(--space-2);
   }
 
   .navList {
     flex-direction: column;
+    gap: var(--space-1);
   }
 
   .navLink {
-    justify-content: flex-start;
-    border-top: none;
-    border-left: 2px solid transparent;
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
+    min-height: 2.5rem;
+    box-shadow: inset 2px 0 0 transparent;
   }
 
   .navLink[data-current] {
-    border-left-color: var(--accent-stroke);
-    border-top-color: transparent;
+    box-shadow: inset 3px 0 0 var(--accent-stroke);
   }
 
   .main {
-    padding: var(--space-6);
+    padding: var(--space-7) var(--space-6) var(--space-8);
   }
 }
