@@ -110,7 +110,6 @@ describe('SomedayRoute', () => {
     expect(await screen.findByText(/Set aside, not gone/)).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
     expect(container.textContent).not.toMatch(NOT_ALLOWED)
-    expect(container.textContent).not.toMatch(/\b2\b/)
   })
 
   it('cold: a welcome back, and the list as usual', async () => {

@@ -132,14 +132,16 @@ describe('FreshStart', () => {
       id: 'sweep-1',
       swept_at: NOW - 2 * 60 * 60 * 1000,
       threshold_days: 30,
-      item_count: 2,
+      // 99: no time or date in the note can contain it (minutes stop at 59,
+      // days at 31), so its absence really means "no count shown".
+      item_count: 99,
       undone_at: null,
     }
     serve({ eligible: eligible('later'), sweep, swept: ['a', 'b'] })
     renderFreshStart()
     const note = await screen.findByRole('region', { name: 'Fresh start' })
     expect(note.textContent).toMatch(/You can undo it until/)
-    expect(note.textContent).not.toMatch(/\b2\b/)
+    expect(note.textContent).not.toMatch(/\b99\b/)
 
     await user().click(screen.getByRole('button', { name: 'Undo fresh start' }))
     await vi.waitFor(() => {
