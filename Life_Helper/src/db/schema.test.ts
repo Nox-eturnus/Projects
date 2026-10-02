@@ -33,6 +33,7 @@ const MATERIALIZED_TABLES = [
   'person_fields',
   'note_fields',
   'day_plans',
+  'amnesty_sweeps',
 ]
 
 describe('migrations: empty to head', () => {

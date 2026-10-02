@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FreshStart } from '../amnesty/FreshStart.js'
 import { commitmentOf, computeCapacity } from '../calendar/capacity.js'
 import { useCapacitySettings } from '../calendar/capacitySettings.js'
 import { coversDay } from '../calendar/calendarSync.js'
@@ -358,9 +359,17 @@ export function TodayRoute() {
             <Link to="/shutdown" className={styles.footerLink}>
               Evening shutdown
             </Link>
+            <Link to="/someday" className={styles.footerLink}>
+              Someday
+            </Link>
           </span>
         </footer>
       )}
+
+      {/* Outside the three states and the footer: old tasks can be all
+          that's left when Today itself is empty, and that's exactly when a
+          fresh start helps most. */}
+      <FreshStart todayStart={todayStart} now={now} onUndoable={undo.show} />
 
       <UndoToast pending={undo.pending} onUndo={undo.runUndo} />
     </div>

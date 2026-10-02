@@ -1,0 +1,60 @@
+/* A quiet offer, not an alert: no accent fill, no count (Decision 7). */
+.note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius-md);
+}
+
+.text {
+  margin: 0;
+  flex: 1 1 18rem;
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.link {
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.question {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sheetNote {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
+.sheetActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

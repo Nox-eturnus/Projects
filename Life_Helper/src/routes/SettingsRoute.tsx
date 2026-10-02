@@ -1,4 +1,5 @@
 import { useState, type SyntheticEvent } from 'react'
+import { MAX_THRESHOLD_DAYS, MIN_THRESHOLD_DAYS, useThresholdDays } from '../amnesty/amnesty.js'
 import { isValidTime, formatMinutes } from '../calendar/capacity.js'
 import { useCapacitySettings } from '../calendar/capacitySettings.js'
 import { saveConnection } from '../calendar/calendarStore.js'
@@ -41,6 +42,11 @@ export function SettingsRoute() {
   const calendar = useCalendar()
   const [capacity, setCapacity] = useCapacitySettings()
   const [shutdownTime, setShutdownTime] = useShutdownTime()
+  const [thresholdDays, setThresholdDays] = useThresholdDays()
+  // What's typed, so "45" can pass through "4" (below the minimum) on the
+  // way; it's stored once it's a valid number of days, and snaps back to
+  // the stored value on blur if it never became one.
+  const [thresholdDraft, setThresholdDraft] = useState<string | null>(null)
   const [edgeUrl, setEdgeUrl] = useState(calendar.connection.edgeUrl)
   const [deviceKey, setDeviceKey] = useState(calendar.connection.deviceKey)
   const [urlError, setUrlError] = useState<string | null>(null)
@@ -212,6 +218,46 @@ export function SettingsRoute() {
             }}
           />
         </label>
+      </section>
+
+      <section className={styles.section} aria-labelledby="fresh-start-settings">
+        <h2 id="fresh-start-settings" className={styles.sectionTitle}>
+          Fresh start
+        </h2>
+        <p className={styles.help}>
+          Tasks untouched for this long can be moved to Someday in one go, from Today. Tasks with a
+          date or deadline still ahead are never included.
+        </p>
+        <label className={styles.field}>
+          <span>Untouched for (days)</span>
+          <input
+            type="number"
+            min={MIN_THRESHOLD_DAYS}
+            max={MAX_THRESHOLD_DAYS}
+            step={1}
+            value={thresholdDraft ?? thresholdDays}
+            onChange={(event) => {
+              setThresholdDraft(event.target.value)
+              const days = Number(event.target.value)
+              if (
+                event.target.value !== '' &&
+                Number.isInteger(days) &&
+                days >= MIN_THRESHOLD_DAYS &&
+                days <= MAX_THRESHOLD_DAYS
+              ) {
+                setThresholdDays(days)
+              }
+            }}
+            onBlur={() => {
+              setThresholdDraft(null)
+            }}
+          />
+        </label>
+        <p className={styles.status}>
+          <Link to="/someday" className={styles.link}>
+            Open Someday
+          </Link>
+        </p>
       </section>
 
       <section className={styles.section} aria-labelledby="tools-settings">

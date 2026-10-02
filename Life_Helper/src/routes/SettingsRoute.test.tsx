@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CONNECTION_KEY, readCache, writeCache } from '../calendar/calendarStore'
 import { CAPACITY_SETTINGS_KEY } from '../calendar/capacitySettings'
+import { THRESHOLD_KEY } from '../amnesty/amnesty'
 import { RouterProvider } from '../ui/router'
 import { SettingsRoute } from './SettingsRoute'
 
@@ -118,6 +119,25 @@ describe('SettingsRoute: free time and reminder', () => {
     renderSettings()
     fireEvent.change(screen.getByLabelText('Remind me from'), { target: { value: '21:15' } })
     expect(window.localStorage.getItem('life-helper-shutdown-time')).toBe('21:15')
+  })
+})
+
+describe('SettingsRoute: fresh start threshold', () => {
+  it('stores whole days from 7 to 365, letting a number be typed through an invalid prefix', async () => {
+    const user = userEvent.setup({ delay: null })
+    renderSettings()
+    const input = screen.getByLabelText('Untouched for (days)')
+    expect(input).toHaveValue(30)
+    await user.clear(input)
+    await user.type(input, '45')
+    expect(input).toHaveValue(45)
+    expect(stored(THRESHOLD_KEY)).toBe(45)
+
+    await user.clear(input)
+    await user.type(input, '3')
+    expect(stored(THRESHOLD_KEY)).toBe(45)
+    await user.tab()
+    expect(input).toHaveValue(45)
   })
 })
 

@@ -10,7 +10,7 @@
 -- src/db/schema.test.ts to never drift from it: edit the migrations, not
 -- this file, and regenerate.
 --
--- Head migration: 0002_day_plans
+-- Head migration: 0003_amnesty
 
 CREATE TABLE items (
   id TEXT PRIMARY KEY,
@@ -161,6 +161,20 @@ CREATE TABLE day_plans (
   committed_at INTEGER,
   committed_via TEXT CHECK (committed_via IN ('shutdown', 'proposal')),
   shutdown_completed_at INTEGER,
+  hlc TEXT NOT NULL,
+  origin_device TEXT NOT NULL
+);
+
+ALTER TABLE task_fields ADD COLUMN amnesty_sweep_id TEXT;
+
+CREATE INDEX idx_task_fields_amnesty_sweep_id ON task_fields(amnesty_sweep_id);
+
+CREATE TABLE amnesty_sweeps (
+  id TEXT PRIMARY KEY,
+  swept_at INTEGER NOT NULL,
+  threshold_days INTEGER NOT NULL,
+  item_count INTEGER NOT NULL,
+  undone_at INTEGER,
   hlc TEXT NOT NULL,
   origin_device TEXT NOT NULL
 );

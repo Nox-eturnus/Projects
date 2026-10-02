@@ -6,6 +6,7 @@ import { InboxRoute } from './routes/InboxRoute'
 import { RevisitRoute } from './routes/RevisitRoute'
 import { SettingsRoute } from './routes/SettingsRoute'
 import { ShutdownRoute } from './routes/ShutdownRoute'
+import { SomedayRoute } from './routes/SomedayRoute'
 import { TodayRoute } from './routes/TodayRoute'
 import { AppShell } from './ui/AppShell'
 import { RouterProvider, Routes } from './ui/router'
@@ -23,6 +24,7 @@ function AppRoutes() {
         { path: '/capture', element: <CaptureRoute /> },
         { path: '/inbox', element: <InboxRoute /> },
         { path: '/revisit', element: <RevisitRoute /> },
+        { path: '/someday', element: <SomedayRoute /> },
         { path: '/settings', element: <SettingsRoute /> },
         { path: '/gallery', element: <GalleryRoute /> },
       ]}

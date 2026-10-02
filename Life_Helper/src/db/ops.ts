@@ -26,6 +26,7 @@ export type TableName =
   | 'person_fields'
   | 'note_fields'
   | 'day_plans'
+  | 'amnesty_sweeps'
 
 interface TableConfig {
   readonly primaryKey: readonly string[]
@@ -43,6 +44,10 @@ const TABLES: Record<TableName, TableConfig> = {
   person_fields: { primaryKey: ['item_id'], required: [] },
   note_fields: { primaryKey: ['item_id'], required: ['note_kind'] },
   day_plans: { primaryKey: ['day'], required: [] },
+  amnesty_sweeps: {
+    primaryKey: ['id'],
+    required: ['swept_at', 'threshold_days', 'item_count'],
+  },
 }
 
 export interface Write {
@@ -281,6 +286,7 @@ const MATERIALIZED_TABLES: readonly TableName[] = [
   'person_fields',
   'note_fields',
   'day_plans',
+  'amnesty_sweeps',
 ]
 
 export interface TableComparison {

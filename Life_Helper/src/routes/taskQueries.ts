@@ -25,6 +25,7 @@ export const INBOX_SQL = `
   FROM items
   LEFT JOIN task_fields ON task_fields.item_id = items.id
   WHERE items.kind = 'task' AND items.status = 'inbox' AND items.deleted_at IS NULL
+    AND COALESCE(task_fields.someday, 0) = 0
     AND ${NOT_DEFERRED_SQL}
   ORDER BY items.created_at DESC
 `
@@ -100,7 +101,89 @@ export const RECENT_CAPTURES_SQL = `
   SELECT items.id, items.title, items.created_at FROM items
   LEFT JOIN task_fields ON task_fields.item_id = items.id
   WHERE items.kind = 'task' AND items.status = 'inbox' AND items.deleted_at IS NULL
+    AND COALESCE(task_fields.someday, 0) = 0
     AND ${NOT_DEFERRED_SQL}
   ORDER BY items.created_at DESC
   LIMIT 5
+`
+
+/**
+ * When a task was last touched, for Part C5's decay: its newest op —
+ * any change to the item or its task fields, which share its id as
+ * `entity_id` — or its creation if it somehow has none. Flipping
+ * `someday` and tagging `amnesty_sweep_id` don't count: an amnesty sweep
+ * (or its undo) isn't the user working on the task, and if it counted,
+ * undoing a sweep would leave every task looking freshly touched instead
+ * of exactly as it was.
+ */
+const LAST_TOUCHED_SQL = `COALESCE(
+    (SELECT MAX(ops.created_at) FROM ops
+     WHERE ops.entity_id = items.id AND ops.field NOT IN ('someday', 'amnesty_sweep_id')),
+    items.created_at)`
+
+/**
+ * Part C5: every task an amnesty sweep would move to someday — open, not
+ * already someday, archived, or deferred, untouched since before `?3`, and
+ * with nothing that says it's still wanted: no date or deadline today or
+ * later. (A task planned for next month, or with a deadline coming up, was
+ * set up on purpose; age alone doesn't make it abandoned.) The same rows
+ * are both the count the confirmation shows and the ids the sweep writes.
+ *
+ * Params: [deferralCutoff(now), start of today, untouched-before instant].
+ */
+export const AMNESTY_ELIGIBLE_SQL = `
+  SELECT items.id, items.title, items.status
+  FROM items
+  LEFT JOIN task_fields ON task_fields.item_id = items.id
+  WHERE items.kind = 'task' AND items.deleted_at IS NULL
+    AND COALESCE(task_fields.someday, 0) = 0
+    AND ${NOT_ARCHIVED_SQL}
+    AND ${NOT_DEFERRED_SQL}
+    AND task_fields.completed_at IS NULL
+    AND (task_fields.scheduled_for IS NULL OR task_fields.scheduled_for < ?2)
+    AND (task_fields.due_at IS NULL OR task_fields.due_at < ?2)
+    AND ${LAST_TOUCHED_SQL} < ?3
+  ORDER BY items.created_at
+`
+
+/**
+ * The someday tier (Decision 4, Part C5): every someday task, newest
+ * first, or — when `?2` is a non-empty FTS5 query — only the ones matching
+ * it. Kept out of every other view and count; this is where they're found
+ * and brought back. Deferred ones are hidden here too, like everywhere.
+ *
+ * Params: [deferralCutoff(now), FTS5 query or ''].
+ */
+export const SOMEDAY_SQL = `
+  SELECT items.id, items.title, items.status, items.created_at, items.updated_at,
+         task_fields.due_at, task_fields.scheduled_for, task_fields.defer_until,
+         COALESCE(task_fields.touch_count, 0) AS touch_count, task_fields.last_touched_at,
+         task_fields.completed_at, task_fields.estimate_min, task_fields.amnesty_sweep_id
+  FROM items
+  JOIN task_fields ON task_fields.item_id = items.id
+  WHERE items.kind = 'task' AND items.deleted_at IS NULL
+    AND task_fields.someday = 1
+    AND task_fields.completed_at IS NULL
+    AND ${NOT_ARCHIVED_SQL}
+    AND ${NOT_DEFERRED_SQL}
+    AND (?2 = '' OR items.rowid IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?2))
+  ORDER BY items.created_at DESC
+`
+
+/** The newest sweep that hasn't been undone — Today offers its undo for 24 hours. */
+export const LATEST_SWEEP_SQL = `
+  SELECT id, swept_at, threshold_days, item_count, undone_at
+  FROM amnesty_sweeps
+  WHERE undone_at IS NULL
+  ORDER BY swept_at DESC
+  LIMIT 1
+`
+
+/**
+ * The tasks a sweep moved that are still in someday — what its undo
+ * restores. One brought back by hand since then is no longer tagged (see
+ * planBringBack()), so undo leaves it alone. Params: [sweep id].
+ */
+export const SWEPT_ITEMS_SQL = `
+  SELECT item_id FROM task_fields WHERE amnesty_sweep_id = ? AND someday = 1
 `

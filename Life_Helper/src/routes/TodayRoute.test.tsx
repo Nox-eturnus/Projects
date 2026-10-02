@@ -65,8 +65,16 @@ function plan(ids: [string, string?, string?], overrides: Partial<DayPlanRow> = 
   }
 }
 
-function serve(data: { tasks?: DayTask[]; plans?: DayPlanRow[]; lastActiveAt?: number }) {
+function serve(data: {
+  tasks?: DayTask[]
+  plans?: DayPlanRow[]
+  lastActiveAt?: number
+  /** Rows for Part C5's amnesty-eligible query. */
+  oldTasks?: { id: string; title: string; status: string }[]
+}) {
   queryMock.mockImplementation((sql: string) => {
+    if (sql.includes('FROM amnesty_sweeps')) return Promise.resolve([])
+    if (sql.includes("'amnesty_sweep_id'")) return Promise.resolve(data.oldTasks ?? [])
     if (sql.includes('FROM day_plans')) return Promise.resolve(data.plans ?? [])
     if (sql.includes('FROM ops')) {
       return Promise.resolve([{ last_active_at: data.lastActiveAt ?? Date.now() }])
@@ -118,6 +126,32 @@ describe('TodayRoute: empty', () => {
       .setup({ delay: null })
       .click(screen.getByRole('button', { name: 'Capture something' }))
     expect(window.location.pathname).toBe('/capture')
+  })
+})
+
+describe('TodayRoute: fresh start (Part C5)', () => {
+  it('is one action from Today — even when Today itself is empty', async () => {
+    serve({
+      oldTasks: [
+        { id: 'a', title: 'Old idea', status: 'active' },
+        { id: 'b', title: 'Older idea', status: 'inbox' },
+      ],
+    })
+    renderToday()
+    expect(await screen.findByText(/Nothing lined up for today/)).toBeInTheDocument()
+    const u = userEvent.setup({ delay: null })
+    await u.click(await screen.findByRole('button', { name: 'Fresh start' }))
+    await u.click(screen.getByRole('button', { name: 'Move 2 to Someday', hidden: true }))
+    expect(lastMutate().writes.filter((w) => w.table === 'task_fields')).toHaveLength(2)
+    // Undoable at once from Today's own toast.
+    expect(screen.getByText('Moved to Someday')).toBeInTheDocument()
+  })
+
+  it('stays out of the way when nothing is old enough', async () => {
+    serve({ tasks: [task('Today task')] })
+    renderToday()
+    await screen.findByText('Today task')
+    expect(screen.queryByRole('button', { name: 'Fresh start' })).toBeNull()
   })
 })
 
