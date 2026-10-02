@@ -265,12 +265,17 @@ export function SettingsRoute() {
           Tools
         </h2>
         <p className={styles.help}>
-          The component gallery, with its colour-contrast table and the ops replay check for the
-          usage log.
+          The component gallery (colour contrast, and the ops replay check), and the Today gate
+          report — both for the usage log.
         </p>
         <p className={styles.status}>
           <Link to="/gallery" className={styles.link}>
             Open the gallery
+          </Link>
+        </p>
+        <p className={styles.status}>
+          <Link to="/gate" className={styles.link}>
+            Today gate report
           </Link>
         </p>
       </section>

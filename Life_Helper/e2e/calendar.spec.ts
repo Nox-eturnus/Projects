@@ -147,7 +147,7 @@ test('events render on Today, with free time worked out around them', async ({ p
   await seedTask(page, 'Write the report', 90)
   await connect(page)
 
-  await page.getByRole('link', { name: 'Today' }).click()
+  await page.getByRole('link', { name: 'Today', exact: true }).click()
   await expect(calendar(page).getByText('Team standup')).toBeVisible()
   await expect(calendar(page).getByText('Dentist')).toBeVisible()
   await expect(calendar(page).getByText(/^Updated/)).toBeVisible()
@@ -181,7 +181,7 @@ test('Today renders fully offline from the cache, with a visible staleness indic
 test('a revoked Google grant produces a clear reconnect prompt, not a crash', async ({ page }) => {
   await seedTask(page, 'Write the report', 30)
   await connect(page)
-  await page.getByRole('link', { name: 'Today' }).click()
+  await page.getByRole('link', { name: 'Today', exact: true }).click()
   await expect(calendar(page).getByText('Team standup')).toBeVisible()
 
   edge.google = 'revoked'

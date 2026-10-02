@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
+import { recordCalendarRefresh } from '../gate/gateLog.js'
 import { useLocalValue } from '../lib/localStore.js'
 import {
   CACHE_KEY,
@@ -42,7 +43,10 @@ function refresh(connection: CalendarConnection, force: boolean): void {
         // Re-read: the connection may have changed while the request was
         // out, and saveConnection() cleared the cache — a late answer from
         // the old one mustn't resurrect it.
-        writeCache(nextCache(readCache(), result, range, Date.now()))
+        const done = Date.now()
+        writeCache(nextCache(readCache(), result, range, done))
+        // Part C6: "calendar sync survives a full week" is measured from these.
+        recordCalendarRefresh(result.ok ? null : result.problem, done)
       })
       .finally(() => {
         setInFlight(null)

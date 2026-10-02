@@ -11,6 +11,7 @@
  *   mutate() would write ops for every refresh and replicate them to
  *   every other device in Phase D for nothing.
  */
+import { recordConnectionSaved } from '../gate/gateLog.js'
 import type { CalendarEvent } from '../../edge/src/contract.js'
 import { readLocal, writeLocal } from '../lib/localStore.js'
 
@@ -116,4 +117,6 @@ export function writeCache(cache: CalendarCache): void {
 export function saveConnection(connection: CalendarConnection | undefined): void {
   writeLocal(CONNECTION_KEY, connection)
   writeLocal(CACHE_KEY, undefined)
+  // Part C6 counts this as manual intervention in the calendar's week.
+  recordConnectionSaved(Date.now())
 }

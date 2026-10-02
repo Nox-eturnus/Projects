@@ -127,6 +127,6 @@ test('someday: searchable, and one task can be brought back on its own', async (
   await expect(page.getByText('Brought back to today')).toBeVisible()
   await expect(page.getByRole('main').getByRole('listitem')).toHaveCount(1)
 
-  await page.getByRole('link', { name: 'Today' }).click()
+  await page.getByRole('link', { name: 'Today', exact: true }).click()
   await expect(page.getByText('Old plan to paint the fence')).toBeVisible()
 })

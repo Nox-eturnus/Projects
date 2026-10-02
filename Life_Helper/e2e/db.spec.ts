@@ -86,7 +86,15 @@ test('data survives a full browser process restart against the same on-disk prof
       await context2.close()
     }
   } finally {
-    rmSync(userDataDir, { recursive: true, force: true })
+    // Windows can keep the closed browser's profile files locked for a few
+    // seconds (EPERM). Removing a temp directory isn't what this test checks,
+    // so cleanup is best-effort rather than a failure after its assertions
+    // passed; the OS clears its temp folder on its own.
+    try {
+      rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+    } catch {
+      // Left for the OS to clean up.
+    }
   }
 })
 

@@ -74,7 +74,7 @@ test('Revisit ranks by moves, then age, and do it now puts a task in today’s t
   await expect(page.getByText("Added to today's three")).toBeVisible()
   await expect(card(page, 'Call the insurer')).toHaveCount(0)
 
-  await page.getByRole('link', { name: 'Today' }).click()
+  await page.getByRole('link', { name: 'Today', exact: true }).click()
   const three = page.getByRole('region', { name: 'Your three' })
   await expect(three.getByText('Call the insurer')).toBeVisible()
 
@@ -109,7 +109,7 @@ test('break it down: the steps land on today, the original leaves; undo puts it 
   await sheet.getByRole('button', { name: 'Break it down' }).click()
   await expect(page.getByText('Replaced with 1 step')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Today' }).click()
+  await page.getByRole('link', { name: 'Today', exact: true }).click()
   await expect(page.getByText('Clear the shelves')).toBeVisible()
   await expect(page.getByText('Sort out the garage')).toHaveCount(0)
 })
@@ -136,7 +136,7 @@ test('let it go: someday takes it out of Revisit and Today; undo brings it back'
     .getByRole('dialog', { name: 'Let it go' })
     .getByRole('button', { name: 'Move to someday' })
     .click()
-  await page.getByRole('link', { name: 'Today' }).click()
+  await page.getByRole('link', { name: 'Today', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible()
   await expect(page.getByText('Renew passport')).toHaveCount(0)
 })

@@ -89,6 +89,28 @@ condition).
 
 ---
 
-## Part C6 — Today gate (for later)
+## Part C6 — Today gate
 
-Same format, 14 consecutive days. Not started — Phase C hasn't begun.
+Conditions, from `life_helper_implementation_plan_v1.md`'s Part C6. Unlike
+B4, each one is measured on the phone, by Settings → **Today gate
+report** (`/gate`). That page shows the evidence and a report to paste
+below. See `docs/phase_C6_today_gate.md` for how each is measured.
+
+| #   | Condition                                                       | Status                                                                   |
+| --- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 1   | Today renders in under 1.5s cold start on a real Android device | ⏳ pending — needs 3+ cold starts from the home-screen icon              |
+| 2   | Calendar sync survives a full week without manual intervention  | ⏳ pending — connected 2026-10-02; recording starts with this build      |
+| 3   | Shutdown ritual completed on at least 5 of 7 days               | ⏳ pending                                                               |
+| 4   | 14 consecutive days meeting the Definition of "used"            | ⏳ pending — 14 days in a row, each with something captured or completed |
+| 5   | At least one amnesty sweep (fresh start) performed on real data | ⏳ pending                                                               |
+
+**Do not proceed to Phase D until every row is checked.** If the usage
+condition fails twice, apply the Decision 12 stop rule: redesign Today
+rather than proceeding.
+
+### Gate report
+
+Paste the report from `/gate` here (Copy report), with the date it was
+run. Run it on the phone, since it reads that device's own data.
+
+_Not run yet._

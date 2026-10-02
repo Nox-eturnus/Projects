@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FreshStart } from '../amnesty/FreshStart.js'
+import { useRecordColdStart } from '../gate/useGateRecorders.js'
 import { commitmentOf, computeCapacity } from '../calendar/capacity.js'
 import { useCapacitySettings } from '../calendar/capacitySettings.js'
 import { coversDay } from '../calendar/calendarSync.js'
@@ -91,6 +92,8 @@ export function TodayRoute() {
   const calendar = useCalendar()
   const [capacitySettings] = useCapacitySettings()
   const now = useNow()
+  // Part C6's cold-start measurement: navigation start → Today with its data.
+  useRecordColdStart(!tasksQuery.loading && !plansQuery.loading)
 
   const header = (
     <header className={styles.header}>
